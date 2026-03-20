@@ -12,7 +12,7 @@ export default function ServiceSelectionSection({
   const [activeService, setActiveService] = useState(null);
   const [collapsed, setCollapsed] = useState({});
   const [hoveredCategory, setHoveredCategory] = useState(null);
-  const [preHoverSelection, setPreHoverSelection] = useState({});
+  // const [preHoverSelection, setPreHoverSelection] = useState({});
   const hoverTimeoutRef = useRef(null);
   const isClickingRef = useRef(false);
 
@@ -132,147 +132,142 @@ export default function ServiceSelectionSection({
 
                 const visibleServices =
                   hoveredCategory === category.id
-                    ? preHoverSelection[category.id]
-                      ? (hasSelection ? selectedServices : category.services)
-                      : category.services
+                    ? category.services
                     : selectedServices;
 
                 return (
                   <div className="py-1">
-                  <div
-                    key={category.id}
-                    onMouseEnter={() => {
-                      if (hoverTimeoutRef.current) {
-                        clearTimeout(hoverTimeoutRef.current);
-                      }
-
-                      const selectedServices = category.services.filter(s => services?.[s.key]);
-
-                      setPreHoverSelection(prev => ({
-                        ...prev,
-                        [category.id]: selectedServices.length > 0
-                      }));
-
-                      setHoveredCategory(category.id);
-                    }}
-                    onMouseLeave={() => {
-                      if (isClickingRef.current) return;
-
-                      hoverTimeoutRef.current = setTimeout(() => {
-                        setHoveredCategory(null);
-                      }, 300); // 👈 key fix (adjust 100–200ms)
-                    }}
-                    className="relative border border-gray-200 rounded-xl overflow-hidden shadow-sm group"
-                  >
-                    <div className="absolute left-0 right-0 h-3 bottom-[-12px]" />
-                    {/* CATEGORY HEADER */}
                     <div
-                      onClick={() => toggleCategory(category.id)}
-                      className="flex items-center justify-between px-3 py-2 cursor-pointer bg-gray-50 rounded-t-xl"
+                      key={category.id}
+                      onMouseEnter={() => {
+                        if (hoverTimeoutRef.current) {
+                          clearTimeout(hoverTimeoutRef.current);
+                        }
+
+                        setHoveredCategory(category.id);
+                      }}
+                      onMouseLeave={() => {
+                        if (isClickingRef.current) return;
+
+                        hoverTimeoutRef.current = setTimeout(() => {
+                          setHoveredCategory(null);
+                        }, 300);
+                      }}
+                      className="relative border border-gray-200 rounded-xl overflow-hidden shadow-sm group"
                     >
-                      <div className="flex items-center gap-2">
-                        <span>{category.icon}</span>
-                        <span className="text-sm font-semibold">{category.name}</span>
+                      <div className="absolute left-0 right-0 h-3 bottom-[-12px]" />
+                      {/* CATEGORY HEADER */}
+                      <div
+                        onClick={() => toggleCategory(category.id)}
+                        className="flex items-center justify-between px-3 py-2 cursor-pointer bg-gray-50 rounded-t-xl"
+                      >
+                        <div className="flex items-center gap-2">
+                          <span>{category.icon}</span>
+                          <span className="text-sm font-semibold">{category.name}</span>
+                        </div>
+
+                        <svg
+                          className={`w-4 h-4 transition-transform ${hoveredCategory === category.id || hasSelection
+                            ? "rotate-180"
+                            : ""
+                            }`}
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
                       </div>
 
-                      <svg
-                        className={`w-4 h-4 transition-transform ${hoveredCategory === category.id ? "rotate-180" : ""
+                      {/* SERVICES */}
+                      <div
+                        className={`p-2 space-y-2 transition-all ${hoveredCategory === category.id || hasSelection
+                          ? "block"
+                          : "hidden"
                           }`}
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
                       >
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                      </svg>
-                    </div>
+                        {visibleServices.length === 0 && isCollapsed && (
+                          <div className="text-xs text-gray-400">No selected services</div>
+                        )}
 
-                    {/* SERVICES */}
-                    <div
-                      className={`p-2 space-y-2 transition-all ${hoveredCategory === category.id ? "block" : "hidden"
-                        }`}
-                    >
-                      {visibleServices.length === 0 && isCollapsed && (
-                        <div className="text-xs text-gray-400">No selected services</div>
-                      )}
+                        {visibleServices.map(service => {
+                          const isSelected = Boolean(services?.[service.key]);
 
-                      {visibleServices.map(service => {
-                        const isSelected = Boolean(services?.[service.key]);
+                          return (
+                            <div
+                              key={service.id}
+                              onMouseDown={() => {
+                                isClickingRef.current = true;
+                              }}
 
-                        return (
-                          <div
-                            key={service.id}
-                            onMouseDown={() => {
-                              isClickingRef.current = true;
-                            }}
+                              onClick={() => {
+                                const willSelect = !isSelected;
 
-                            onClick={() => {
-                              const willSelect = !isSelected;
-
-                              onCheckboxChange({
-                                target: {
-                                  name: service.key,
-                                  checked: willSelect
-                                }
-                              });
-
-                              // 🟢 IMPORTANT FIX
-                              setTimeout(() => {
-                                const updatedSelected = category.services.filter(s => {
-                                  if (s.key === service.key) return willSelect;
-                                  return services?.[s.key];
+                                onCheckboxChange({
+                                  target: {
+                                    name: service.key,
+                                    checked: willSelect
+                                  }
                                 });
 
-                                if (updatedSelected.length === 0) {
-                                  // reset state when no selection
-                                  setPreHoverSelection(prev => ({
-                                    ...prev,
-                                    [category.id]: false
-                                  }));
-                                }
+                                // 🟢 IMPORTANT FIX
+                                setTimeout(() => {
+                                  const updatedSelected = category.services.filter(s => {
+                                    if (s.key === service.key) return willSelect;
+                                    return services?.[s.key];
+                                  });
 
-                                isClickingRef.current = false;
-                              }, 0);
-                            }}
-                            className={`flex items-center gap-2 p-2 rounded-lg border cursor-pointer transition
-        ${isSelected
-                                ? "border-purple-500 bg-purple-50"
-                                : "border-gray-200 hover:border-purple-300"}`}
-                          >
-                            <div
-                              className={`w-4 h-4 rounded border-2 flex items-center justify-center
-                ${isSelected ? "border-purple-500 bg-purple-500" : "border-gray-300"}`}
-                            >
-                              {isSelected && (
-                                <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                                </svg>
-                              )}
-                            </div>
+                                  if (updatedSelected.length === 0) {
+                                    // reset state when no selection
+                                    setPreHoverSelection(prev => ({
+                                      ...prev,
+                                      [category.id]: false
+                                    }));
+                                  }
 
-                            <div className="flex-1 min-w-0">
-                              <div className="text-xs font-medium truncate">{service.name}</div>
-                              <div className="text-xs text-gray-500">{service.duration} min</div>
-                            </div>
-
-                            <div className="text-xs font-semibold text-green-600">
-                              ${parseFloat(service.price).toFixed(2)}
-                            </div>
-
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setActiveService(service);
+                                  isClickingRef.current = false;
+                                }, 0);
                               }}
-                              className="p-1 text-gray-400 hover:text-purple-600"
+                              className={`flex items-center gap-2 p-2 rounded-lg border cursor-pointer transition
+        ${isSelected
+                                  ? "border-purple-500 bg-purple-50"
+                                  : "border-gray-200 hover:border-purple-300"}`}
                             >
-                              <Info className="w-4 h-4" />
-                            </button>
-                          </div>
-                        );
-                      })}
+                              <div
+                                className={`w-4 h-4 rounded border-2 flex items-center justify-center
+                ${isSelected ? "border-purple-500 bg-purple-500" : "border-gray-300"}`}
+                              >
+                                {isSelected && (
+                                  <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                  </svg>
+                                )}
+                              </div>
+
+                              <div className="flex-1 min-w-0">
+                                <div className="text-xs font-medium truncate">{service.name}</div>
+                                <div className="text-xs text-gray-500">{service.duration} min</div>
+                              </div>
+
+                              <div className="text-xs font-semibold text-green-600">
+                                ${parseFloat(service.price).toFixed(2)}
+                              </div>
+
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setActiveService(service);
+                                }}
+                                className="p-1 text-gray-400 hover:text-purple-600"
+                              >
+                                <Info className="w-4 h-4" />
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
-                  </div>
                   </div>
                 );
 
