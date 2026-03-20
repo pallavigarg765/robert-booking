@@ -456,6 +456,10 @@ function ProviderCard({
 }) {
   const [isHovered, setIsHovered] = useState(false);
   const [showDescription, setShowDescription] = useState(false);
+  const hasAnySelection = Boolean(selectedProvider);
+
+  const isExpanded =
+    isSelected || (!hasAnySelection && isHovered);
   // ---- GET PROVIDER CATEGORIES ----
   const getProviderCategories = () => {
     if (!categories?.length || !provider?.services?.length) return [];
@@ -503,22 +507,15 @@ function ProviderCard({
       <div
         className={`p-3 rounded-xl border-2 cursor-pointer transition-all duration-300
   ${isSelected ? "border-indigo-500 bg-indigo-50" : "border-gray-200 hover:border-indigo-300"}
-${isHovered
+${isExpanded
             ? "flex flex-col items-center text-center"
             : "flex items-start gap-3"}`}
         onMouseEnter={() => {
-          if (selectedProvider) {
-            onHover(null); // clear hover state
-            return;
-          }
-
           setIsHovered(true);
           onHover(provider);
         }}
 
         onMouseLeave={() => {
-          if (selectedProvider) return;
-
           setIsHovered(false);
           onHover(null);
         }}
@@ -529,12 +526,11 @@ ${isHovered
         }}
       >
         <div
-          className={`w-full ${isHovered
+          className={`w-full ${isExpanded
             ? "flex flex-col items-center text-center"
-            : "flex items-start gap-3"
-            }`}
+            : "flex items-start gap-3"}`}
         >
-          {(isHovered || !selectedProvider || isSelected) && (
+          {(!selectedProvider || isSelected) && (
             <img
               src={
                 provider.picture_path
@@ -542,16 +538,16 @@ ${isHovered
                   : "/images/placeholder.jpg"
               }
               className={`object-cover rounded-xl transition-all duration-300
-${isHovered ? "w-full h-40 mb-3" : "w-16 h-16"}
+${isExpanded ? "w-full h-40 mb-3" : "w-16 h-16"}
 `}
             />
           )}
 
-          <div className={`${isHovered ? "w-full text-center" : "flex-1 min-w-0"}`}>
+          <div className={`${isExpanded  ? "w-full text-center" : "flex-1 min-w-0"}`}>
 
             {/* NAME */}
             <div
-              className={`${isHovered
+              className={`${isExpanded
                 ? "flex justify-center items-center gap-1"
                 : "flex items-center"
                 }`}

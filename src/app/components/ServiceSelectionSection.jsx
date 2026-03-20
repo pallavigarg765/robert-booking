@@ -1,5 +1,5 @@
 import { Info, X } from "lucide-react";
-import { useState } from "react";
+import { useState, useRef } from "react";
 
 export default function ServiceSelectionSection({
   categories = [],
@@ -12,6 +12,9 @@ export default function ServiceSelectionSection({
   const [activeService, setActiveService] = useState(null);
   const [collapsed, setCollapsed] = useState({});
   const [hoveredCategory, setHoveredCategory] = useState(null);
+  const [preHoverSelection, setPreHoverSelection] = useState({});
+  const hoverTimeoutRef = useRef(null);
+  const isClickingRef = useRef(false);
 
   const provider = providers.filter((item) => {
     return item.id == selectedProvider
@@ -112,7 +115,7 @@ export default function ServiceSelectionSection({
       </div> */}
 
         <div className="space-y-2">
-          <div className="space-y-3">
+          <div>
 
             {[...categories]
               .sort((a, b) => {
@@ -125,19 +128,43 @@ export default function ServiceSelectionSection({
                 const isCollapsed = collapsed[category.id];
                 const selectedServices = category.services.filter(s => services?.[s.key]);
 
+                const hasSelection = selectedServices.length > 0;
+
                 const visibleServices =
-                  selectedServices.length === 0
-                    ? category.services
-                    : hoveredCategory === category.id
-                      ? category.services
-                      : selectedServices;
+                  hoveredCategory === category.id
+                    ? preHoverSelection[category.id]
+                      ? (hasSelection ? selectedServices : category.services)
+                      : category.services
+                    : selectedServices;
+
                 return (
+                  <div className="py-1">
                   <div
                     key={category.id}
-                    onMouseEnter={() => setHoveredCategory(category.id)}
-                    onMouseLeave={() => setHoveredCategory(null)}
-                    className="border border-gray-200 rounded-xl overflow-hidden shadow-sm group"
+                    onMouseEnter={() => {
+                      if (hoverTimeoutRef.current) {
+                        clearTimeout(hoverTimeoutRef.current);
+                      }
+
+                      const selectedServices = category.services.filter(s => services?.[s.key]);
+
+                      setPreHoverSelection(prev => ({
+                        ...prev,
+                        [category.id]: selectedServices.length > 0
+                      }));
+
+                      setHoveredCategory(category.id);
+                    }}
+                    onMouseLeave={() => {
+                      if (isClickingRef.current) return;
+
+                      hoverTimeoutRef.current = setTimeout(() => {
+                        setHoveredCategory(null);
+                      }, 300); // 👈 key fix (adjust 100–200ms)
+                    }}
+                    className="relative border border-gray-200 rounded-xl overflow-hidden shadow-sm group"
                   >
+                    <div className="absolute left-0 right-0 h-3 bottom-[-12px]" />
                     {/* CATEGORY HEADER */}
                     <div
                       onClick={() => toggleCategory(category.id)}
@@ -149,7 +176,8 @@ export default function ServiceSelectionSection({
                       </div>
 
                       <svg
-                        className={`w-4 h-4 transition-transform ${isCollapsed ? "" : "rotate-180"}`}
+                        className={`w-4 h-4 transition-transform ${hoveredCategory === category.id ? "rotate-180" : ""
+                          }`}
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24"
@@ -160,7 +188,8 @@ export default function ServiceSelectionSection({
 
                     {/* SERVICES */}
                     <div
-                      className={`p-2 space-y-2 transition-all ${hoveredCategory === category.id ? "block" : "hidden"}`}
+                      className={`p-2 space-y-2 transition-all ${hoveredCategory === category.id ? "block" : "hidden"
+                        }`}
                     >
                       {visibleServices.length === 0 && isCollapsed && (
                         <div className="text-xs text-gray-400">No selected services</div>
@@ -172,14 +201,38 @@ export default function ServiceSelectionSection({
                         return (
                           <div
                             key={service.id}
-                            onClick={() =>
+                            onMouseDown={() => {
+                              isClickingRef.current = true;
+                            }}
+
+                            onClick={() => {
+                              const willSelect = !isSelected;
+
                               onCheckboxChange({
                                 target: {
                                   name: service.key,
-                                  checked: !isSelected
+                                  checked: willSelect
                                 }
-                              })
-                            }
+                              });
+
+                              // 🟢 IMPORTANT FIX
+                              setTimeout(() => {
+                                const updatedSelected = category.services.filter(s => {
+                                  if (s.key === service.key) return willSelect;
+                                  return services?.[s.key];
+                                });
+
+                                if (updatedSelected.length === 0) {
+                                  // reset state when no selection
+                                  setPreHoverSelection(prev => ({
+                                    ...prev,
+                                    [category.id]: false
+                                  }));
+                                }
+
+                                isClickingRef.current = false;
+                              }, 0);
+                            }}
                             className={`flex items-center gap-2 p-2 rounded-lg border cursor-pointer transition
         ${isSelected
                                 ? "border-purple-500 bg-purple-50"
@@ -219,6 +272,7 @@ export default function ServiceSelectionSection({
                         );
                       })}
                     </div>
+                  </div>
                   </div>
                 );
 

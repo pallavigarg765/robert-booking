@@ -958,8 +958,8 @@ export default function FindBooking({ providers, events, locations, clients, cat
           <div className="bg-white rounded-2xl shadow-lg flex flex-col h-[650px]">
             <div className="px-4 py-3 bg-purple-50">
               <h3 className="text-lg font-bold">
-                {selectedProviderObj
-                  ? `${cleanName(selectedProviderObj.name)}'s Services`
+                {activeProvider
+                  ? `${cleanName(activeProvider.name)}'s Services`
                   : "Services"}
               </h3>
             </div>
