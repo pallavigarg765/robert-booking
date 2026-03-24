@@ -151,6 +151,23 @@ export default function FindBooking({ providers, events, locations, clients, cat
   const handleProviderSelect = (providerId) => {
     setSelectedProvider(providerId);
     setSelectedServices([]); // Reset selected services
+
+    Object.keys(services).forEach((key) => {
+      if (services[key]) {
+        handleCheckboxChange({
+          target: {
+            name: key,
+            checked: false,
+          },
+        });
+      }
+    });
+
+    // reset downstream steps
+    setSelectedDate(null);
+    setSelectedTime("");
+
+
     setActiveStep(2); // Move to Services step
   };
 
