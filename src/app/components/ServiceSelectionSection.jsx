@@ -136,10 +136,11 @@ export default function ServiceSelectionSection({
                     : selectedServices;
 
                 return (
-                  <div className="py-1">
-                    <div
-                      key={category.id}
-                      onMouseEnter={() => {
+    <div key={category.id} className="py-1">
+      <div
+        // key={category.id}
+      // >
+                              onMouseEnter={() => {
                         if (hoverTimeoutRef.current) {
                           clearTimeout(hoverTimeoutRef.current);
                         }

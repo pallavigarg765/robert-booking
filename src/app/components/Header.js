@@ -1,24 +1,26 @@
 "use client";
- 
+
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import { Menu, X } from "lucide-react";
 import { useRouter } from "next/navigation";
- 
-export default function Header() {
+import { usePathname } from "next/navigation";
+
+export default function Header({ setActiveSection, activeSection }) {
   const [isOpen, setIsOpen] = useState(false);
   const [hasUser, setHasUser] = useState(false);
   const router = useRouter();
+  const pathname = usePathname();
 
- 
+
   useEffect(() => {
     const checkUser = () => {
       const user = sessionStorage.getItem("userAuth");
       setHasUser(!!user);
     };
- 
+
     checkUser();
- 
+
     // Listen for changes to sessionStorage (from other parts of app)
     window.addEventListener("storage", checkUser);
     window.addEventListener("session-changed", checkUser); // custom event trigger
@@ -27,38 +29,40 @@ export default function Header() {
       window.removeEventListener("session-changed", checkUser);
     };
   }, []);
- 
- 
- 
+
+
+
   const navItems = [
-    { label: "Home", href: "/" },
-    { label: "About", href: "/about" },
-    { label: "Services", href: "/services" },
-    { label: "Contact", href: "/contact" },
-    { label: "Notify-Users", href: "/notify" },
+    // { label: "Home", href: "/" },
+    // { label: "About", href: "/about" },
+    // { label: "Services", href: "/services" },
+    // { label: "Contact", href: "/contact" },
+    // { label: "Notify-Users", href: "/notify" },
+    { label: "Find Services", key: "find" },
+    { label: "Schedule Services", key: "schedule" },
   ];
- 
+
   // Add "Past Bookings" if user is logged in
   const updatedNavItems = hasUser
     ? [...navItems, { label: "Past Bookings", href: "/past-bookings" }]
     : navItems;
- 
+
   const handleBackToHome = () => {
-  // Clear all session storage
-  sessionStorage.clear();
-  
-  // Dispatch a custom event that the FindBooking component can listen to
-  window.dispatchEvent(new CustomEvent('reset-booking-form'));
-  
-  // If we're already on the home page, just reload to reset state
-  if (window.location.pathname === '/') {
-    window.location.reload();
-  } else {
-    // Otherwise navigate to home
-    window.location.href = '/';
-  }
-};
- 
+    // Clear all session storage
+    sessionStorage.clear();
+
+    // Dispatch a custom event that the FindBooking component can listen to
+    window.dispatchEvent(new CustomEvent('reset-booking-form'));
+
+    // If we're already on the home page, just reload to reset state
+    if (window.location.pathname === '/') {
+      window.location.reload();
+    } else {
+      // Otherwise navigate to home
+      window.location.href = '/';
+    }
+  };
+
   return (
     <header className="bg-white shadow-md fixed top-0 left-0 w-full z-[999999]">
       <div className="max-w-7xl mx-auto flex items-center justify-between px-6 py-4">
@@ -68,21 +72,23 @@ export default function Header() {
         >
           BellyCast
         </button>
- 
- 
+
+
         {/* Desktop Menu */}
         <nav className="hidden md:flex gap-6">
-          {updatedNavItems.map((item, idx) => (
-            <Link
+          {navItems.map((item, idx) => (
+            <button
               key={idx}
-              href={item.href}
-              className="text-gray-700 hover:text-blue-600 transition"
+              onClick={() => setActiveSection(item.key)}
+              className={`transition ${activeSection === item.key
+                  ? "text-blue-600 font-semibold"
+                  : "text-gray-700 hover:text-blue-600"
+                }`}
             >
               {item.label}
-            </Link>
+            </button>
           ))}
         </nav>
- 
         {/* CTA Button */}
         <div className="hidden md:block">
           <button
@@ -92,7 +98,7 @@ export default function Header() {
             Back to Home
           </button>
         </div>
- 
+
         {/* Mobile Menu Button */}
         <button
           className="md:hidden text-gray-700"
@@ -101,7 +107,7 @@ export default function Header() {
           {isOpen ? <X size={28} /> : <Menu size={28} />}
         </button>
       </div>
- 
+
       {/* Mobile Dropdown */}
       {isOpen && (
         <div className="md:hidden bg-white shadow-md px-6 py-4 space-y-4">

@@ -1,6 +1,9 @@
 import { useState, useEffect, useRef } from "react";
 import { ChevronLeft, ChevronRight, Clock } from "lucide-react";
-
+import {
+    ChevronsLeft,
+    ChevronsRight
+} from "lucide-react";
 export default function AvailabilitySection({
     scrollContainerRef,
     workCalandar,
@@ -20,7 +23,9 @@ export default function AvailabilitySection({
     const [dayTimeRanges, setDayTimeRanges] = useState({});
     const dayRefs = useRef({});
     const SLOT_INTERVAL = 30;
+    const [viewMode, setViewMode] = useState("weekNav");
 
+    const [lastWeekAnchor, setLastWeekAnchor] = useState(null);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
@@ -96,6 +101,52 @@ export default function AvailabilitySection({
     }, [selectedDate, slots]);
 
 
+    const buildMonthGrid = (monthDate) => {
+        if (!workCalandar) return [];
+        const start = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1);
+        const end = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0);
+
+        const startDay = (start.getDay() + 6) % 7; // make Monday first
+        const daysInMonth = end.getDate();
+
+        const grid = [];
+        let week = [];
+
+        // empty cells before month starts
+        for (let i = 0; i < startDay; i++) {
+            week.push(null);
+        }
+
+        for (let d = 1; d <= daysInMonth; d++) {
+            const date = new Date(monthDate.getFullYear(), monthDate.getMonth(), d);
+            const key = getLocalDateKey(date);
+            const dayInfo = workCalandar?.[key];
+            const isDayOff =
+                !dayInfo ||
+                dayInfo.is_day_off === 1 ||
+                dayInfo.is_day_off === "1" ||
+                dayInfo.is_day_off === true;
+
+            const isPast = date < today;
+
+            week.push({
+                date,
+                key,
+                isAvailable: !isDayOff && !isPast,
+                isPast,
+            });
+
+            if (week.length === 7) {
+                grid.push(week);
+                week = [];
+            }
+        }
+
+        if (week.length) grid.push(week);
+
+        return grid;
+    };
+
     /* =========================
        BUILD WEEKS (MONTH BASED)
        ========================= */
@@ -109,7 +160,7 @@ export default function AvailabilitySection({
         const cursor = new Date(start);
 
         // build ~3 months of weeks
-        for (let w = 0; w < 52; w++){
+        for (let w = 0; w < 52; w++) {
             const week = [];
 
             for (let d = 0; d < 7; d++) {
@@ -117,8 +168,7 @@ export default function AvailabilitySection({
                 date.setHours(0, 0, 0, 0);
 
                 const key = getLocalDateKey(date);
-                const dayInfo = workCalandar[key];
-
+                const dayInfo = workCalandar?.[key];
                 const isDayOff =
                     !dayInfo ||
                     dayInfo.is_day_off === 1 ||
@@ -157,30 +207,105 @@ export default function AvailabilitySection({
         return new Date(midDay.getFullYear(), midDay.getMonth(), 1);
     };
 
+
+    const findWeekIndexByDate = (date) => {
+        return weeks.findIndex(week =>
+            week.some(day =>
+                day.date.getFullYear() === date.getFullYear() &&
+                day.date.getMonth() === date.getMonth() &&
+                day.date.getDate() === date.getDate()
+            )
+        );
+    };
+
     /* =========================
        HANDLERS
        ========================= */
     const handleMonthChange = (dir) => {
+        let tempMonth = new Date(currentMonth);
 
-        const next = new Date(currentMonth);
+        while (true) {
+            if (dir === "prev") {
+                tempMonth.setMonth(tempMonth.getMonth() - 1);
+            } else {
+                tempMonth.setMonth(tempMonth.getMonth() + 1);
+            }
 
-        if (dir === "prev") {
-            next.setMonth(next.getMonth() - 1);
-        } else {
-            next.setMonth(next.getMonth() + 1);
-        }
+            // Stop if out of range (safety)
+            const yearDiff = Math.abs(tempMonth.getFullYear() - today.getFullYear());
+            if (yearDiff > 2) return;
 
-        setCurrentMonth(next);
+            // Check if this month has any available day
+            const daysInMonth = new Date(
+                tempMonth.getFullYear(),
+                tempMonth.getMonth() + 1,
+                0
+            ).getDate();
 
-        const index = weeks.findIndex(week =>
-            week.some(d =>
-                d.date.getMonth() === next.getMonth() &&
-                d.date.getFullYear() === next.getFullYear()
-            )
-        );
+            let hasAvailable = false;
 
-        if (index !== -1) {
-            setCurrentWeekIndex(index);
+            for (let d = 1; d <= daysInMonth; d++) {
+                const date = new Date(
+                    tempMonth.getFullYear(),
+                    tempMonth.getMonth(),
+                    d
+                );
+
+                const key = getLocalDateKey(date);
+                const dayInfo = workCalandar?.[key];
+
+                const isDayOff =
+                    !dayInfo ||
+                    dayInfo.is_day_off === 1 ||
+                    dayInfo.is_day_off === "1" ||
+                    dayInfo.is_day_off === true;
+
+                const isPast = date < today;
+
+                if (!isDayOff && !isPast) {
+                    hasAvailable = true;
+                    break;
+                }
+            }
+
+            if (hasAvailable) {
+                setCurrentMonth(new Date(tempMonth));
+
+                // Select first available date in that month
+                for (let d = 1; d <= daysInMonth; d++) {
+                    const date = new Date(
+                        tempMonth.getFullYear(),
+                        tempMonth.getMonth(),
+                        d
+                    );
+
+                    const key = getLocalDateKey(date);
+                    const dayInfo = workCalandar?.[key];
+
+                    const isDayOff =
+                        !dayInfo ||
+                        dayInfo.is_day_off === 1 ||
+                        dayInfo.is_day_off === "1" ||
+                        dayInfo.is_day_off === true;
+
+                    const isPast = date < today;
+
+                    if (!isDayOff && !isPast) {
+                        onDateSelect(date);
+
+                        // ✅ FIX: sync week index
+                        // const newWeekIndex = findWeekIndexByDate(date);
+                        // if (newWeekIndex !== -1) {
+                        //     setCurrentWeekIndex(newWeekIndex);
+                        // }
+
+                        break;
+                    }
+                }
+
+                setExpandedDateKey(null);
+                break;
+            }
         }
     };
 
@@ -200,36 +325,77 @@ export default function AvailabilitySection({
         return slotTime <= new Date();
     };
 
-
     const handleWeekChange = (dir) => {
+        const base = new Date(selectedDate || today);
+        base.setHours(0, 0, 0, 0);
+
+        const day = base.getDay();
+        const diffToMonday = day === 0 ? -6 : 1 - day;
+
+        const currentMonday = new Date(base);
+        currentMonday.setDate(base.getDate() + diffToMonday);
+
+        let targetMonday = new Date(currentMonday);
 
         if (dir === "next") {
-            const nextIndex = currentWeekIndex + 1;
-
-            if (nextIndex < weeks.length) {
-                setCurrentWeekIndex(nextIndex);
-
-                const week = weeks[nextIndex];
-                const mid = week[3].date;
-
-                setCurrentMonth(new Date(mid.getFullYear(), mid.getMonth(), 1));
-            }
+            targetMonday.setDate(currentMonday.getDate() + 7);
         }
 
         if (dir === "prev") {
-            const prevIndex = currentWeekIndex - 1;
-
-            if (prevIndex >= 0) {
-                setCurrentWeekIndex(prevIndex);
-
-                const week = weeks[prevIndex];
-                const mid = week[3].date;
-
-                setCurrentMonth(new Date(mid.getFullYear(), mid.getMonth(), 1));
+            // ✅ KEY FIX
+            if (!isSameDay(base, currentMonday)) {
+                // If not already Monday → go to same week's Monday
+                targetMonday = currentMonday;
+            } else {
+                // If already Monday → go to previous week
+                targetMonday.setDate(currentMonday.getDate() - 7);
             }
         }
-    };
 
+        // ❌ Prevent going before current month
+        // ✅ Prevent going to a week that is completely in the past
+        const endOfTargetWeek = new Date(targetMonday);
+        endOfTargetWeek.setDate(targetMonday.getDate() + 6);
+
+        if (endOfTargetWeek < today) return;
+        // ✅ Now find first available day inside that week
+        let selectedDay = null;
+
+        for (let i = 0; i < 7; i++) {
+            const checkDate = new Date(targetMonday);
+            checkDate.setDate(targetMonday.getDate() + i);
+
+            const key = getLocalDateKey(checkDate);
+            const dayInfo = workCalandar?.[key];
+
+            const isDayOff =
+                !dayInfo ||
+                dayInfo.is_day_off === 1 ||
+                dayInfo.is_day_off === "1" ||
+                dayInfo.is_day_off === true;
+
+            const isPast = checkDate < today;
+
+            if (!isDayOff && !isPast) {
+                selectedDay = checkDate;
+                break;
+            }
+        }
+
+        if (!selectedDay) return;
+
+        onDateSelect(selectedDay);
+
+        setCurrentMonth(
+            new Date(
+                selectedDay.getFullYear(),
+                selectedDay.getMonth(),
+                1
+            )
+        );
+
+        setExpandedDateKey(null);
+    };
 
     const smoothScroll = (container, targetY, duration = 600) => {
         const startY = container.scrollTop;
@@ -260,14 +426,15 @@ export default function AvailabilitySection({
     const handleDayClick = (day) => {
         if (!day.isAvailable) return;
 
-        setExpandedDateKey((prevKey) => {
-            if (prevKey === day.key) return null;
-            return day.key;
-        });
-
         onDateSelect(day.date);
 
-        // ✅ SCROLL AFTER CLICK
+        setExpandedDateKey((prevKey) =>
+            prevKey === day.key ? null : day.key
+        );
+
+        setViewMode("day");
+
+
         requestAnimationFrame(() => {
             const container = scrollContainerRef?.current;
             const target = dayRefs.current[day.key];
@@ -299,6 +466,43 @@ export default function AvailabilitySection({
 
     const currentWeek = weeks[currentWeekIndex] || [];
 
+
+    const displayWeek = (() => {
+        const baseDate = selectedDate || today;
+        const result = [];
+
+        for (let i = 0; i < 7; i++) {
+            const date = new Date(baseDate);
+            date.setDate(baseDate.getDate() + i);
+
+            const key = getLocalDateKey(date);
+            const dayInfo = workCalandar?.[key];
+
+            const isDayOff =
+                !dayInfo ||
+                dayInfo.is_day_off === 1 ||
+                dayInfo.is_day_off === "1" ||
+                dayInfo.is_day_off === true;
+
+            const isPast = date < today;
+
+            result.push({
+                key,
+                date,
+                label: date.toLocaleDateString("en-US", {
+                    weekday: "long",
+                    month: "short",
+                    day: "numeric",
+                }),
+                isAvailable: !isDayOff && !isPast,
+                isDayOff,
+                timeLabel: resolveTimeRange(dayInfo),
+            });
+        }
+
+        return result;
+    })();
+
     const filteredSlots =
         selectedDate && isSameDay(selectedDate, today)
             ? slots.filter(slot => !isPastTimeSlot(slot, selectedDate))
@@ -312,26 +516,102 @@ export default function AvailabilitySection({
         <div className="space-y-3">
             {/* MONTH NAV */}
             <div className="flex items-center justify-between">
-                <button disabled={
-                    currentMonth.getFullYear() === today.getFullYear() &&
-                    currentMonth.getMonth() === today.getMonth()
-                }
-                    onClick={() => handleMonthChange("prev")}>
-                    <ChevronLeft className="w-5 h-5" />
-                </button>
+                <div className="flex gap-2">
+
+                    {/* Previous Month */}
+                    <button
+                        onClick={() => handleMonthChange("prev")}
+                    >
+                        <ChevronsLeft className="w-5 h-5" />
+                    </button>
+
+                    {/* Previous Week */}
+                    <button
+                        onClick={() => handleWeekChange("prev")}
+                    >
+                        <ChevronLeft className="w-5 h-5" />
+                    </button>
+
+                </div>
+
                 <div className="text-sm font-bold">
                     {currentMonth.toLocaleDateString("en-US", {
                         month: "long",
                         year: "numeric",
                     })}
                 </div>
-                <button onClick={() => handleMonthChange("next")}>
-                    <ChevronRight className="w-5 h-5" />
-                </button>
+
+                <div className="flex gap-2">
+
+                    {/* Next Week */}
+                    <button
+                        onClick={() => handleWeekChange("next")}
+                    >
+                        <ChevronRight className="w-5 h-5" />
+                    </button>
+
+                    {/* Next Month */}
+                    <button
+                        onClick={() => handleMonthChange("next")}
+                    >
+                        <ChevronsRight className="w-5 h-5" />
+                    </button>
+
+                </div>
+            </div>
+
+            {/* CALENDAR GRID */}
+            <div className="border rounded-xl p-3 bg-white">
+                <div className="grid grid-cols-7 text-xs text-gray-400 mb-2 text-center">
+                    {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map(d => (
+                        <div key={d}>{d}</div>
+                    ))}
+                </div>
+
+                {buildMonthGrid(currentMonth).map((week, i) => (
+                    <div key={i} className="grid grid-cols-7 text-center mb-1">
+                        {week.map((day, j) => {
+                            if (!day) return <div key={j}></div>;
+
+                            const isSelected =
+                                selectedDate &&
+                                isSameDay(selectedDate, day.date);
+
+                            const isToday = isSameDay(day.date, today);
+                            return (
+                                <button
+                                    key={day.key}
+                                    disabled={!day.isAvailable}
+                                    onClick={() => onDateSelect(day.date)}   // only highlight
+                                    onDoubleClick={() =>
+                                        handleDayClick({
+                                            ...day,
+                                            dayName: day.date.toLocaleDateString("en-US", { weekday: "short" }),
+                                            label: day.date.toLocaleDateString("en-US", {
+                                                weekday: "long",
+                                                month: "short",
+                                                day: "numeric",
+                                            }),
+                                            timeLabel: "",
+                                        })
+                                    }
+                                    className={`p-2 text-sm rounded-full
+    ${day.isPast ? "text-gray-300" : ""}
+    ${!day.isAvailable ? "text-gray-400" : ""}
+    ${isSelected ? "bg-orange-500 text-white" : ""}
+ ${!isSelected && isToday ? "bg-orange-100 text-orange-600 font-semibold" : ""}
+`}
+                                >
+                                    {day.date.getDate()}
+                                </button>
+                            );
+                        })}
+                    </div>
+                ))}
             </div>
 
             {/* WEEK NAV */}
-            <div className="flex items-center justify-between text-xs text-gray-500">
+            {/* <div className="flex items-center justify-between text-xs text-gray-500">
                 <button
                     onClick={() => handleWeekChange("prev")}>
                     <ChevronLeft className="w-4 h-4" />
@@ -350,7 +630,7 @@ export default function AvailabilitySection({
                 >
                     <ChevronRight className="w-4 h-4" />
                 </button>
-            </div>
+            </div> */}
 
             {/* DAYS */}
             {loadingCalendar ? (
@@ -358,7 +638,7 @@ export default function AvailabilitySection({
                     <div className="w-8 h-8 border-3 border-green-500 border-t-transparent rounded-full animate-spin mx-auto" />
                 </div>
             ) : (
-                currentWeek.map((day) => {
+                displayWeek.map((day) => {
                     const expanded =
                         expandedDateKey === day.key &&
                         selectedDate?.toDateString() === day.date.toDateString();
@@ -373,13 +653,15 @@ export default function AvailabilitySection({
                         >
                             <button
                                 onClick={() => handleDayClick(day)}
+                                // onDoubleClick={() => handleDayClick(day)}
                                 disabled={!day.isAvailable}
                                 className={`w-full p-3 flex justify-between ${day.isAvailable ? "hover:bg-green-50" : "bg-gray-100 text-gray-400"
                                     }`}
                             >
                                 <div>
-                                    <div className="font-semibold">{day.dayName}</div>
-                                    <div className="text-xs text-gray-500">{day.label}</div>
+                                    {/* <div> */}
+                                    <div className="font-semibold">{day.label}</div>
+                                    {/* </div> */}
                                 </div>
                                 <div className="font-semibold">
                                     {day.isDayOff ? "OFF" : day.timeLabel}

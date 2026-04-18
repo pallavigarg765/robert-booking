@@ -172,7 +172,7 @@ if (allMarkers.length > 0) {
 
     return () => {
       if (mapRef.current) {
-        mapRef.current.remove();
+        // mapRef.current.remove();
         mapRef.current = null;
       }
     };

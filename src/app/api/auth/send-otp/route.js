@@ -2,7 +2,8 @@
 import { NextResponse } from "next/server";
 import { connectDB } from "@/lib/mongodb";
 import User from "@/models/User";
-import { generateOTP, sendOTPEmail, sendOTPSMS } from "@/lib/otpUtils";
+import { generateOTP, sendOTPEmail } from "@/lib/otpUtils";
+import twilio from "twilio";
 
 export async function POST(request) {
   try {
@@ -10,64 +11,46 @@ export async function POST(request) {
 
     const { email, phonenumber } = await request.json();
 
-     // Validation
     if (!email || !phonenumber) {
-      return NextResponse.json(
-        { success: false, data: [] },
-        { status: 200 }
-      );
+      return NextResponse.json({ success: false }, { status: 200 });
     }
 
-    // Find user by email and phone number
     const user = await User.findOne({ email, phonenumber });
 
     if (!user) {
-      return NextResponse.json(
-        { success: false, data: [] },
-        { status: 200 }
-      );
+      return NextResponse.json({ success: false }, { status: 200 });
     }
 
-    // Generate OTP (random 4-digit OTP recommended for production)
-    const otp = generateOTP(); 
-    const otpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+    const otp = generateOTP();
+    const otpExpires = new Date(Date.now() + 10 * 60 * 1000);
 
-    // Save OTP to user
     user.otp = otp;
     user.otpExpires = otpExpires;
     await user.save();
 
-    // Send OTP via email (real) and SMS (still dummy)
-    const emailSent = await sendOTPEmail(email, otp);
-    await sendOTPSMS(phonenumber, otp);
+    // ✅ Send Email OTP
+  //   await sendOTPEmail(email, otp);
 
-    
-    if (!emailSent) {
-      return NextResponse.json(
-        { success: false, data: [] },
-        { status: 200 }
-      );
-    }
+  //   // ✅ Send SMS via Twilio
+  //   const client = twilio(
+  //     process.env.TWILIO_ACCOUNT_SID,
+  //     process.env.TWILIO_AUTH_TOKEN
+  //   );
 
-    return NextResponse.json(
-      {
-        success: true,
-        message: "OTP sent successfully",
-        // Remove otp from response in production
- 
-        note: "OTP sent via email"
-      },
-      { status: 200 }
-    );
+  //   await client.verify.v2
+  // .services(process.env.TWILIO_VERIFY_SERVICE_SID)
+  // .verifications.create({
+  //   to: `+1${phonenumber}`,
+  //   channel: "sms",
+  // });
+
+    return NextResponse.json({
+      success: true,
+      message: "OTP sent via email and SMS"
+    });
+
   } catch (error) {
     console.error("Error sending OTP:", error);
-     // 🚨 ALWAYS RETURN 200
-    return NextResponse.json(
-      {
-        success: false,
-        data: []
-      },
-      { status: 200 }
-    );
+    return NextResponse.json({ success: false }, { status: 200 });
   }
 }

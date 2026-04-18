@@ -178,3 +178,9 @@ export async function getFirstWorkingDay(performerId) {
   const token = await getToken();
   return callSimplyBook("getFirstWorkingDay", [performerId], token);
 }
+
+export async function addSimplyBookClient(clientData, sendEmail = false) {
+  const token = await getAdminToken();
+
+  return callAdmin("addClient", [clientData, sendEmail], token);
+}

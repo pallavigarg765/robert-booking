@@ -8,17 +8,17 @@ if (mongoose.models.User) {
 const UserSchema = new mongoose.Schema(
   {
     name: { type: String, required: true },
-    email: { type: String, required: true, unique: true },
+    email: { type: String, required: true },
     phonenumber: { type: String, required: true },
-    address: [
-      {
-        fullAddress: { type: String, required: true, trim: true },
-        lat: { type: String, required: true },
-        lon: { type: String, required: true },
-        city: { type: String },
-        state: { type: String },
-      },
-    ],
+    fullAddress: { type: String, trim: true },
+    city: { type: String, trim: true },
+    state: { type: String, trim: true },
+    zip: { type: String, trim: true },
+    lat: { type: String },
+    lon: { type: String },
+
+    // ✅ SimplyBook mapping
+    simplyBookClientId: { type: String },
     // OTP fields
     otp: { type: String },
     otpExpires: { type: Date },

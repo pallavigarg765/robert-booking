@@ -81,6 +81,7 @@ export default function ProvidersSection({
       setBlacklistingProvider(null);
     }
   };
+  
 
   // Compact mode - just show provider cards without map
   if (compactMode) {
@@ -501,6 +502,12 @@ function ProviderCard({
     return provider.nearestLocation.city || "";
   };
 
+
+  useEffect(() => {
+  if (!isSelected) {
+    setShowDescription(false);
+  }
+}, [isSelected]);
   // Compact mode for column display
   if (compact) {
     return (
@@ -530,20 +537,20 @@ ${isExpanded
             ? "flex flex-col items-center text-center"
             : "flex items-start gap-3"}`}
         >
-          {(!selectedProvider || isSelected) && (
-            <img
-              src={
-                provider.picture_path
-                  ? process.env.NEXT_PUBLIC_BASE_URL_IMAGE + provider.picture_path
-                  : "/images/placeholder.jpg"
-              }
-              className={`object-cover rounded-xl transition-all duration-300
+          {/* {(!selectedProvider || isSelected) && ( */}
+          <img
+            src={
+              provider.picture_path
+                ? process.env.NEXT_PUBLIC_BASE_URL_IMAGE + provider.picture_path
+                : "/images/placeholder.jpg"
+            }
+            className={`object-cover rounded-xl transition-all duration-300
 ${isExpanded ? "w-full h-40 mb-3" : "w-16 h-16"}
 `}
-            />
-          )}
+          />
+          {/* )} */}
 
-          <div className={`${isExpanded  ? "w-full text-center" : "flex-1 min-w-0"}`}>
+          <div className={`${isExpanded ? "w-full text-center" : "flex-1 min-w-0"}`}>
 
             {/* NAME */}
             <div
@@ -584,8 +591,8 @@ ${isExpanded ? "w-full h-40 mb-3" : "w-16 h-16"}
             {/* EXTRA DETAILS ONLY WHEN NOT HOVERED */}
             {/* {!isHovered && ( */}
             <>
-              {provider.distance != null && (!selectedProvider || isSelected) && (
-                <p className={`text-xs text-green-600 mt-0.5 ${isHovered ? "text-center" : ""}`}>
+              {provider.distance != null && true && (
+                <p className={`text-xs text-green-600 mt-0.5`}>
                   {provider.distance.toFixed(1)} mi away
                 </p>
               )}
@@ -620,7 +627,7 @@ ${isExpanded ? "w-full h-40 mb-3" : "w-16 h-16"}
       onClick={() => !isBlacklisting && onSelect(provider.id)}
     >
       <div className="flex gap-4">
-        {(!selectedProvider || isSelected) && (
+        {(
           <img
             src={
               provider.picture_path
@@ -643,7 +650,7 @@ ${isExpanded ? "w-full h-40 mb-3" : "w-16 h-16"}
             {cleanName(provider.name)}
           </h3>
 
-          {provider.nearestLocation && (!selectedProvider || isSelected) && (
+          {provider.nearestLocation(
             <p className="text-xs text-gray-500 mt-1">
               {getLocationDisplay()}
             </p>

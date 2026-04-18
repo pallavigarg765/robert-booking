@@ -2,8 +2,10 @@
 
 import Banner from "./components/HomeBanner";
 import FindBooking from "./components/FindBooking";
+import ScheduleServices from "./components/ScheduleServices"; // 👈 import this
+import Header from "./components/Header"; // 👈 import header
 import { useAppData } from "./context/AppDataContext";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 export default function Home() {
   const {
@@ -15,24 +17,37 @@ export default function Home() {
     categories
   } = useAppData();
 
-  // ✅ Fetch all global data when the page loads (only once)
+  const [activeSection, setActiveSection] = useState("find"); // ✅ default open
+
   useEffect(() => {
     fetchAllData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  // console.log("events: ", events);
 
   return (
     <>
+      <Header setActiveSection={setActiveSection} activeSection={activeSection} />
+
       <Banner />
-      <FindBooking
+
+      {activeSection === "find" && (
+        <FindBooking
+          providers={providers}
+          events={events}
+          locations={locations}
+          clients={clients}
+          categories={categories}
+        />
+      )}
+
+      {activeSection === "schedule" && (
+        <ScheduleServices
         providers={providers}
-        events={events}
-        locations={locations}
-        clients={clients}
-        categories={categories}
-      />
+          events={events}
+          locations={locations}
+          clients={clients}
+          categories={categories}
+        />
+      )}
     </>
   );
 }

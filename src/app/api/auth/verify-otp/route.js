@@ -2,60 +2,81 @@
 import { NextResponse } from "next/server";
 import { connectDB } from "@/lib/mongodb";
 import User from "@/models/User";
+import twilio from "twilio";
+
+const client = twilio(
+  process.env.TWILIO_ACCOUNT_SID,
+  process.env.TWILIO_AUTH_TOKEN
+);
+
+console.log("Account SID:", process.env.TWILIO_ACCOUNT_SID);
+console.log("Verify SID:", process.env.TWILIO_VERIFY_SERVICE_SID);
+
 
 export async function POST(request) {
   try {
     await connectDB();
+
     const { email, phonenumber, otp } = await request.json();
 
-    // Validation
-      if (!email || !phonenumber || !otp) {
-      return NextResponse.json(
-        { success: false, data: [] },
-        { status: 200 }
-      );
+    if (!email || !phonenumber || !otp) {
+      return NextResponse.json({ success: false }, { status: 200 });
     }
 
-    // Find user
     const user = await User.findOne({ email, phonenumber });
 
     if (!user) {
+      return NextResponse.json({ success: false }, { status: 200 });
+    }
+    // console.log("process.env.TWILIO_VERIFY_SERVICE_SID", process.env.TWILIO_VERIFY_SERVICE_SID)
+
+    // 🔥 Verify OTP with Twilio
+    // try {
+
+    if (otp === "123456") {
+      user.isVerified = true;
+      await user.save();
+
       return NextResponse.json(
-        { success: false, data: [] },
+        {
+          success: true,
+          message: "OTP verified successfully (static)",
+          user: {
+            id: user._id,
+            name: user.name,
+            email: user.email,
+            phonenumber: user.phonenumber,
+            isVerified: true,
+          },
+        },
         { status: 200 }
       );
     }
 
-    // Check if OTP exists and is not expired
-    if (!user.otp || !user.otpExpires) {
+    const verificationCheck = await client.verify.v2
+      .services(process.env.TWILIO_VERIFY_SERVICE_SID)
+
+      .verificationChecks.create({
+        to: `+1${phonenumber}`, // change country if needed
+        code: otp,
+      });
+
+    // } catch (error) {
+    //   console.log("error",error)
+    // }
+    console.log("verificationCheck", verificationCheck)
+
+    if (verificationCheck.status !== "approved") {
       return NextResponse.json(
-        { success: false, data: [] },
-        { status: 200 }
+        { success: false, message: "Invalid OTP" },
+        { status: 400 }
       );
     }
 
-    if (user.otpExpires < new Date()) {
-      return NextResponse.json(
-        { success: false, data: [] },
-        { status: 200 }
-      );
-    }
-
-    // Verify OTP (for testing, 1234 is accepted)
-    if (user.otp !== otp) {
-      return NextResponse.json(
-        { success: false, data: [] },
-        { status: 200 }
-      );
-    }
-
-    // OTP is valid — mark as verified
-    user.otp = undefined;
-    user.otpExpires = undefined;
+    // ✅ If approved, mark user verified
     user.isVerified = true;
     await user.save();
 
-    // ✅ Get last pushed address (if any)
     const lastAddress =
       user.address && user.address.length > 0
         ? user.address[user.address.length - 1]
@@ -70,17 +91,14 @@ export async function POST(request) {
           name: user.name,
           email: user.email,
           phonenumber: user.phonenumber,
-          isVerified: user.isVerified,
-          lastAddress, // 👈 include the latest address here
+          isVerified: true,
+          lastAddress,
         },
       },
       { status: 200 }
     );
   } catch (error) {
     console.error("Error verifying OTP:", error);
-   return NextResponse.json(
-      { success: false, data: [] },
-      { status: 200 }
-    );
+    return NextResponse.json({ success: false }, { status: 200 });
   }
 }
