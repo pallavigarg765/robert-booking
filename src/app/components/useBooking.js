@@ -697,8 +697,7 @@ useEffect(() => {
   }
 
   if (!clientLocation) {
-    console.log("No client location, showing all providers");
-    setFilteredProviders(providerArray);
+    setFilteredProviders([]);
     return;
   }
 
@@ -835,7 +834,7 @@ useEffect(() => {
 
   async function filterProviders() {
     if (!userEmail) {
-      setFilteredProviders(limitedProviders);
+      // setFilteredProviders(limitedProviders);
       setLoadingProviders(false);
       return;
     }

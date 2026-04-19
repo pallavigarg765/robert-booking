@@ -3,7 +3,10 @@ import { useState, useEffect, useRef } from "react";
 import SearchSection from "./SearchSection";
 import ProvidersSection from "./ProvidersSection";
 import ProvidersMap from "./ProvidersMap";
-import ScheduleServices from "./ScheduleServices"
+import ServicesSection from "./ServicesSection";
+import DatePickerSection from "./DatePickerSection";
+import TimeSlotsSection from "./TimeSlotsSection";
+import BookingSummary from "./BookingSummary";
 import NoProvidersSection from "./NoProvidersSection";
 import SuccessNotification from "./SuccessNotification";
 import { useBooking } from "./useBooking";
@@ -35,6 +38,7 @@ function StepLocked({ title, message }) {
   );
 }
 
+
 export default function FindBooking({ providers, events, locations, clients, categories }) {
   const [showSuccess, setShowSuccess] = useState(false);
   const [bookingDetails, setBookingDetails] = useState(null);
@@ -56,6 +60,7 @@ export default function FindBooking({ providers, events, locations, clients, cat
   const [searchCategory, setSearchCategory] = useState("ALL");
   const [providerCategories, setProviderCategories] = useState([]);
   const [hoveredProvider, setHoveredProvider] = useState(null);
+  const [emailError, setEmailError] = useState("");
 
   const [loginData, setLoginData] = useState({
     email: "",
@@ -151,9 +156,12 @@ export default function FindBooking({ providers, events, locations, clients, cat
         });
       }
     });
+
     // reset downstream steps
     setSelectedDate(null);
     setSelectedTime("");
+
+
     setActiveStep(2); // Move to Services step
   };
 
@@ -173,6 +181,7 @@ export default function FindBooking({ providers, events, locations, clients, cat
         // Add service if not selected
         newSelectedServices = [...prev, serviceId];
       }
+
       return newSelectedServices;
     });
   };
@@ -356,9 +365,171 @@ export default function FindBooking({ providers, events, locations, clients, cat
     console.log('🔙 Resetting booking form');
   };
 
+  const handleLoginCheck = async (e) => {
+    e.preventDefault();
+    setOtpError("");
 
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const phoneRegex = /^[0-9]{10}$/;
 
+    // ✅ Validate Email
+    if (!emailRegex.test(loginData.email)) {
+      setOtpError("Please enter valid email");
+      return;
+    }
 
+    // ✅ Validate Phone
+    if (!phoneRegex.test(loginData.phonenumber)) {
+      setOtpError("Enter valid 10 digit phone number");
+      return;
+    }
+
+    setOtpLoading(true);
+
+    try {
+      const checkRes = await fetch("/api/auth/check-user", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: loginData.email,
+          phonenumber: loginData.phonenumber,
+        }),
+      });
+
+      const checkData = await checkRes.json();
+
+      // ❌ API returned error (like wrong phone)
+      if (!checkData.success) {
+        setOtpError(checkData.message || "Something went wrong");
+        return;
+      }
+
+      // ✅ Email + Phone correct → Send OTP
+      if (checkData.loginAllowed) {
+        const otpRes = await fetch("/api/auth/send-otp", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email: loginData.email,
+            phonenumber: loginData.phonenumber,
+          }),
+        });
+
+        const otpData = await otpRes.json();
+
+        if (!otpRes.ok || !otpData.success) {
+          setOtpError(otpData.message || "Failed to send OTP");
+          return;
+        }
+
+        setUserFlow("otp-verification");
+      }
+
+      // ❌ Email does not exist → Register
+      else {
+        setUserFlow("register-user");
+      }
+
+    } catch (error) {
+      console.error(error);
+      setOtpError("Network error. Please try again.");
+    } finally {
+      setOtpLoading(false);
+    }
+  };
+
+  const handleVerifyOTP = async (e) => {
+    e.preventDefault();
+
+    setOtpLoading(true);
+    setOtpError("");
+
+    const phoneRegex = /^[0-9]{10}$/;
+    if (!phoneRegex.test(loginData.phonenumber)) {
+      setOtpError("Invalid phone number format");
+      setOtpLoading(false);
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/auth/verify-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: loginData.email,
+          phonenumber: loginData.phonenumber,
+          otp: otp
+        }),
+      });
+
+      const result = await response.json();
+      console.log("OTP verification result:", result);
+
+      if (result.success) {
+
+        // ✅ ONLY HERE mark as verified
+        setOtpVerified(true);
+        setUserFlow("authenticated");
+
+        const authData = {
+          isAuthenticated: true,
+          userEmail: result.user.email,
+          userData: result.user,
+          loginData: {
+            email: loginData.email,
+            phonenumber: loginData.phonenumber
+          },
+          timestamp: new Date().toISOString()
+        };
+
+        sessionStorage.setItem('userAuth', JSON.stringify(authData));
+        window.dispatchEvent(new Event("session-changed"));
+
+        // Auto fill last address if exists
+        if (result.user.lastAddress) {
+          handleFieldChange({
+            target: {
+              name: "fullAddress",
+              value: result.user.lastAddress.fullAddress
+            }
+          });
+
+          handleFieldChange({
+            target: {
+              name: "city",
+              value: result.user.lastAddress.city || ""
+            }
+          });
+
+          handleFieldChange({
+            target: {
+              name: "state",
+              value: result.user.lastAddress.state || ""
+            }
+          });
+        }
+
+        setUserEmail(result.user.email);
+        setFormData(prev => ({
+          ...prev,
+          email: result.user.email
+        }));
+
+        if (!currentEmail) {
+          setCurrentEmail(true);
+        }
+
+      } else {
+        setOtpError(result.message || "Invalid or expired OTP");
+      }
+
+    } catch (error) {
+      console.error(error);
+      setOtpError("Network error. Please try again.");
+    } finally {
+      setOtpLoading(false);
+    }
+  };
 
   // loadBlacklistedProviders management
   const loadBlacklistedProviders = async (email) => {
@@ -516,6 +687,23 @@ export default function FindBooking({ providers, events, locations, clients, cat
   });
 
 
+  const formatPhoneDisplay = (value) => {
+    const digits = value.replace(/\D/g, "").slice(0, 10);
+
+    const part1 = digits.slice(0, 3);
+    const part2 = digits.slice(3, 6);
+    const part3 = digits.slice(6, 10);
+
+    if (digits.length > 6) {
+      return `(${part1}) ${part2}-${part3}`;
+    } else if (digits.length > 3) {
+      return `(${part1}) ${part2}`;
+    } else if (digits.length > 0) {
+      return `(${part1}`;
+    }
+
+    return "";
+  };
 
   useEffect(() => {
     // ⭐ When provider is deselected → reset downstream
@@ -551,12 +739,43 @@ export default function FindBooking({ providers, events, locations, clients, cat
     }
   }, [selectedDate]);
 
+  const handleLogout = () => {
+    // Clear session storage
+    sessionStorage.removeItem("userAuth");
+    resetBooking();
 
+    // Reset states
+    setOtpVerified(false);
+    setUserFlow("entry");
+    setOtp("");
+    setOtpError("");
+    setLoginData({
+      email: "",
+      phonenumber: ""
+    });
+    setUser(null);
+
+    // 🧹 Clear booking state
+    setSelectedDate(null);
+    setSelectedTime("");
+    // setSlots([]);
+    setWorkCalandar({});
+    setServices({}); // VERY IMPORTANT
+
+    // 🔥 Reset booking related states
+    setTotalDuration(0);
+
+    // Optional: notify other components
+    window.dispatchEvent(new Event("session-changed"));
+  };
 
   useEffect(() => {
     if (!otpVerified) {
       setSelectedDate(null);
       setSelectedTime("");
+      // setSlots([]);
+      // setWorkCalandar({});
+      // setServices({});
     }
   }, [otpVerified]);
 
@@ -573,6 +792,8 @@ export default function FindBooking({ providers, events, locations, clients, cat
     return total;
   }, 0) || 0;
 
+
+  // Blacklisted Providers View Component
   const BlacklistedProvidersView = () => {
     // Get provider details from the providers prop
     const getProviderDetails = (providerId) => {
@@ -737,437 +958,47 @@ export default function FindBooking({ providers, events, locations, clients, cat
     );
   };
 
+
+
   // Main horizontal flow content - FIXED VERSION
-  // const renderHorizontalFlow = () => {
-  //   return (
-  //     <div className="space-y-8">
-  //       {/* MAP */}
-  //       <div className="bg-white/80 backdrop-blur-sm shadow-2xl rounded-3xl p-6 border relative z-0">
-  //         <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-t-3xl" />
+  const renderHorizontalFlow = () => {
+    return (
+      <div className="space-y-8">
+        {/* MAP */}
+        <div className="bg-white/80 backdrop-blur-sm shadow-2xl rounded-3xl p-6 border relative z-0">
+          <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-t-3xl" />
 
-  //         <button
-  //           onClick={() => {
-  //             sessionStorage.clear();
-  //             window.location.reload();
-  //           }}
-  //           className="absolute top-4 right-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-4 py-2 rounded-xl shadow-lg"
-  //         >
-  //           Home
-  //         </button>
+          <button
+            onClick={() => {
+              sessionStorage.clear();
+              window.location.reload();
+            }}
+            className="absolute top-4 right-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-4 py-2 rounded-xl shadow-lg"
+          >
+            Home
+          </button>
 
-  //         <h3 className="text-lg font-semibold mb-2">Provider Locations</h3>
-  //         <p className="mb-4">View all available providers in your area</p>
+          <h3 className="text-lg font-semibold mb-2">Provider Locations</h3>
+          <p className="mb-4">View all available providers in your area</p>
 
-  //         <ProvidersMap
-  //           providers={filteredProviders.filter(p =>
-  //             categories.some(cat =>
-  //               cat.events?.some(e =>
-  //                 p.services?.includes(Number(e))
-  //               )
-  //             )
-  //           )}
-  //           locations={locations}
-  //           userLocation={clientLocation}
-  //           searchWithin={searchWithin}
-  //         />
-  //       </div>
+          <ProvidersMap
+            providers={filteredProviders.filter(p =>
+              categories.some(cat =>
+                cat.events?.some(e =>
+                  p.services?.includes(Number(e))
+                )
+              )
+            )}
+            locations={locations}
+            userLocation={clientLocation}
+            searchWithin={searchWithin}
+          />
+        </div>
+      </div>
+    );
+  };
 
-  //       {/* STEPS GRID */}
-  //       <div className="grid gap-2 grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-
-  //         {/* STEP 1 – CLIENT LOGIN */}
-  //         <div className="bg-white rounded-2xl shadow-xl border border-gray-100 flex flex-col h-[650px]">
-
-  //           {/* Header */}
-  //           <div className="px-4 py-3 bg-indigo-50 flex items-center justify-between">
-  //             <h3 className="text-lg font-bold">Client Login</h3>
-
-  //             {otpVerified && (
-  //               <button
-  //                 onClick={handleLogout}
-  //                 className="text-sm text-red-600 hover:text-red-700 font-medium"
-  //               >
-  //                 Logout
-  //               </button>
-  //             )}
-  //           </div>
-  //           <div className="flex-1 overflow-y-auto p-6">
-
-  //             {!otpVerified ? (
-  //               <form onSubmit={handleLoginCheck} className="space-y-5">
-
-  //                 {/* Email */}
-  //                 <div>
-  //                   <label className="text-sm font-medium text-gray-600">
-  //                     Email Address
-  //                   </label>
-
-  //                   <input
-  //                     type="email"
-  //                     placeholder="example@email.com"
-  //                     value={loginData.email}
-  //                     onChange={(e) => {
-  //                       setLoginData(prev => ({
-  //                         ...prev,
-  //                         email: e.target.value
-  //                       }));
-  //                       setEmailError("");
-  //                     }}
-  //                     onBlur={() => {
-  //                       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  //                       if (!emailRegex.test(loginData.email)) {
-  //                         setEmailError("Please enter a valid email (must include @ and .)");
-  //                       }
-  //                     }}
-  //                     className={`mt-2 w-full px-4 py-3 border rounded-xl outline-none transition
-  //     ${emailError
-  //                         ? "border-red-500 focus:ring-red-500"
-  //                         : "border-gray-300 focus:ring-2 focus:ring-indigo-500"
-  //                       }`}
-  //                   />
-
-  //                   {emailError && (
-  //                     <p className="text-red-500 text-sm mt-1">{emailError}</p>
-  //                   )}
-  //                 </div>
-
-
-
-
-  //                 <div>
-  //                   <label className="text-sm font-medium text-gray-600">
-  //                     10-Digit Phone Number
-  //                   </label>
-
-  //                   <input
-  //                     type="tel"
-  //                     placeholder="(904) 112-0199"
-  //                     value={formatPhoneDisplay(loginData.phonenumber)} // 👈 formatted display only
-  //                     onChange={(e) => {
-  //                       const digitsOnly = e.target.value.replace(/\D/g, "").slice(0, 10);
-
-  //                       setLoginData(prev => ({
-  //                         ...prev,
-  //                         phonenumber: digitsOnly // 👈 store raw digits only
-  //                       }));
-
-  //                       if (otpError) setOtpError("");
-  //                     }}
-  //                     className="mt-2 w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition"
-  //                   />
-  //                 </div>                  {otpError && (
-  //                   <p className="text-red-500 text-sm">
-  //                     {otpError}
-  //                   </p>
-  //                 )}
-
-  //                 {/* Continue Button */}
-  //                 {userFlow === "entry" && (
-  //                   <button
-  //                     type="submit"
-  //                     disabled={otpLoading}
-  //                     className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-xl font-medium transition-all duration-200 disabled:opacity-50"
-  //                   >
-  //                     {otpLoading ? "Checking..." : "Continue"}
-  //                   </button>
-  //                 )}
-
-  //                 {/* OTP Section */}
-  //                 {userFlow === "otp-verification" && (
-  //                   <div className="space-y-4 pt-4 border-t">
-
-  //                     <div>
-  //                       <label className="text-sm font-medium text-gray-600">
-  //                         Enter 6 Digit OTP
-  //                       </label>
-  //                       <input
-  //                         type="text"
-  //                         maxLength={6}
-  //                         value={otp}
-  //                         onChange={(e) => {
-  //                           const value = e.target.value.replace(/\D/g, ""); // allow only digits
-  //                           setOtp(value);
-  //                           if (otpError) {
-  //                             setOtpError("");
-  //                           }
-
-  //                         }}
-  //                         className="mt-2 w-full text-center tracking-widest text-lg px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition"
-  //                       />
-  //                       {otpError && (
-  //                         <p className="text-red-500 text-sm mt-2">
-  //                           {otpError}
-  //                         </p>
-  //                       )}
-
-  //                     </div>
-
-
-
-  //                     <button
-  //                       type="button"
-  //                       onClick={handleVerifyOTP}
-  //                       disabled={otp.length !== 6}
-  //                       className={`w-full py-3 rounded-xl font-medium transition
-  //   ${otp.length === 6
-  //                           ? "bg-green-600 hover:bg-green-700 text-white"
-  //                           : "bg-gray-300 text-gray-500 cursor-not-allowed"
-  //                         }`}
-  //                     >
-  //                       Verify OTP
-  //                     </button>
-  //                   </div>
-  //                 )}
-
-  //                 {/* Register Section */}
-  //                 {userFlow === "register-user" && (
-  //                   <div className="space-y-4 pt-4 border-t">
-
-  //                     <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded-xl text-sm">
-  //                       No account found. Please sign up to continue booking.
-  //                     </div>
-
-  //                     <div>
-  //                       <label className="text-sm font-medium text-gray-600">
-  //                         Full Name
-  //                       </label>
-  //                       <input
-  //                         type="text"
-  //                         placeholder="Enter your full name"
-  //                         onChange={(e) =>
-  //                           setFormData(prev => ({
-  //                             ...prev,
-  //                             name: e.target.value
-  //                           }))
-  //                         }
-  //                         className="mt-2 w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 outline-none transition"
-  //                       />
-  //                     </div>
-
-  //                     <button
-  //                       type="button"
-  //                       onClick={handleRegisterUser}
-  //                       className="w-full bg-green-600 hover:bg-green-700 text-white py-3 rounded-xl font-medium transition"
-  //                     >
-  //                       Register & Continue
-  //                     </button>
-  //                   </div>
-  //                 )}
-
-  //               </form>
-  //             ) : (
-  //               <div className="text-center mt-10">
-  //                 <div className="text-green-600 text-2xl font-bold mb-2">
-  //                   ✓ Logged In Successfully
-  //                 </div>
-  //                 <p className="text-gray-500">
-  //                   You can now continue booking.
-  //                 </p>
-  //               </div>
-  //             )}
-
-  //           </div>
-  //         </div>
-
-  //         {/* STEP 1 – PROVIDER */}
-  //         {/* STEP – PROVIDER */}
-  //         <div className="bg-white rounded-2xl shadow-lg flex flex-col h-[650px]">
-  //           <div className="px-4 py-3 bg-indigo-50">
-  //             <h3 className="text-lg font-bold">Service Provider</h3>
-  //           </div>
-
-  //           <div className="flex-1 overflow-y-auto p-4">
-  //             {otpVerified ? (
-  //               <ProvidersSection
-  //                 providers={filteredProviders}
-  //                 locations={locations}
-  //                 clientLocation={clientLocation}
-  //                 searchWithin={searchWithin}
-  //                 selectedProvider={selectedProvider}
-  //                 userEmail={userEmail}
-  //                 onProviderSelect={handleProviderSelect}
-  //                 onBlacklist={handleBlacklist}
-  //                 events={events}
-  //                 categories={categories}
-  //                 compactMode
-  //                 setHoveredProvider={setHoveredProvider}
-  //               />
-  //             )
-  //               : (
-  //                 <StepLocked
-  //                   title="Login Required"
-  //                   message="Please login to select a provider"
-  //                 />
-  //               )
-  //             }
-  //           </div>
-  //         </div>
-
-  //         {/* STEP 2 – CATEGORY */}
-  //         {/* <div className="bg-white rounded-2xl shadow-lg flex flex-col h-[650px]">
-  //           <div className="px-4 py-3 bg-purple-50">
-  //             <h3 className="text-lg font-bold">Services</h3>
-  //           </div>
-  //           <div className="flex-1 overflow-y-auto p-4">
-  //             {selectedProvider ? (
-  //               <ServiceCategorySection
-  //                 selectedProvider={selectedProvider}
-  //                 providers={providers}
-  //                 events={events}
-  //                 categories={categories}
-  //                 selectedCategory={selectedCategory}
-  //                 onCategorySelect={setSelectedCategory}
-  //                 loading={loadingServices}
-  //                 onCategoriesReady={setProviderCategories}
-  //               />
-  //             ) : (
-  //               <StepLocked
-  //                 title="Select a Provider"
-  //                 message="Please choose a provider to view service categories"
-  //               />
-  //             )}
-  //           </div>
-  //         </div> */}
-
-  //         {/* STEP 2 – SERVICES */}
-  //         <div className="bg-white rounded-2xl shadow-lg flex flex-col h-[650px]">
-  //           <div className="px-4 py-3 bg-purple-50">
-  //             <h3 className="text-lg font-bold">
-  //               {activeProvider
-  //                 ? `${cleanName(activeProvider.name)}'s Services`
-  //                 : "Services"}
-  //             </h3>
-  //           </div>
-
-  //           <div className="flex-1 overflow-y-auto p-4">
-  //             {otpVerified && activeProvider ? (<>
-  //               {/* ⭐ Hidden data loader */}
-  //               <ServiceCategorySection
-  //                 selectedProvider={hoverProviderObj?.id || selectedProvider}
-  //                 providers={providers}
-
-  //                 events={events}
-  //                 categories={categories}
-  //                 loading={loadingServices}
-  //                 onCategoriesReady={setProviderCategories}
-  //               />
-
-  //               {/* ⭐ Actual UI */}
-  //               <ServiceSelectionSection
-  //                 hoveredProvider={hoveredProvider}
-  //                 categories={providerCategories}
-  //                 services={services}
-  //                 onCheckboxChange={handleCheckboxChange}
-  //                 selectedProvider={selectedProvider}
-  //                 providers={providers}
-  //                 selectedCategory={searchCategory}
-  //               />
-  //             </>
-  //             ) : (
-  //               <StepLocked
-  //                 title="Select a Provider"
-  //                 message="Please choose a provider to view service categories"
-  //               />
-  //             )}
-  //           </div>
-  //         </div>
-
-
-  //         {/* STEP 3 – SERVICE */}
-  //         {/* <div className="bg-white rounded-2xl shadow-lg flex flex-col h-[650px]">
-  //           <div className="px-4 py-3 bg-pink-50">
-  //             <h3 className="text-lg font-bold">Selected Service</h3>
-  //           </div>
-  //           <div className="flex-1 overflow-y-auto p-4">
-  //             {selectedCategory ? (
-  //               <ServiceSelectionSection
-  //                 categories={providerCategories}
-  //                 selectedCategory={selectedCategory}
-  //                 services={services}
-  //                 onCheckboxChange={(e) => {
-  //                   handleCheckboxChange(e);
-  //                   handleServiceSelection(e.target.name);
-  //                 }}
-  //                 selectedProvider={selectedProvider}
-  //                 providers={providers}
-  //               />
-  //             ) : (
-  //               <StepLocked
-  //                 title="Select Services"
-  //                 message="Choose a service category to see available services"
-  //               />
-  //             )}
-  //           </div>
-  //         </div> */}
-
-  //         {/* STEP 4 – AVAILABILITY */}
-  //         <div className="bg-white rounded-2xl shadow-lg flex flex-col h-[650px]">
-  //           <div className="px-4 py-3 bg-green-50">
-  //             <h3 className="text-lg font-bold">Availability</h3>
-  //           </div>
-  //           <div ref={availabilityScrollRef} className="flex-1 overflow-y-auto p-4">
-  //             {Object.values(services).some(Boolean) ? (
-  //               <AvailabilitySection
-  //                 key={otpVerified ? "logged-in" : "logged-out"}
-  //                 scrollContainerRef={availabilityScrollRef}
-  //                 workCalandar={workCalandar}
-  //                 selectedDate={selectedDate}
-  //                 selectedTime={selectedTime}
-  //                 slots={slots}
-  //                 onDateSelect={(date) => {
-  //                   setSelectedDate(date);
-  //                   setSelectedTime("");
-  //                 }}
-  //                 onTimeSelect={setSelectedTime}
-  //                 loadingCalendar={loadingCalendar}
-  //                 loadingTimeSlots={loadingTimeSlots}
-  //                 totalDuration={totalDuration}
-  //               />
-  //             ) : (
-  //               <StepLocked
-  //                 title="Select Time Slot"
-  //                 message="Choose a date and time to complete booking"
-  //               />
-  //             )}
-  //           </div>
-  //         </div>
-
-  //         {/* STEP 5 – SUMMARY */}
-  //         {/* <div className="bg-white rounded-2xl shadow-lg flex flex-col h-[650px]">
-  //           <div className="px-4 py-3 bg-blue-50">
-  //             <h3 className="text-lg font-bold">Complete Booking</h3>
-  //           </div>
-  //           <div className="flex-1 overflow-y-auto p-4">
-  //             {selectedTime ? (
-  //               <BookingSummary
-  //                 selectedEvent={selectedEvent}
-  //                 selectedProvider={selectedProvider}
-  //                 selectedDate={selectedDate}
-  //                 selectedTime={selectedTime}
-  //                 events={events}
-  //                 providers={providers}
-  //                 dayMap={dayMap}
-  //                 formData={formData}
-  //                 onSubmit={handleSubmitWithNotification}
-  //                 onChange={handleChange}
-  //                 getSelectedServiceNames={getSelectedServiceNames}
-  //                 submittingBooking={submittingBooking}
-  //                 selectedTreatment={selectedTreatment}
-  //                 currentEmail={currentEmail}
-  //               />
-  //             ) : (
-  //               <StepLocked
-  //                 title="Select Time Slot"
-  //                 message="Choose a date and time to complete booking"
-  //               />
-  //             )}
-  //           </div>
-  //         </div> */}
-  //       </div>
-  //     </div>
-  //   );
-  // };
-
+  // Main Booking Flow (for both new users and returning clients)
   return (
     <div className="w-full mx-auto mt-6 mb-16 p-6 space-y-10 bg-gradient-to-br from-white via-blue-50 to-indigo-100 shadow-2xl rounded-3xl border border-gray-100 relative">
       {/* Success Notification */}
@@ -1253,72 +1084,9 @@ export default function FindBooking({ providers, events, locations, clients, cat
             </div>
           )}
 
-            //       {/* MAP */}
-          <div className="bg-white/80 backdrop-blur-sm shadow-2xl rounded-3xl p-6 border relative z-0">
-            <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-t-3xl" />
-
-            <button
-              onClick={() => {
-                sessionStorage.clear();
-                window.location.reload();
-              }}
-              className="absolute top-4 right-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-4 py-2 rounded-xl shadow-lg"
-            >
-              Home
-            </button>
-
-            <h3 className="text-lg font-semibold mb-2">Provider Locations</h3>
-            <p className="mb-4">View all available providers in your area</p>
-
-            <ProvidersMap
-              providers={filteredProviders.filter(p =>
-                categories.some(cat =>
-                  cat.events?.some(e =>
-                    p.services?.includes(Number(e))
-                  )
-                )
-              )}
-              locations={locations}
-              userLocation={clientLocation}
-              searchWithin={searchWithin}
-            />
-          </div>
-
-
-          {/* {isSearchedAddress && clientLocation && !loadingAddress && filteredProviders.length > 0 && (
-  <ScheduleServices
-    filteredProviders={filteredProviders}
-    locations={locations}
-    clientLocation={clientLocation}
-    searchWithin={searchWithin}
-    categories={categories}
-    providers={providers}
-    otpVerified={otpVerified}
-    selectedProvider={selectedProvider}
-    selectedDate={selectedDate}
-    selectedTime={selectedTime}
-    services={services}
-    slots={slots}
-    workCalandar={workCalandar}
-    loadingCalendar={loadingCalendar}
-    loadingTimeSlots={loadingTimeSlots}
-    totalDuration={totalDuration}
-    userEmail={userEmail}
-    handleProviderSelect={handleProviderSelect}
-    handleBlacklist={handleBlacklist}
-    setHoveredProvider={setHoveredProvider}
-    hoveredProvider={hoveredProvider}
-    selectedServices={selectedServices}
-    setSelectedDate={setSelectedDate}
-    setSelectedTime={setSelectedTime}
-    availabilityScrollRef={availabilityScrollRef}
-    providerCategories={providerCategories}
-    loadingServices={loadingServices}
-    handleCheckboxChange={handleCheckboxChange}
-    activeProvider={activeProvider}
-    searchCategory={searchCategory}
-  />
-)} */}
+          {isSearchedAddress && clientLocation && !loadingAddress && filteredProviders.length > 0 && (
+            renderHorizontalFlow()
+          )}
         </>
       ) : (
         /* Success State - Option to book another appointment */

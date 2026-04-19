@@ -1,11 +1,11 @@
 "use client";
 
-import Banner from "./components/HomeBanner";
-import FindBooking from "./components/FindBooking";
-import { useAppData } from "./context/AppDataContext";
+import Banner from "../components/HomeBanner";
+import FindBooking from "../components/FindBooking";
+import { useAppData } from "../context/AppDataContext";
 import { useEffect } from "react";
 
-export default function Home() {
+export default function ScheduleServices() {
   const {
     providers,
     events,
@@ -15,13 +15,9 @@ export default function Home() {
     categories
   } = useAppData();
 
-  // ✅ Fetch all global data when the page loads (only once)
   useEffect(() => {
     fetchAllData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  // console.log("events: ", events);
 
   return (
     <>

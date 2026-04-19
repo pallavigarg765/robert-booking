@@ -1,17 +1,15 @@
 "use client";
 
-import Link from "next/link";
 import { useState, useEffect } from "react";
 import { Menu, X } from "lucide-react";
-import { useRouter } from "next/navigation";
-import { usePathname } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 
-export default function Header({ setActiveSection, activeSection }) {
+export default function Header() {
   const [isOpen, setIsOpen] = useState(false);
   const [hasUser, setHasUser] = useState(false);
+
   const router = useRouter();
   const pathname = usePathname();
-
 
   useEffect(() => {
     const checkUser = () => {
@@ -21,47 +19,37 @@ export default function Header({ setActiveSection, activeSection }) {
 
     checkUser();
 
-    // Listen for changes to sessionStorage (from other parts of app)
     window.addEventListener("storage", checkUser);
-    window.addEventListener("session-changed", checkUser); // custom event trigger
+    window.addEventListener("session-changed", checkUser);
+
     return () => {
       window.removeEventListener("storage", checkUser);
       window.removeEventListener("session-changed", checkUser);
     };
   }, []);
 
-
-
+  // ✅ Real routes now
   const navItems = [
-    // { label: "Home", href: "/" },
-    // { label: "About", href: "/about" },
-    // { label: "Services", href: "/services" },
-    // { label: "Contact", href: "/contact" },
-    // { label: "Notify-Users", href: "/notify" },
-    { label: "Find Services", key: "find" },
-    { label: "Schedule Services", key: "schedule" },
+    { label: "Find Services", href: "/find-services" },
+    { label: "Schedule Services", href: "/schedule-services" },
   ];
 
-  // Add "Past Bookings" if user is logged in
   const updatedNavItems = hasUser
     ? [...navItems, { label: "Past Bookings", href: "/past-bookings" }]
     : navItems;
 
-  const handleBackToHome = () => {
-    // Clear all session storage
-    sessionStorage.clear();
-
-    // Dispatch a custom event that the FindBooking component can listen to
-    window.dispatchEvent(new CustomEvent('reset-booking-form'));
-
-    // If we're already on the home page, just reload to reset state
-    if (window.location.pathname === '/') {
-      window.location.reload();
-    } else {
-      // Otherwise navigate to home
-      window.location.href = '/';
-    }
+  const handleNavigation = (href) => {
+    router.push(href);
+    setIsOpen(false);
   };
+
+  const handleBackToHome = () => {
+    sessionStorage.clear();
+    window.dispatchEvent(new CustomEvent("reset-booking-form"));
+    router.push("/");
+  };
+
+  const isActive = (href) => pathname === href;
 
   return (
     <header className="bg-white shadow-md fixed top-0 left-0 w-full z-[999999]">
@@ -73,23 +61,24 @@ export default function Header({ setActiveSection, activeSection }) {
           BellyCast
         </button>
 
-
         {/* Desktop Menu */}
         <nav className="hidden md:flex gap-6">
-          {navItems.map((item, idx) => (
+          {updatedNavItems.map((item, idx) => (
             <button
               key={idx}
-              onClick={() => setActiveSection(item.key)}
-              className={`transition ${activeSection === item.key
+              onClick={() => handleNavigation(item.href)}
+              className={`transition ${
+                isActive(item.href)
                   ? "text-blue-600 font-semibold"
                   : "text-gray-700 hover:text-blue-600"
-                }`}
+              }`}
             >
               {item.label}
             </button>
           ))}
         </nav>
-        {/* CTA Button */}
+
+        {/* CTA */}
         <div className="hidden md:block">
           <button
             onClick={handleBackToHome}
@@ -99,7 +88,7 @@ export default function Header({ setActiveSection, activeSection }) {
           </button>
         </div>
 
-        {/* Mobile Menu Button */}
+        {/* Mobile Button */}
         <button
           className="md:hidden text-gray-700"
           onClick={() => setIsOpen(!isOpen)}
@@ -108,19 +97,19 @@ export default function Header({ setActiveSection, activeSection }) {
         </button>
       </div>
 
-      {/* Mobile Dropdown */}
+      {/* Mobile Menu */}
       {isOpen && (
         <div className="md:hidden bg-white shadow-md px-6 py-4 space-y-4">
           {updatedNavItems.map((item, idx) => (
-            <Link
+            <button
               key={idx}
-              href={item.href}
-              className="block text-gray-700 hover:text-blue-600 transition"
-              onClick={() => setIsOpen(false)}
+              onClick={() => handleNavigation(item.href)}
+              className="block w-full text-left text-gray-700 hover:text-blue-600 transition"
             >
               {item.label}
-            </Link>
+            </button>
           ))}
+
           <button
             onClick={handleBackToHome}
             className="block w-full bg-blue-600 text-white px-4 py-2 rounded-xl hover:bg-blue-700 transition text-center"
