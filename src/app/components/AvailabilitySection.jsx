@@ -581,7 +581,7 @@ export default function AvailabilitySection({
                             return (
                                 <button
                                     key={day.key}
-                                    disabled={!day.isAvailable}
+                                    disabled={day.isPast}
                                     onClick={() => onDateSelect(day.date)}   // only highlight
                                     onDoubleClick={() =>
                                         handleDayClick({

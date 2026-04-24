@@ -16,1443 +16,1456 @@ import AvailabilitySection from "./AvailabilitySection";
 import { Calendar, Clock, CheckCircle, ChevronRight, User, Scissors, CalendarDays, Clock4, FileText } from "lucide-react";
 
 const dayMap = {
-  0: "Sunday",
-  1: "Monday",
-  2: "Tuesday",
-  3: "Wednesday",
-  4: "Thursday",
-  5: "Friday",
-  6: "Saturday",
+    0: "Sunday",
+    1: "Monday",
+    2: "Tuesday",
+    3: "Wednesday",
+    4: "Thursday",
+    5: "Friday",
+    6: "Saturday",
 };
 
 
 function StepLocked({ title, message }) {
-  return (
-    <div className="flex flex-col items-center justify-center h-full text-center text-gray-500 px-6">
-      <div className="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center mb-4">
-        🔒
-      </div>
-      <h4 className="font-semibold text-gray-700 mb-1">{title}</h4>
-      <p className="text-sm">{message}</p>
-    </div>
-  );
+    return (
+        <div className="flex flex-col items-center justify-center h-full text-center text-gray-500 px-6">
+            <div className="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center mb-4">
+                🔒
+            </div>
+            <h4 className="font-semibold text-gray-700 mb-1">{title}</h4>
+            <p className="text-sm">{message}</p>
+        </div>
+    );
 }
 
 
 export default function ScheduleServices({ providers, events, locations, clients, categories }) {
-  const [showSuccess, setShowSuccess] = useState(false);
-  const [bookingDetails, setBookingDetails] = useState(null);
-  const [userFlow, setUserFlow] = useState("entry");
-  const [calendarMonth, setCalendarMonth] = useState(new Date()); // 👈 Parent controls month
-  const [selectedTreatment, setSelectedTreatment] = useState(null);
-  const [currentView, setCurrentView] = useState('providers');
-  const [blacklistedProviders, setBlacklistedProviders] = useState([]);
-  const [loadingBlacklist, setLoadingBlacklist] = useState(false);
-  const [unblacklisting, setUnblacklisting] = useState(null);
-  const [resetForm, setResetForm] = useState(false);
-  const [selectedServices, setSelectedServices] = useState([]);
-  const [currentEmail, setCurrentEmail] = useState(false);
-  const [otpVerified, setOtpVerified] = useState(false);
-  const [otp, setOtp] = useState("");
-  const [otpError, setOtpError] = useState("");
-  const [otpLoading, setOtpLoading] = useState(false);
-  const availabilityScrollRef = useRef(null);
-  const [searchCategory, setSearchCategory] = useState("ALL");
-  const [providerCategories, setProviderCategories] = useState([]);
-  const [hoveredProvider, setHoveredProvider] = useState(null);
-  const [emailError, setEmailError] = useState("");
-  const [addressReady, setAddressReady] = useState(false);
-  const [isSearchingProviders, setIsSearchingProviders] = useState(false);
-  const [hasSearched, setHasSearched] = useState(false);
-  const [searchCompleted, setSearchCompleted] = useState(false);
+    const [showSuccess, setShowSuccess] = useState(false);
+    const [bookingDetails, setBookingDetails] = useState(null);
+    const [userFlow, setUserFlow] = useState("entry");
+    const [calendarMonth, setCalendarMonth] = useState(new Date()); // 👈 Parent controls month
+    const [selectedTreatment, setSelectedTreatment] = useState(null);
+    const [currentView, setCurrentView] = useState('providers');
+    const [blacklistedProviders, setBlacklistedProviders] = useState([]);
+    const [loadingBlacklist, setLoadingBlacklist] = useState(false);
+    const [unblacklisting, setUnblacklisting] = useState(null);
+    const [resetForm, setResetForm] = useState(false);
+    const [selectedServices, setSelectedServices] = useState([]);
+    const [currentEmail, setCurrentEmail] = useState(false);
+    const [otpVerified, setOtpVerified] = useState(false);
+    const [otp, setOtp] = useState("");
+    const [otpError, setOtpError] = useState("");
+    const [otpLoading, setOtpLoading] = useState(false);
+    const availabilityScrollRef = useRef(null);
+    const [searchCategory, setSearchCategory] = useState("ALL");
+    const [providerCategories, setProviderCategories] = useState([]);
+    const [hoveredProvider, setHoveredProvider] = useState(null);
+    const [emailError, setEmailError] = useState("");
+    const [addressReady, setAddressReady] = useState(false);
+    const [isSearchingProviders, setIsSearchingProviders] = useState(false);
+    const [hasSearched, setHasSearched] = useState(false);
+    const [searchCompleted, setSearchCompleted] = useState(false);
 
-  const [loginData, setLoginData] = useState({
-    email: "",
-    phonenumber: ""
-  });
-  const cleanName = (name = "") =>
-    name
-      .replace(/^\d+[a-z]\),?\s*/i, "")
-      .replace(/\s*,?\s*(DTD|Salon)(\s*Schedule)?/gi, "")
-      .trim();
+    const [loginData, setLoginData] = useState({
+        email: "",
+        phonenumber: ""
+    });
+    const cleanName = (name = "") =>
+        name
+            .replace(/^\d+[a-z]\),?\s*/i, "")
+            .replace(/\s*,?\s*(DTD|Salon)(\s*Schedule)?/gi, "")
+            .trim();
 
-  const [activeStep, setActiveStep] = useState(1); // 1: Providers, 2: Services, 3: Date, 4: Time, 5: Booking
+    const [activeStep, setActiveStep] = useState(1); // 1: Providers, 2: Services, 3: Date, 4: Time, 5: Booking
 
-  const saveBookingState = () => {
-    const bookingState = {
-      clientLocation,
-      searchWithin,
-      selectedProvider,
-      selectedEvent,
-      selectedDate,
-      selectedTime,
-      address,
-      userEmail,
-      formData,
-      isSearchedAddress,
-      timestamp: Date.now()
+    const saveBookingState = () => {
+        const bookingState = {
+            clientLocation,
+            searchWithin,
+            selectedProvider,
+            selectedEvent,
+            selectedDate,
+            selectedTime,
+            address,
+            userEmail,
+            formData,
+            isSearchedAddress,
+            timestamp: Date.now()
+        };
+
+        sessionStorage.setItem('bookingState', JSON.stringify(bookingState));
+        console.log('💾 Saved booking state for navigation');
     };
 
-    sessionStorage.setItem('bookingState', JSON.stringify(bookingState));
-    console.log('💾 Saved booking state for navigation');
-  };
+    // Get all hook functions FIRST
+    const {
+        selectedEvent,
+        selectedProvider,
+        selectedDate,
+        selectedTime,
+        workCalandar,
+        firstDay,
+        loadingCalendar,
+        slots,
+        clientLocation,
+        searchWithin,
+        selectedClient,
+        query,
+        suggestions,
+        isSearchedAddress,
+        limitedLocations,
+        filteredProviders,
+        userEmail,
+        formData,
+        address,
+        services,
+        providerArray,
+        loadingProviders,
+        loadingServices,
+        loadingTimeSlots,
+        submittingBooking,
+        loadingAddress,
+        handleChange,
+        handleCheckboxChange,
+        handleSubmit,
+        handleBlacklist,
+        handleFieldChange,
+        handleSearchChange,
+        handleSearchSelect,
+        setSearchWithin,
+        setUserEmail,
+        setSelectedProvider,
+        setSelectedDate,
+        setSelectedTime,
+        getLatLngFromAddress,
+        handleNotFoundSubmit,
+        handleMonthChange,
+        getSelectedServiceNames,
+        resetBooking,
+        setFormData
+    } = useBooking({ providers, events, locations, clients, categories, searchCategory });
 
-  // Get all hook functions FIRST
-  const {
-    selectedEvent,
-    selectedProvider,
-    selectedDate,
-    selectedTime,
-    workCalandar,
-    firstDay,
-    loadingCalendar,
-    slots,
-    clientLocation,
-    searchWithin,
-    selectedClient,
-    query,
-    suggestions,
-    isSearchedAddress,
-    limitedLocations,
-    filteredProviders,
-    userEmail,
-    formData,
-    address,
-    services,
-    providerArray,
-    loadingProviders,
-    loadingServices,
-    loadingTimeSlots,
-    submittingBooking,
-    loadingAddress,
-    handleChange,
-    handleCheckboxChange,
-    handleSubmit,
-    handleBlacklist,
-    handleFieldChange,
-    handleSearchChange,
-    handleSearchSelect,
-    setSearchWithin,
-    setUserEmail,
-    setSelectedProvider,
-    setSelectedDate,
-    setSelectedTime,
-    getLatLngFromAddress,
-    handleNotFoundSubmit,
-    handleMonthChange,
-    getSelectedServiceNames,
-    resetBooking,
-    setFormData
-  } = useBooking({ providers, events, locations, clients, categories, searchCategory });
+    // Custom handler for provider selection that automatically moves to next step
+    const handleProviderSelect = (providerId) => {
+        setSelectedProvider(providerId);
+        setSelectedServices([]); // Reset selected services
 
-  // Custom handler for provider selection that automatically moves to next step
-  const handleProviderSelect = (providerId) => {
-    setSelectedProvider(providerId);
-    setSelectedServices([]); // Reset selected services
-
-    Object.keys(services).forEach((key) => {
-      if (services[key]) {
-        handleCheckboxChange({
-          target: {
-            name: key,
-            checked: false,
-          },
-        });
-      }
-    });
-
-    // reset downstream steps
-    setSelectedDate(null);
-    setSelectedTime("");
-
-
-    setActiveStep(2); // Move to Services step
-  };
-
-  const triggerProviderSearch = async () => {
-    try {
-      setIsSearchingProviders(true);
-      setHasSearched(false);
-      setSearchCompleted(false); // ✅ NEW
-
-      setSelectedProvider("");
-      setSelectedServices([]);
-      setActiveStep(1);
-
-      await getLatLngFromAddress();
-
-      // wait for React state to flush
-      await new Promise((r) => setTimeout(r, 0));
-
-      setHasSearched(true);
-      setSearchCompleted(true); // ✅ ONLY AFTER EVERYTHING
-
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setIsSearchingProviders(false);
-    }
-  };
-
-  const handleSaveAddress = async () => {
-    try {
-      const res = await fetch("/api/auth/save-details", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          email: loginData.email,
-          phonenumber: loginData.phonenumber,
-          fullAddress: formData.fullAddress,
-          city: formData.city,
-          state: formData.state,
-          zip: formData.zip,
-        }),
-      });
-
-      const data = await res.json();
-
-      if (data.success) {
-        handleFieldChange({
-          target: { name: "fullAddress", value: formData.fullAddress }
+        Object.keys(services).forEach((key) => {
+            if (services[key]) {
+                handleCheckboxChange({
+                    target: {
+                        name: key,
+                        checked: false,
+                    },
+                });
+            }
         });
 
+        // reset downstream steps
+        setSelectedDate(null);
+        setSelectedTime("");
+
+
+        setActiveStep(2); // Move to Services step
+    };
+
+    const triggerProviderSearch = async () => {
+        try {
+            setIsSearchingProviders(true);
+            setHasSearched(false);
+            setSearchCompleted(false); // ✅ NEW
+
+            setSelectedProvider("");
+            setSelectedServices([]);
+            setActiveStep(1);
+
+            await getLatLngFromAddress();
+
+            // wait for React state to flush
+            await new Promise((r) => setTimeout(r, 0));
+
+            setHasSearched(true);
+            setSearchCompleted(true); // ✅ ONLY AFTER EVERYTHING
+
+        } catch (err) {
+            console.error(err);
+        } finally {
+            setIsSearchingProviders(false);
+        }
+    };
+
+    const handleSaveAddress = async () => {
+        try {
+            const res = await fetch("/api/auth/save-details", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    email: loginData.email,
+                    phonenumber: loginData.phonenumber,
+                    fullAddress: formData.fullAddress,
+                    city: formData.city,
+                    state: formData.state,
+                    zip: formData.zip,
+                }),
+            });
+
+            const data = await res.json();
+
+            if (data.success) {
+                handleFieldChange({
+                    target: { name: "fullAddress", value: formData.fullAddress }
+                });
+
+                handleFieldChange({
+                    target: { name: "city", value: formData.city }
+                });
+
+                handleFieldChange({
+                    target: { name: "state", value: formData.state }
+                });
+
+                handleFieldChange({
+                    target: { name: "zip", value: formData.zip }
+                });
+
+                setUserFlow("authenticated");
+
+                // ✅ trigger AFTER state updates
+                setAddressReady(true);
+            }
+
+        } catch (err) {
+            console.error(err);
+        }
+    };
+
+    const handleUseSavedAddress = async () => {
+
+        // 🔥 sync formData → address
         handleFieldChange({
-          target: { name: "city", value: formData.city }
+            target: { name: "fullAddress", value: formData.fullAddress }
         });
 
         handleFieldChange({
-          target: { name: "state", value: formData.state }
+            target: { name: "city", value: formData.city }
         });
 
         handleFieldChange({
-          target: { name: "zip", value: formData.zip }
+            target: { name: "state", value: formData.state }
+        });
+
+        handleFieldChange({
+            target: { name: "zip", value: formData.zip }
         });
 
         setUserFlow("authenticated");
 
-        // ✅ trigger AFTER state updates
+        // ✅ trigger AFTER syncing
         setAddressReady(true);
-      }
-
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  const handleUseSavedAddress = async () => {
-
-    // 🔥 sync formData → address
-    handleFieldChange({
-      target: { name: "fullAddress", value: formData.fullAddress }
-    });
-
-    handleFieldChange({
-      target: { name: "city", value: formData.city }
-    });
-
-    handleFieldChange({
-      target: { name: "state", value: formData.state }
-    });
-
-    handleFieldChange({
-      target: { name: "zip", value: formData.zip }
-    });
-
-    setUserFlow("authenticated");
-
-    // ✅ trigger AFTER syncing
-    setAddressReady(true);
-  };
-
-  const handleUseTempAddress = async () => {
-
-    // 🔥 same sync required here
-    handleFieldChange({
-      target: { name: "fullAddress", value: formData.fullAddress }
-    });
-
-    handleFieldChange({
-      target: { name: "city", value: formData.city }
-    });
-
-    handleFieldChange({
-      target: { name: "state", value: formData.state }
-    });
-
-    handleFieldChange({
-      target: { name: "zip", value: formData.zip }
-    });
-
-    setUserFlow("authenticated");
-
-    setAddressReady(true);
-  };
-
-  const selectedProviderObj = providers.find(
-    (p) => p.id === selectedProvider
-  );
-  const hoverProviderObj = hoveredProvider;
-  const activeProvider = hoveredProvider || selectedProviderObj;
-  // Custom handler for service selection - THIS IS THE KEY FIX
-  const handleServiceSelection = (serviceId) => {
-    setSelectedServices(prev => {
-      let newSelectedServices;
-      if (prev.includes(serviceId)) {
-        // Remove service if already selected
-        newSelectedServices = prev.filter(id => id !== serviceId);
-      } else {
-        // Add service if not selected
-        newSelectedServices = [...prev, serviceId];
-      }
-
-      return newSelectedServices;
-    });
-  };
-
-  // Effect to automatically move to date step when services are selected
-  useEffect(() => {
-    if (selectedServices.length > 0 && activeStep === 2) {
-      // If services are selected and we're still on step 2, move to step 3
-      console.log('Services selected, moving to date step');
-      setActiveStep(3);
-    }
-  }, [selectedServices, activeStep]);
-
-  useEffect(() => {
-    if (!addressReady) return;
-
-    const runSearch = async () => {
-      console.log("🚀 Address ready, triggering search...", address);
-
-      await triggerProviderSearch();
-
-      // reset flag (important)
-      setAddressReady(false);
     };
 
-    runSearch();
-  }, [addressReady]);
+    const handleUseTempAddress = async () => {
 
-  // Custom handler for date selection
-  const handleDateSelect = (date) => {
-    setSelectedDate(date);
-    setSelectedTime(""); // Reset time when date changes
-    setActiveStep(4); // Move to Time step
-  };
-
-  // Custom handler for time selection
-  const handleTimeSelect = (time) => {
-    setSelectedTime(time);
-    setActiveStep(5); // Move to Booking step
-  };
-
-  // Go back to previous step - SIMPLIFIED VERSION
-  const handleBackStep = () => {
-    if (activeStep > 1) {
-      setActiveStep(activeStep - 1);
-    }
-  };
-
-  // Go to specific step - UPDATED VERSION
-  const handleGoToStep = (step) => {
-    // Always allow going back to previous steps
-    if (step < activeStep) {
-      // Going back - always allowed
-      setActiveStep(step);
-    } else if (step > activeStep) {
-      // Going forward - check conditions
-      if (step === 2 && selectedProvider) {
-        setActiveStep(step);
-      } else if (step === 3 && selectedServices.length > 0) {
-        setActiveStep(step);
-      } else if (step === 4 && selectedDate) {
-        setActiveStep(step);
-      } else if (step === 5 && selectedTime) {
-        setActiveStep(step);
-      }
-    }
-  };
-
-  // Load auth state from session storage
-  useEffect(() => {
-    const loadAuthState = () => {
-      if (typeof window !== 'undefined') {
-        const savedAuth = sessionStorage.getItem('userAuth');
-        if (savedAuth) {
-          try {
-            const parsed = JSON.parse(savedAuth);
-            if (parsed.isAuthenticated) {
-              setUserEmail(parsed.userEmail);
-              setFormData(prev => ({ ...prev, email: parsed.userEmail }));
-
-              if (parsed.userData?.lastAddress) {
-                const addr = parsed.userData.lastAddress;
-                if (addr.fullAddress) {
-                  handleFieldChange({
-                    target: { name: "fullAddress", value: addr.fullAddress }
-                  });
-                }
-                if (addr.city) {
-                  handleFieldChange({
-                    target: { name: "city", value: addr.city }
-                  });
-                }
-                if (addr.state) {
-                  handleFieldChange({
-                    target: { name: "state", value: addr.state }
-                  });
-                }
-              }
-            }
-          } catch (error) {
-            console.error('❌ Error loading auth state:', error);
-            sessionStorage.removeItem('userAuth');
-          }
-        }
-      }
-    };
-
-    loadAuthState();
-  }, []);
-
-  // Listen for reset events from Header and NoProvidersSection
-  useEffect(() => {
-    const handleResetBookingForm = () => {
-      console.log('🔄 Received reset request from header/no-thanks');
-      handleFullReset();
-    };
-
-    window.addEventListener('reset-booking-form', handleResetBookingForm);
-    return () => {
-      window.removeEventListener('reset-booking-form', handleResetBookingForm);
-    };
-  }, []);
-
-  // Phone utility functions
-  const formatPhoneNumber = (value) => {
-    const phoneNumber = value.replace(/\D/g, '');
-    let processedNumber = phoneNumber;
-    if (phoneNumber.length > 0 && phoneNumber[0] === '1') {
-      processedNumber = phoneNumber.substring(1);
-    }
-    const limitedNumber = processedNumber.substring(0, 10);
-    if (limitedNumber.length === 0) return '';
-    if (limitedNumber.length <= 3) return `(${limitedNumber}`;
-    if (limitedNumber.length <= 6) return `(${limitedNumber.substring(0, 3)}) ${limitedNumber.substring(3)}`;
-    return `(${limitedNumber.substring(0, 3)}) ${limitedNumber.substring(3, 6)}-${limitedNumber.substring(6)}`;
-  };
-
-  const normalizePhoneNumber = (formattedNumber) => {
-    return formattedNumber.replace(/\D/g, '').substring(0, 10);
-  };
-
-  const currentStep = selectedTime
-    ? 5
-    : selectedDate
-      ? 4
-      : selectedServices.length > 0
-        ? 3
-        : selectedProvider
-          ? 2
-          : 1;
-
-  // Enhanced handleSubmit that shows success notification
-  const handleSubmitWithNotification = async (e) => {
-    const result = await handleSubmit(e);
-    if (result && result.success) {
-      setBookingDetails({
-        provider: selectedProvider,
-        date: selectedDate,
-        time: selectedTime,
-        services: getSelectedServiceNames(),
-      });
-      setShowSuccess(true);
-      setTimeout(() => {
-        setShowSuccess(false);
-        setBookingDetails(null);
-      }, 5000);
-    }
-  };
-
-  const handleCloseSuccess = () => {
-    setShowSuccess(false);
-    setBookingDetails(null);
-  };
-
-  // Enhanced reset that clears everything
-  const handleFullReset = () => {
-    resetBooking();
-    setShowSuccess(false);
-    setBookingDetails(null);
-    setResetForm(true);
-    setSelectedServices([]);
-    setActiveStep(1);
-    setTimeout(() => setResetForm(false), 100);
-    sessionStorage.removeItem('userAuth');
-    sessionStorage.removeItem('bookingState');
-    console.log('🗑️ Cleared auth state from session storage');
-  };
-
-  // Handler for "No Thanks" that goes back to ENTRY point
-  const handleNoThanks = () => {
-    resetBooking();
-    setSelectedServices([]);
-    setActiveStep(1);
-    sessionStorage.clear();
-    window.dispatchEvent(new CustomEvent('reset-booking-form'));
-    console.log('🔙 Resetting booking form');
-  };
-
-  const handleLoginCheck = async (e) => {
-    e.preventDefault();
-    setOtpError("");
-
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    const phoneRegex = /^[0-9]{10}$/;
-
-    // ✅ Validate Email
-    if (!emailRegex.test(loginData.email)) {
-      setOtpError("Please enter valid email");
-      return;
-    }
-
-    // ✅ Validate Phone
-    if (!phoneRegex.test(loginData.phonenumber)) {
-      setOtpError("Enter valid 10 digit phone number");
-      return;
-    }
-
-    setOtpLoading(true);
-
-    try {
-      const checkRes = await fetch("/api/auth/check-user", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: loginData.email,
-          phonenumber: loginData.phonenumber,
-        }),
-      });
-
-      const checkData = await checkRes.json();
-
-      // ❌ API returned error (like wrong phone)
-      if (!checkData.success) {
-        setOtpError(checkData.message || "Something went wrong");
-        return;
-      }
-
-      // ✅ Email + Phone correct → Send OTP
-      if (checkData.loginAllowed) {
-        const otpRes = await fetch("/api/auth/send-otp", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            email: loginData.email,
-            phonenumber: loginData.phonenumber,
-          }),
+        // 🔥 same sync required here
+        handleFieldChange({
+            target: { name: "fullAddress", value: formData.fullAddress }
         });
 
-        const otpData = await otpRes.json();
+        handleFieldChange({
+            target: { name: "city", value: formData.city }
+        });
 
-        if (!otpRes.ok || !otpData.success) {
-          setOtpError(otpData.message || "Failed to send OTP");
-          return;
+        handleFieldChange({
+            target: { name: "state", value: formData.state }
+        });
+
+        handleFieldChange({
+            target: { name: "zip", value: formData.zip }
+        });
+
+        setUserFlow("authenticated");
+
+        setAddressReady(true);
+    };
+
+    const selectedProviderObj = providers.find(
+        (p) => p.id === selectedProvider
+    );
+    const hoverProviderObj = hoveredProvider;
+    const activeProvider = hoveredProvider || selectedProviderObj;
+    // Custom handler for service selection - THIS IS THE KEY FIX
+    const handleServiceSelection = (serviceId) => {
+        setSelectedServices(prev => {
+            let newSelectedServices;
+            if (prev.includes(serviceId)) {
+                // Remove service if already selected
+                newSelectedServices = prev.filter(id => id !== serviceId);
+            } else {
+                // Add service if not selected
+                newSelectedServices = [...prev, serviceId];
+            }
+
+            return newSelectedServices;
+        });
+    };
+
+    // Effect to automatically move to date step when services are selected
+    useEffect(() => {
+        if (selectedServices.length > 0 && activeStep === 2) {
+            // If services are selected and we're still on step 2, move to step 3
+            console.log('Services selected, moving to date step');
+            setActiveStep(3);
         }
+    }, [selectedServices, activeStep]);
 
-        setUserFlow("otp-verification");
-      }
+    useEffect(() => {
+        if (!addressReady) return;
 
-      // ❌ Email does not exist → Register
-      else {
-        setUserFlow("register-user");
-      }
+        const runSearch = async () => {
+            console.log("🚀 Address ready, triggering search...", address);
 
-    } catch (error) {
-      console.error(error);
-      setOtpError("Network error. Please try again.");
-    } finally {
-      setOtpLoading(false);
-    }
-  };
+            await triggerProviderSearch();
 
-  const handleVerifyOTP = async (e) => {
-    e.preventDefault();
-
-    setOtpLoading(true);
-    setHasSearched(false);
-    setOtpError("");
-
-    const phoneRegex = /^[0-9]{10}$/;
-    if (!phoneRegex.test(loginData.phonenumber)) {
-      setOtpError("Invalid phone number format");
-      setOtpLoading(false);
-      return;
-    }
-
-    try {
-      const response = await fetch('/api/auth/verify-otp', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: loginData.email,
-          phonenumber: loginData.phonenumber,
-          otp: otp
-        }),
-      });
-
-      const result = await response.json();
-      console.log("OTP verification result:", result);
-
-      if (result.success) {
-
-        // ✅ ONLY HERE mark as verified
-        setOtpVerified(true);
-        // setUserFlow("authenticated");
-
-        const authData = {
-          isAuthenticated: true,
-          userEmail: result.user.email,
-          userData: result.user,
-          loginData: {
-            email: loginData.email,
-            phonenumber: loginData.phonenumber
-          },
-          timestamp: new Date().toISOString()
+            // reset flag (important)
+            setAddressReady(false);
         };
 
-        sessionStorage.setItem('userAuth', JSON.stringify(authData));
-        window.dispatchEvent(new Event("session-changed"));
+        runSearch();
+    }, [addressReady]);
 
-        // Auto fill last address if exists
-        if (!result.user.fullAddress) {
-          setUserFlow("collect-address"); // new user
-        } else {
-          setUserFlow("confirm-address"); // existing user
-
-          // also prefill address into form
-          setFormData(prev => ({
-            ...prev,
-            fullAddress: result.user.fullAddress,
-            city: result.user.city || "",
-            state: result.user.state || "",
-            zip: result.user.zip || ""
-          }));
-        }
-
-        setUserEmail(result.user.email);
-        setFormData(prev => ({
-          ...prev,
-          email: result.user.email
-        }));
-
-        if (!currentEmail) {
-          setCurrentEmail(true);
-        }
-
-      } else {
-        setOtpError(result.message || "Invalid or expired OTP");
-      }
-
-    } catch (error) {
-      console.error(error);
-      setOtpError("Network error. Please try again.");
-    } finally {
-      setOtpLoading(false);
-    }
-  };
-
-  // loadBlacklistedProviders management
-  const loadBlacklistedProviders = async (email) => {
-    if (!email) return;
-    setLoadingBlacklist(true);
-    try {
-      console.log("Fetching blacklist for email:", email);
-      const response = await fetch(`/api/blacklist?email=${email}`);
-      const data = await response.json();
-      console.log("Blacklist API response:", data);
-      if (data.success) {
-        setBlacklistedProviders(data.blockedProviderIds || []);
-      } else {
-        console.error("Blacklist API error:", data.message);
-      }
-    } catch (error) {
-      console.error('Error fetching blacklist:', error);
-    } finally {
-      setLoadingBlacklist(false);
-    }
-  };
-
-  // Function to show blacklisted providers
-  const showBlacklistedProviders = () => {
-    setCurrentView('blacklisted');
-    loadBlacklistedProviders(userEmail);
-  };
-
-  // Function to show normal providers
-  const showProviders = () => {
-    setCurrentView('providers');
-  };
-
-  // Function to unblacklist a provider
-  const handleUnblacklist = async (providerId) => {
-    if (!userEmail) return;
-    setUnblacklisting(providerId);
-    try {
-      console.log("Unblacklisting provider:", providerId);
-      const res = await fetch(`/api/blacklist?email=${userEmail}&providerId=${providerId}`, {
-        method: "DELETE",
-      });
-      const result = await res.json();
-      console.log("Unblacklist response:", result);
-      if (result.success) {
-        setBlacklistedProviders(prev => prev.filter(id => id !== providerId));
-        if (clientLocation && searchWithin) {
-          console.log("Refreshing providers after unblacklist...");
-          getLatLngFromAddress();
-        }
-        alert("Provider has been unblacklisted successfully!");
-      } else {
-        alert(result.message || "Failed to unblacklist provider.");
-      }
-    } catch (error) {
-      console.error("Unblacklist error:", error);
-      alert("Something went wrong while unblacklisting the provider.");
-    } finally {
-      setUnblacklisting(null);
-    }
-  };
-
-  const handleSearchWithReset = async () => {
-    setSelectedProvider("");
-    setSelectedServices([]);
-    setActiveStep(1);
-    await getLatLngFromAddress();
-  };
-
-  const handleRegisterUser = async () => {
-    try {
-      setOtpLoading(true);
-      setOtpError("");
-
-      // 1️⃣ Register User
-      const response = await fetch("/api/auth/register-user", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          fullname: formData.name,
-          email: loginData.email,
-          phonenumber: loginData.phonenumber,
-        }),
-      });
-
-      const result = await response.json();
-
-      if (!response.ok || !result.success) {
-        setOtpError(result.message || "Registration failed");
-        return;
-      }
-
-      // 2️⃣ Send OTP after successful registration
-      const otpRes = await fetch("/api/auth/send-otp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: loginData.email,
-          phonenumber: loginData.phonenumber,
-        }),
-      });
-
-      const otpData = await otpRes.json();
-
-      if (!otpRes.ok || !otpData.success) {
-        setOtpError(otpData.message || "Failed to send OTP");
-        return;
-      }
-
-      // 3️⃣ Move to OTP verification screen
-      setUserFlow("otp-verification");
-
-    } catch (error) {
-      console.error(error);
-      setOtpError("Registration failed");
-    } finally {
-      setOtpLoading(false);
-    }
-  };
-  // Function to unblacklist all providers
-  const handleUnblacklistAll = async () => {
-    if (!userEmail) return;
-    if (!confirm("Are you sure you want to unblacklist all providers?")) {
-      return;
-    }
-    setLoadingBlacklist(true);
-    try {
-      for (const providerId of blacklistedProviders) {
-        console.log("Unblacklisting provider:", providerId);
-        const res = await fetch(`/api/blacklist?email=${userEmail}&providerId=${providerId}`, {
-          method: "DELETE",
-        });
-        const result = await res.json();
-        console.log(`Unblacklist result for ${providerId}:`, result);
-      }
-      setBlacklistedProviders([]);
-      alert("All providers have been unblacklisted successfully!");
-    } catch (error) {
-      console.error("Unblacklist all error:", error);
-      alert("Something went wrong while unblacklisting providers.");
-    } finally {
-      setLoadingBlacklist(false);
-    }
-  };
-
-
-  const availableCategories = categories.filter((category) => {
-    if (!category.events || category.events.length === 0) return false;
-
-    return providers.some((provider) =>
-      category.events.some((eventId) =>
-        provider.services?.includes(Number(eventId))
-      )
-    );
-  });
-  // useEffect(() => {
-  //   if (!selectedCategory) return;
-
-  //   // Clear all previously selected services
-  //   Object.keys(services).forEach((key) => {
-  //     if (services[key]) {
-  //       handleCheckboxChange({
-  //         target: {
-  //           name: key,
-  //           checked: false,
-  //         },
-  //       });
-  //     }
-  //   });
-
-  //   setSelectedDate(null);
-  //   setSelectedTime("");
-  // }, [selectedCategory]);
-
-  // useEffect(() => {
-  //   if (!selectedProvider) return;
-
-  //   // reset downstream
-  //   setSelectedCategory(null);
-
-  //   // clear all selected services
-  //   Object.keys(services).forEach((key) => {
-  //     if (services[key]) {
-  //       handleCheckboxChange({
-  //         target: { name: key, checked: false },
-  //       });
-  //     }
-  //   });
-
-  //   setSelectedDate(null);
-  //   setSelectedTime("");
-  // }, [selectedProvider]);
-
-
-  const formatPhoneDisplay = (value) => {
-    const digits = value.replace(/\D/g, "").slice(0, 10);
-
-    const part1 = digits.slice(0, 3);
-    const part2 = digits.slice(3, 6);
-    const part3 = digits.slice(6, 10);
-
-    if (digits.length > 6) {
-      return `(${part1}) ${part2}-${part3}`;
-    } else if (digits.length > 3) {
-      return `(${part1}) ${part2}`;
-    } else if (digits.length > 0) {
-      return `(${part1}`;
-    }
-
-    return "";
-  };
-
-  useEffect(() => {
-    // ⭐ When provider is deselected → reset downstream
-    if (!selectedProvider) {
-      // clear services
-      Object.keys(services).forEach((key) => {
-        if (services[key]) {
-          handleCheckboxChange({
-            target: { name: key, checked: false },
-          });
-        }
-      });
-
-      setSelectedDate(null);
-      setSelectedTime("");
-    }
-  }, [selectedProvider]);
-
-
-  useEffect(() => {
-    const hasService = Object.values(services).some(Boolean);
-
-    if (!hasService) {
-      setSelectedDate(null);
-      setSelectedTime("");
-    }
-  }, [services]);
-
-
-  useEffect(() => {
-    if (!selectedDate) {
-      setSelectedTime("");
-    }
-  }, [selectedDate]);
-
-  const handleLogout = () => {
-    // Clear session storage
-    sessionStorage.removeItem("userAuth");
-    resetBooking();
-
-    // Reset states
-    setOtpVerified(false);
-    setUserFlow("entry");
-    setOtp("");
-    setOtpError("");
-    setLoginData({
-      email: "",
-      phonenumber: ""
-    });
-    setUser(null);
-
-    // 🧹 Clear booking state
-    setSelectedDate(null);
-    setSelectedTime("");
-    // setSlots([]);
-    setWorkCalandar({});
-    setServices({}); // VERY IMPORTANT
-
-    // 🔥 Reset booking related states
-    setTotalDuration(0);
-    setHasSearched(false);
-
-    // Optional: notify other components
-    window.dispatchEvent(new Event("session-changed"));
-  };
-
-  useEffect(() => {
-    if (!otpVerified) {
-      setSelectedDate(null);
-      setSelectedTime("");
-      // setSlots([]);
-      // setWorkCalandar({});
-      // setServices({});
-    }
-  }, [otpVerified]);
-
-  const totalDuration = events?.reduce((total, event) => {
-    const serviceKey = event.name
-      ?.toLowerCase()
-      .replace(/[^a-z0-9]+/g, "_")
-      .replace(/(^_+|_+$)/g, "");
-
-    if (services?.[serviceKey]) {
-      return total + Number(event.duration || 0);
-    }
-
-    return total;
-  }, 0) || 0;
-
-
-  // Blacklisted Providers View Component
-  const BlacklistedProvidersView = () => {
-    // Get provider details from the providers prop
-    const getProviderDetails = (providerId) => {
-      const provider = providers.find(p => p.id.toString() === providerId.toString());
-      return provider || {
-        id: providerId,
-        name: `Provider ${providerId}`,
-        picture_path: null
-      };
+    // Custom handler for date selection
+    const handleDateSelect = (date) => {
+        setSelectedDate(date);
+        setSelectedTime(""); // Reset time when date changes
+        setActiveStep(4); // Move to Time step
     };
 
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-12 px-4">
-        <div className="max-w-4xl mx-auto">
-          {/* Header */}
-          <div className="text-center mb-12">
-            <div className="inline-flex items-center justify-center w-20 h-20 bg-indigo-600 rounded-3xl shadow-lg mb-6">
-              <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-              </svg>
-            </div>
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-4">
-              Hidden Providers
-            </h1>
-            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-              Manage providers You&apos;ve hidden from your search results
-            </p>
-          </div>
+    // Custom handler for time selection
+    const handleTimeSelect = (time) => {
+        setSelectedTime(time);
+        setActiveStep(5); // Move to Booking step
+    };
 
-          {/* Main Content */}
-          <div className="bg-white rounded-2xl shadow-2xl p-8">
-            {/* Header with actions */}
-            <div className="flex justify-between items-center mb-8">
-              <div>
-                <h2 className="text-2xl font-bold text-gray-800">
-                  Hidden Providers ({blacklistedProviders.length})
-                </h2>
-                <p className="text-gray-600 mt-1">
-                  For: {userEmail}
-                </p>
-                <p className="text-gray-500 text-sm">
-                  These providers are currently hidden from your search results
-                </p>
-              </div>
+    // Go back to previous step - SIMPLIFIED VERSION
+    const handleBackStep = () => {
+        if (activeStep > 1) {
+            setActiveStep(activeStep - 1);
+        }
+    };
 
-              <div className="flex items-center gap-4">
-                {/* Back to Providers Button */}
-                <button
-                  onClick={showProviders}
-                  className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-2xl font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                  </svg>
-                  Back to Booking
-                </button>
+    // Go to specific step - UPDATED VERSION
+    const handleGoToStep = (step) => {
+        // Always allow going back to previous steps
+        if (step < activeStep) {
+            // Going back - always allowed
+            setActiveStep(step);
+        } else if (step > activeStep) {
+            // Going forward - check conditions
+            if (step === 2 && selectedProvider) {
+                setActiveStep(step);
+            } else if (step === 3 && selectedServices.length > 0) {
+                setActiveStep(step);
+            } else if (step === 4 && selectedDate) {
+                setActiveStep(step);
+            } else if (step === 5 && selectedTime) {
+                setActiveStep(step);
+            }
+        }
+    };
 
-                {blacklistedProviders.length > 0 && (
-                  <button
-                    onClick={handleUnblacklistAll}
-                    disabled={loadingBlacklist}
-                    className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-2xl font-semibold shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50"
-                  >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                    </svg>
-                    Show All Again
-                  </button>
-                )}
-              </div>
-            </div>
+    // Load auth state from session storage
+    useEffect(() => {
+        const loadAuthState = () => {
+            if (typeof window !== 'undefined') {
+                const savedAuth = sessionStorage.getItem('userAuth');
+                if (savedAuth) {
+                    try {
+                        const parsed = JSON.parse(savedAuth);
+                        if (parsed.isAuthenticated) {
+                            setUserEmail(parsed.userEmail);
+                            setFormData(prev => ({ ...prev, email: parsed.userEmail }));
 
-            {/* Loading State */}
-            {loadingBlacklist && (
-              <div className="text-center py-12">
-                <div className="w-16 h-16 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                  <div className="w-8 h-8 border-4 border-white border-t-transparent rounded-full animate-spin"></div>
-                </div>
-                <p className="text-gray-600">Loading hidden providers...</p>
-              </div>
-            )}
-
-            {/* Empty State */}
-            {!loadingBlacklist && blacklistedProviders.length === 0 && (
-              <div className="text-center py-12">
-                <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                  <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-                <h3 className="text-xl font-semibold text-gray-800 mb-2">No Hidden Providers</h3>
-                <p className="text-gray-600 mb-6">You haven&apos;t hidden any providers yet.</p>
-                <button
-                  onClick={showProviders}
-                  className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-2xl font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                  </svg>
-                  Back to Booking
-                </button>
-              </div>
-            )}
-
-            {/* Providers List */}
-            {!loadingBlacklist && blacklistedProviders.length > 0 && (
-              <div className="space-y-4">
-                {blacklistedProviders.map((providerId) => {
-                  const provider = getProviderDetails(providerId);
-                  return (
-                    <div
-                      key={providerId}
-                      className="flex items-center justify-between p-6 bg-gray-50 rounded-2xl border border-gray-200 hover:border-gray-300 transition-all duration-200"
-                    >
-                      <div className="flex items-center gap-4">
-                        <div className="flex-shrink-0">
-                          <img
-                            src={
-                              provider.picture_path
-                                ? process.env.NEXT_PUBLIC_BASE_URL_IMAGE + provider.picture_path
-                                : "/images/placeholder.jpg"
+                            if (parsed.userData?.lastAddress) {
+                                const addr = parsed.userData.lastAddress;
+                                if (addr.fullAddress) {
+                                    handleFieldChange({
+                                        target: { name: "fullAddress", value: addr.fullAddress }
+                                    });
+                                }
+                                if (addr.city) {
+                                    handleFieldChange({
+                                        target: { name: "city", value: addr.city }
+                                    });
+                                }
+                                if (addr.state) {
+                                    handleFieldChange({
+                                        target: { name: "state", value: addr.state }
+                                    });
+                                }
                             }
-                            alt={provider.name}
-                            className="w-12 h-12 object-cover rounded-2xl shadow-md"
-                          />
-                        </div>
-                        <div>
-                          <h3 className="text-lg font-semibold text-gray-800">
-                            {provider.name}
-                          </h3>
-                          <p className="text-gray-600 text-sm">Provider ID: {providerId}</p>
-                        </div>
-                      </div>
-
-                      <button
-                        onClick={() => handleUnblacklist(providerId)}
-                        disabled={unblacklisting === providerId}
-                        className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-2xl font-semibold shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50"
-                      >
-                        {unblacklisting === providerId ? (
-                          <>
-                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                            Showing...
-                          </>
-                        ) : (
-                          <>
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                            </svg>
-                            Show Again
-                          </>
-                        )}
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  console.log("isSearchingProviders || !searchCompleted: ", isSearchingProviders, !searchCompleted)
-
-  // Main horizontal flow content - FIXED VERSION
-  const renderHorizontalFlow = () => {
-    return (
-      <div className="space-y-8">
-
-        {/* STEPS GRID */}
-        <div className="grid gap-2 grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-
-          {/* STEP 1 – CLIENT LOGIN */}
-          <div className="bg-white rounded-2xl shadow-xl border border-gray-100 flex flex-col h-[650px]">
-
-            {/* Header */}
-            <div className="px-4 py-3 bg-indigo-50 flex items-center justify-between">
-              <h3 className="text-lg font-bold">Client Login</h3>
-
-              {otpVerified && (
-                <button
-                  onClick={handleLogout}
-                  className="text-sm text-red-600 hover:text-red-700 font-medium"
-                >
-                  Logout
-                </button>
-              )}
-            </div>
-            <div className="flex-1 overflow-y-auto p-6">
-
-              {/* ================= STEP 1: ENTRY ================= */}
-              {!otpVerified && userFlow === "entry" && (
-                <form onSubmit={handleLoginCheck} className="space-y-6">
-
-                  <div>
-                    <h2 className="text-xl font-semibold text-gray-800">
-                      Enter your details
-                    </h2>
-                    <p className="text-sm text-gray-500">
-                      We’ll check your account and send a verification code
-                    </p>
-                  </div>
-
-                  {/* EMAIL */}
-                  <div>
-                    <label className="text-sm text-gray-600">Email</label>
-                    <input
-                      type="email"
-                      value={loginData.email}
-                      onChange={(e) => {
-                        setLoginData(prev => ({ ...prev, email: e.target.value }));
-                        setEmailError("");
-                      }}
-                      className="w-full mt-2 px-4 py-3 rounded-xl border focus:ring-2 focus:ring-indigo-500 outline-none"
-                    />
-                    {emailError && <p className="text-xs text-red-500 mt-1">{emailError}</p>}
-                  </div>
-
-                  {/* PHONE */}
-                  <div>
-                    <label className="text-sm text-gray-600">Phone</label>
-                    <input
-                      type="tel"
-                      value={formatPhoneDisplay(loginData.phonenumber)}
-                      onChange={(e) => {
-                        const digits = e.target.value.replace(/\D/g, "").slice(0, 10);
-                        setLoginData(prev => ({ ...prev, phonenumber: digits }));
-                      }}
-                      className="w-full mt-2 px-4 py-3 rounded-xl border focus:ring-2 focus:ring-indigo-500 outline-none"
-                    />
-                  </div>
-
-                  {otpError && <p className="text-sm text-red-500">{otpError}</p>}
-
-                  <button
-                    type="submit"
-                    disabled={otpLoading}
-                    className="w-full bg-indigo-600 text-white py-3 rounded-xl font-medium hover:bg-indigo-700"
-                  >
-                    {otpLoading ? "Checking..." : "Continue"}
-                  </button>
-                </form>
-              )}
-
-              {/* ================= STEP 2: REGISTER ================= */}
-              {!otpVerified && userFlow === "register-user" && (
-                <div className="space-y-6">
-
-                  <div>
-                    <h2 className="text-xl font-semibold text-gray-800">
-                      Create your account
-                    </h2>
-                    <p className="text-sm text-gray-500">
-                      Looks like you're new here. Let’s get you set up.
-                    </p>
-                  </div>
-
-                  <input
-                    placeholder="Full Name"
-                    onChange={(e) =>
-                      setFormData(prev => ({ ...prev, name: e.target.value }))
+                        }
+                    } catch (error) {
+                        console.error('❌ Error loading auth state:', error);
+                        sessionStorage.removeItem('userAuth');
                     }
-                    className="w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-green-500"
-                  />
+                }
+            }
+        };
 
-                  <button
-                    onClick={handleRegisterUser}
-                    className="w-full bg-green-600 text-white py-3 rounded-xl hover:bg-green-700"
-                  >
-                    Continue
-                  </button>
-                </div>
-              )}
+        loadAuthState();
+    }, []);
 
-              {/* ================= STEP 3: OTP ================= */}
-              {!otpVerified && userFlow === "otp-verification" && (
-                <div className="space-y-6">
+    // Listen for reset events from Header and NoProvidersSection
+    useEffect(() => {
+        const handleResetBookingForm = () => {
+            console.log('🔄 Received reset request from header/no-thanks');
+            handleFullReset();
+        };
 
-                  <div>
-                    <h2 className="text-xl font-semibold text-gray-800">
-                      Verify your phone
-                    </h2>
-                    <p className="text-sm text-gray-500">
-                      Enter the 6-digit code sent to your phone
-                    </p>
-                  </div>
+        window.addEventListener('reset-booking-form', handleResetBookingForm);
+        return () => {
+            window.removeEventListener('reset-booking-form', handleResetBookingForm);
+        };
+    }, []);
 
-                  <input
-                    maxLength={6}
-                    value={otp}
-                    onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
-                    className="w-full text-center text-2xl tracking-[10px] px-4 py-3 border rounded-xl focus:ring-2 focus:ring-indigo-500"
-                  />
+    // Phone utility functions
+    const formatPhoneNumber = (value) => {
+        const phoneNumber = value.replace(/\D/g, '');
+        let processedNumber = phoneNumber;
+        if (phoneNumber.length > 0 && phoneNumber[0] === '1') {
+            processedNumber = phoneNumber.substring(1);
+        }
+        const limitedNumber = processedNumber.substring(0, 10);
+        if (limitedNumber.length === 0) return '';
+        if (limitedNumber.length <= 3) return `(${limitedNumber}`;
+        if (limitedNumber.length <= 6) return `(${limitedNumber.substring(0, 3)}) ${limitedNumber.substring(3)}`;
+        return `(${limitedNumber.substring(0, 3)}) ${limitedNumber.substring(3, 6)}-${limitedNumber.substring(6)}`;
+    };
 
-                  {otpError && <p className="text-sm text-red-500">{otpError}</p>}
+    const normalizePhoneNumber = (formattedNumber) => {
+        return formattedNumber.replace(/\D/g, '').substring(0, 10);
+    };
 
-                  <button
-                    onClick={handleVerifyOTP}
-                    disabled={otp.length !== 6}
-                    className={`w-full py-3 rounded-xl font-medium ${otp.length === 6
-                      ? "bg-indigo-600 text-white"
-                      : "bg-gray-300 text-gray-500"
-                      }`}
-                  >
-                    Verify OTP
-                  </button>
-                </div>
-              )}
+    const currentStep = selectedTime
+        ? 5
+        : selectedDate
+            ? 4
+            : selectedServices.length > 0
+                ? 3
+                : selectedProvider
+                    ? 2
+                    : 1;
 
-              {/* ================= STEP 4A: NEW USER ADDRESS ================= */}
-              {otpVerified && userFlow === "collect-address" && (
-                <div className="space-y-6">
+    // Enhanced handleSubmit that shows success notification
+    const handleSubmitWithNotification = async (e) => {
+        const result = await handleSubmit(e);
+        if (result && result.success) {
+            setBookingDetails({
+                provider: selectedProvider,
+                date: selectedDate,
+                time: selectedTime,
+                services: getSelectedServiceNames(),
+            });
+            setShowSuccess(true);
+            setTimeout(() => {
+                setShowSuccess(false);
+                setBookingDetails(null);
+            }, 5000);
+        }
+    };
 
-                  <div>
-                    <h2 className="text-xl font-semibold text-gray-800">
-                      Set your service location
-                    </h2>
-                    <p className="text-sm text-gray-500">
-                      This helps us find providers near you
-                    </p>
-                  </div>
+    const handleCloseSuccess = () => {
+        setShowSuccess(false);
+        setBookingDetails(null);
+    };
 
-                  {["fullAddress", "city", "state", "zip"].map((field) => (
-                    <input
-                      key={field}
-                      placeholder={field}
-                      value={formData[field] || ""}
-                      onChange={(e) =>
-                        setFormData(prev => ({
-                          ...prev,
-                          [field]: e.target.value
-                        }))
-                      }
-                      className="w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-indigo-500"
-                    />
-                  ))}
+    // Enhanced reset that clears everything
+    const handleFullReset = () => {
+        resetBooking();
+        setShowSuccess(false);
+        setBookingDetails(null);
+        setResetForm(true);
+        setSelectedServices([]);
+        setActiveStep(1);
+        setTimeout(() => setResetForm(false), 100);
+        sessionStorage.removeItem('userAuth');
+        sessionStorage.removeItem('bookingState');
+        console.log('🗑️ Cleared auth state from session storage');
+    };
 
-                  <button
-                    onClick={handleSaveAddress}
-                    className="w-full bg-indigo-600 text-white py-3 rounded-xl hover:bg-indigo-700"
-                  >
-                    Save & Continue
-                  </button>
-                </div>
-              )}
+    // Handler for "No Thanks" that goes back to ENTRY point
+    const handleNoThanks = () => {
+        resetBooking();
+        setSelectedServices([]);
+        setActiveStep(1);
+        sessionStorage.clear();
+        window.dispatchEvent(new CustomEvent('reset-booking-form'));
+        console.log('🔙 Resetting booking form');
+    };
 
-              {/* ================= STEP 4B: EXISTING USER ================= */}
-              {otpVerified && userFlow === "confirm-address" && (
-                <div className="space-y-6">
+    const handleLoginCheck = async (e) => {
+        e.preventDefault();
+        setOtpError("");
 
-                  <div>
-                    <h2 className="text-xl font-semibold text-gray-800">
-                      Confirm your service location
-                    </h2>
-                    <p className="text-sm text-gray-500">
-                      Will your appointment be at this address?
-                    </p>
-                  </div>
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        const phoneRegex = /^[0-9]{10}$/;
 
-                  <div className="p-4 border rounded-xl bg-gray-50">
-                    <p className="font-medium">{formData.fullAddress}</p>
-                    <p className="text-sm text-gray-500">
-                      {formData.city}, {formData.state} {formData.zip}
-                    </p>
-                  </div>
+        // ✅ Validate Email
+        if (!emailRegex.test(loginData.email)) {
+            setOtpError("Please enter valid email");
+            return;
+        }
 
-                  <button
-                    onClick={handleUseSavedAddress}
-                    className="w-full bg-indigo-600 text-white py-3 rounded-xl"
-                  >
-                    Yes, use this address
-                  </button>
+        // ✅ Validate Phone
+        if (!phoneRegex.test(loginData.phonenumber)) {
+            setOtpError("Enter valid 10 digit phone number");
+            return;
+        }
 
-                  <button
-                    onClick={() => setUserFlow("edit-address")}
-                    className="w-full border py-3 rounded-xl"
-                  >
-                    No, use different address
-                  </button>
-                </div>
-              )}
+        setOtpLoading(true);
 
-              {/* ================= STEP 5: TEMP ADDRESS ================= */}
-              {otpVerified && userFlow === "edit-address" && (
-                <div className="space-y-6">
+        try {
+            const checkRes = await fetch("/api/auth/check-user", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    email: loginData.email,
+                    phonenumber: loginData.phonenumber,
+                }),
+            });
 
-                  <div>
-                    <h2 className="text-xl font-semibold text-gray-800">
-                      Enter a different location
-                    </h2>
-                    <p className="text-sm text-gray-500">
-                      This will be used only for this booking
-                    </p>
-                  </div>
+            const checkData = await checkRes.json();
 
-                  {["fullAddress", "city", "state", "zip"].map((field) => (
-                    <input
-                      key={field}
-                      placeholder={field}
-                      value={formData[field] || ""}
-                      onChange={(e) =>
-                        setFormData(prev => ({
-                          ...prev,
-                          [field]: e.target.value
-                        }))
-                      }
-                      className="w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-indigo-500"
-                    />
-                  ))}
+            // ❌ API returned error (like wrong phone)
+            if (!checkData.success) {
+                setOtpError(checkData.message || "Something went wrong");
+                return;
+            }
 
-                  <button
-                    onClick={handleUseTempAddress}
-                    className="w-full bg-indigo-600 text-white py-3 rounded-xl"
-                  >
-                    Continue
-                  </button>
-                </div>
-              )}
+            // ✅ Email + Phone correct → Send OTP
+            if (checkData.loginAllowed) {
+                const otpRes = await fetch("/api/auth/send-otp", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        email: loginData.email,
+                        phonenumber: loginData.phonenumber,
+                    }),
+                });
 
-              {otpVerified && userFlow === "authenticated" && (
-                <div className="space-y-6">
+                const otpData = await otpRes.json();
 
-                  {/* HEADER */}
-                  <div>
-                    <h2 className="text-xl font-semibold text-gray-800">
-                      Booking Details
-                    </h2>
-                    <p className="text-sm text-gray-500">
-                      You're ready to select a provider
-                    </p>
-                  </div>
+                if (!otpRes.ok || !otpData.success) {
+                    setOtpError(otpData.message || "Failed to send OTP");
+                    return;
+                }
 
-                  {/* USER INFO */}
-                  <div className="bg-gray-50 border rounded-xl p-4 space-y-2">
-                    <div className="text-sm text-gray-600">
-                      <span className="font-medium text-gray-800">Email:</span> {userEmail}
+                setUserFlow("otp-verification");
+            }
+
+            // ❌ Email does not exist → Register
+            else {
+                setUserFlow("register-user");
+            }
+
+        } catch (error) {
+            console.error(error);
+            setOtpError("Network error. Please try again.");
+        } finally {
+            setOtpLoading(false);
+        }
+    };
+
+    const handleVerifyOTP = async (e) => {
+        e.preventDefault();
+
+        setOtpLoading(true);
+        setHasSearched(false);
+        setOtpError("");
+
+        const phoneRegex = /^[0-9]{10}$/;
+        if (!phoneRegex.test(loginData.phonenumber)) {
+            setOtpError("Invalid phone number format");
+            setOtpLoading(false);
+            return;
+        }
+
+        try {
+            const response = await fetch('/api/auth/verify-otp', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    email: loginData.email,
+                    phonenumber: loginData.phonenumber,
+                    otp: otp
+                }),
+            });
+
+            const result = await response.json();
+            console.log("OTP verification result:", result);
+
+            if (result.success) {
+
+                // ✅ ONLY HERE mark as verified
+                setOtpVerified(true);
+                // setUserFlow("authenticated");
+
+                const authData = {
+                    isAuthenticated: true,
+                    userEmail: result.user.email,
+                    userData: result.user,
+                    loginData: {
+                        email: loginData.email,
+                        phonenumber: loginData.phonenumber
+                    },
+                    timestamp: new Date().toISOString()
+                };
+
+                sessionStorage.setItem('userAuth', JSON.stringify(authData));
+                window.dispatchEvent(new Event("session-changed"));
+
+                // Auto fill last address if exists
+                if (!result.user.fullAddress) {
+                    setUserFlow("collect-address"); // new user
+                } else {
+                    setUserFlow("confirm-address"); // existing user
+
+                    // also prefill address into form
+                    setFormData(prev => ({
+                        ...prev,
+                        fullAddress: result.user.fullAddress,
+                        city: result.user.city || "",
+                        state: result.user.state || "",
+                        zip: result.user.zip || ""
+                    }));
+                }
+
+                setUserEmail(result.user.email);
+                setFormData(prev => ({
+                    ...prev,
+                    email: result.user.email
+                }));
+
+                if (!currentEmail) {
+                    setCurrentEmail(true);
+                }
+
+            } else {
+                setOtpError(result.message || "Invalid or expired OTP");
+            }
+
+        } catch (error) {
+            console.error(error);
+            setOtpError("Network error. Please try again.");
+        } finally {
+            setOtpLoading(false);
+        }
+    };
+
+    // loadBlacklistedProviders management
+    const loadBlacklistedProviders = async (email) => {
+        if (!email) return;
+        setLoadingBlacklist(true);
+        try {
+            console.log("Fetching blacklist for email:", email);
+            const response = await fetch(`/api/blacklist?email=${email}`);
+            const data = await response.json();
+            console.log("Blacklist API response:", data);
+            if (data.success) {
+                setBlacklistedProviders(data.blockedProviderIds || []);
+            } else {
+                console.error("Blacklist API error:", data.message);
+            }
+        } catch (error) {
+            console.error('Error fetching blacklist:', error);
+        } finally {
+            setLoadingBlacklist(false);
+        }
+    };
+
+    // Function to show blacklisted providers
+    const showBlacklistedProviders = () => {
+        setCurrentView('blacklisted');
+        loadBlacklistedProviders(userEmail);
+    };
+
+    // Function to show normal providers
+    const showProviders = () => {
+        setCurrentView('providers');
+    };
+
+    // Function to unblacklist a provider
+    const handleUnblacklist = async (providerId) => {
+        if (!userEmail) return;
+        setUnblacklisting(providerId);
+        try {
+            console.log("Unblacklisting provider:", providerId);
+            const res = await fetch(`/api/blacklist?email=${userEmail}&providerId=${providerId}`, {
+                method: "DELETE",
+            });
+            const result = await res.json();
+            console.log("Unblacklist response:", result);
+            if (result.success) {
+                setBlacklistedProviders(prev => prev.filter(id => id !== providerId));
+                if (clientLocation && searchWithin) {
+                    console.log("Refreshing providers after unblacklist...");
+                    getLatLngFromAddress();
+                }
+                alert("Provider has been unblacklisted successfully!");
+            } else {
+                alert(result.message || "Failed to unblacklist provider.");
+            }
+        } catch (error) {
+            console.error("Unblacklist error:", error);
+            alert("Something went wrong while unblacklisting the provider.");
+        } finally {
+            setUnblacklisting(null);
+        }
+    };
+
+    const handleSearchWithReset = async () => {
+        setSelectedProvider("");
+        setSelectedServices([]);
+        setActiveStep(1);
+        await getLatLngFromAddress();
+    };
+
+    const handleRegisterUser = async () => {
+        try {
+            setOtpLoading(true);
+            setOtpError("");
+
+            // 1️⃣ Register User
+            const response = await fetch("/api/auth/register-user", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    fullname: formData.name,
+                    email: loginData.email,
+                    phonenumber: loginData.phonenumber,
+                }),
+            });
+
+            const result = await response.json();
+
+            if (!response.ok || !result.success) {
+                setOtpError(result.message || "Registration failed");
+                return;
+            }
+
+            // 2️⃣ Send OTP after successful registration
+            const otpRes = await fetch("/api/auth/send-otp", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    email: loginData.email,
+                    phonenumber: loginData.phonenumber,
+                }),
+            });
+
+            const otpData = await otpRes.json();
+
+            if (!otpRes.ok || !otpData.success) {
+                setOtpError(otpData.message || "Failed to send OTP");
+                return;
+            }
+
+            // 3️⃣ Move to OTP verification screen
+            setUserFlow("otp-verification");
+
+        } catch (error) {
+            console.error(error);
+            setOtpError("Registration failed");
+        } finally {
+            setOtpLoading(false);
+        }
+    };
+    // Function to unblacklist all providers
+    const handleUnblacklistAll = async () => {
+        if (!userEmail) return;
+        if (!confirm("Are you sure you want to unblacklist all providers?")) {
+            return;
+        }
+        setLoadingBlacklist(true);
+        try {
+            for (const providerId of blacklistedProviders) {
+                console.log("Unblacklisting provider:", providerId);
+                const res = await fetch(`/api/blacklist?email=${userEmail}&providerId=${providerId}`, {
+                    method: "DELETE",
+                });
+                const result = await res.json();
+                console.log(`Unblacklist result for ${providerId}:`, result);
+            }
+            setBlacklistedProviders([]);
+            alert("All providers have been unblacklisted successfully!");
+        } catch (error) {
+            console.error("Unblacklist all error:", error);
+            alert("Something went wrong while unblacklisting providers.");
+        } finally {
+            setLoadingBlacklist(false);
+        }
+    };
+
+
+    const availableCategories = categories.filter((category) => {
+        if (!category.events || category.events.length === 0) return false;
+
+        return providers.some((provider) =>
+            category.events.some((eventId) =>
+                provider.services?.includes(Number(eventId))
+            )
+        );
+    });
+    // useEffect(() => {
+    //   if (!selectedCategory) return;
+
+    //   // Clear all previously selected services
+    //   Object.keys(services).forEach((key) => {
+    //     if (services[key]) {
+    //       handleCheckboxChange({
+    //         target: {
+    //           name: key,
+    //           checked: false,
+    //         },
+    //       });
+    //     }
+    //   });
+
+    //   setSelectedDate(null);
+    //   setSelectedTime("");
+    // }, [selectedCategory]);
+
+    // useEffect(() => {
+    //   if (!selectedProvider) return;
+
+    //   // reset downstream
+    //   setSelectedCategory(null);
+
+    //   // clear all selected services
+    //   Object.keys(services).forEach((key) => {
+    //     if (services[key]) {
+    //       handleCheckboxChange({
+    //         target: { name: key, checked: false },
+    //       });
+    //     }
+    //   });
+
+    //   setSelectedDate(null);
+    //   setSelectedTime("");
+    // }, [selectedProvider]);
+
+
+    const formatPhoneDisplay = (value) => {
+        const digits = value.replace(/\D/g, "").slice(0, 10);
+
+        const part1 = digits.slice(0, 3);
+        const part2 = digits.slice(3, 6);
+        const part3 = digits.slice(6, 10);
+
+        if (digits.length > 6) {
+            return `(${part1}) ${part2}-${part3}`;
+        } else if (digits.length > 3) {
+            return `(${part1}) ${part2}`;
+        } else if (digits.length > 0) {
+            return `(${part1}`;
+        }
+
+        return "";
+    };
+
+    useEffect(() => {
+        // ⭐ When provider is deselected → reset downstream
+        if (!selectedProvider) {
+            // clear services
+            Object.keys(services).forEach((key) => {
+                if (services[key]) {
+                    handleCheckboxChange({
+                        target: { name: key, checked: false },
+                    });
+                }
+            });
+
+            setSelectedDate(null);
+            setSelectedTime("");
+        }
+    }, [selectedProvider]);
+
+
+    useEffect(() => {
+        const hasService = Object.values(services).some(Boolean);
+
+        if (!hasService) {
+            setSelectedDate(null);
+            setSelectedTime("");
+        }
+    }, [services]);
+
+
+    useEffect(() => {
+        if (!selectedDate) {
+            setSelectedTime("");
+        }
+    }, [selectedDate]);
+
+    const handleLogout = () => {
+        // Clear session storage
+        sessionStorage.removeItem("userAuth");
+        resetBooking();
+
+        // Reset states
+        setOtpVerified(false);
+        setUserFlow("entry");
+        setOtp("");
+        setOtpError("");
+        setLoginData({
+            email: "",
+            phonenumber: ""
+        });
+        setUser(null);
+
+        // 🧹 Clear booking state
+        setSelectedDate(null);
+        setSelectedTime("");
+        // setSlots([]);
+        setWorkCalandar({});
+        setServices({}); // VERY IMPORTANT
+
+        // 🔥 Reset booking related states
+        setTotalDuration(0);
+        setHasSearched(false);
+
+        // Optional: notify other components
+        window.dispatchEvent(new Event("session-changed"));
+    };
+
+    useEffect(() => {
+        if (!otpVerified) {
+            setSelectedDate(null);
+            setSelectedTime("");
+            // setSlots([]);
+            // setWorkCalandar({});
+            // setServices({});
+        }
+    }, [otpVerified]);
+
+    const totalDuration = events?.reduce((total, event) => {
+        const serviceKey = event.name
+            ?.toLowerCase()
+            .replace(/[^a-z0-9]+/g, "_")
+            .replace(/(^_+|_+$)/g, "");
+
+        if (services?.[serviceKey]) {
+            return total + Number(event.duration || 0);
+        }
+
+        return total;
+    }, 0) || 0;
+
+
+    // Blacklisted Providers View Component
+    const BlacklistedProvidersView = () => {
+        // Get provider details from the providers prop
+        const getProviderDetails = (providerId) => {
+            const provider = providers.find(p => p.id.toString() === providerId.toString());
+            return provider || {
+                id: providerId,
+                name: `Provider ${providerId}`,
+                picture_path: null
+            };
+        };
+
+        return (
+            <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-12 px-4">
+                <div className="max-w-4xl mx-auto">
+                    {/* Header */}
+                    <div className="text-center mb-12">
+                        <div className="inline-flex items-center justify-center w-20 h-20 bg-indigo-600 rounded-3xl shadow-lg mb-6">
+                            <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                            </svg>
+                        </div>
+                        <h1 className="text-4xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-4">
+                            Hidden Providers
+                        </h1>
+                        <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+                            Manage providers You&apos;ve hidden from your search results
+                        </p>
                     </div>
-                    <div className="text-sm text-gray-600">
-                      <span className="font-medium text-gray-800">Phone:</span> {loginData.phonenumber}
+
+                    {/* Main Content */}
+                    <div className="bg-white rounded-2xl shadow-2xl p-8">
+                        {/* Header with actions */}
+                        <div className="flex justify-between items-center mb-8">
+                            <div>
+                                <h2 className="text-2xl font-bold text-gray-800">
+                                    Hidden Providers ({blacklistedProviders.length})
+                                </h2>
+                                <p className="text-gray-600 mt-1">
+                                    For: {userEmail}
+                                </p>
+                                <p className="text-gray-500 text-sm">
+                                    These providers are currently hidden from your search results
+                                </p>
+                            </div>
+
+                            <div className="flex items-center gap-4">
+                                {/* Back to Providers Button */}
+                                <button
+                                    onClick={showProviders}
+                                    className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-2xl font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
+                                >
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                                    </svg>
+                                    Back to Booking
+                                </button>
+
+                                {blacklistedProviders.length > 0 && (
+                                    <button
+                                        onClick={handleUnblacklistAll}
+                                        disabled={loadingBlacklist}
+                                        className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-2xl font-semibold shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50"
+                                    >
+                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                        </svg>
+                                        Show All Again
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Loading State */}
+                        {loadingBlacklist && (
+                            <div className="text-center py-12">
+                                <div className="w-16 h-16 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                                    <div className="w-8 h-8 border-4 border-white border-t-transparent rounded-full animate-spin"></div>
+                                </div>
+                                <p className="text-gray-600">Loading hidden providers...</p>
+                            </div>
+                        )}
+
+                        {/* Empty State */}
+                        {!loadingBlacklist && blacklistedProviders.length === 0 && (
+                            <div className="text-center py-12">
+                                <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                                    <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                </div>
+                                <h3 className="text-xl font-semibold text-gray-800 mb-2">No Hidden Providers</h3>
+                                <p className="text-gray-600 mb-6">You haven&apos;t hidden any providers yet.</p>
+                                <button
+                                    onClick={showProviders}
+                                    className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-2xl font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
+                                >
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                                    </svg>
+                                    Back to Booking
+                                </button>
+                            </div>
+                        )}
+
+                        {/* Providers List */}
+                        {!loadingBlacklist && blacklistedProviders.length > 0 && (
+                            <div className="space-y-4">
+                                {blacklistedProviders.map((providerId) => {
+                                    const provider = getProviderDetails(providerId);
+                                    return (
+                                        <div
+                                            key={providerId}
+                                            className="flex items-center justify-between p-6 bg-gray-50 rounded-2xl border border-gray-200 hover:border-gray-300 transition-all duration-200"
+                                        >
+                                            <div className="flex items-center gap-4">
+                                                <div className="flex-shrink-0">
+                                                    <img
+                                                        src={
+                                                            provider.picture_path
+                                                                ? process.env.NEXT_PUBLIC_BASE_URL_IMAGE + provider.picture_path
+                                                                : "/images/placeholder.jpg"
+                                                        }
+                                                        alt={provider.name}
+                                                        className="w-12 h-12 object-cover rounded-2xl shadow-md"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <h3 className="text-lg font-semibold text-gray-800">
+                                                        {provider.name}
+                                                    </h3>
+                                                    <p className="text-gray-600 text-sm">Provider ID: {providerId}</p>
+                                                </div>
+                                            </div>
+
+                                            <button
+                                                onClick={() => handleUnblacklist(providerId)}
+                                                disabled={unblacklisting === providerId}
+                                                className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-2xl font-semibold shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50"
+                                            >
+                                                {unblacklisting === providerId ? (
+                                                    <>
+                                                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                                        Showing...
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                                        </svg>
+                                                        Show Again
+                                                    </>
+                                                )}
+                                            </button>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
                     </div>
-                  </div>
+                </div>
+            </div>
+        );
+    };
 
-                  {/* ADDRESS */}
-                  <div className="border rounded-xl p-4 space-y-2">
-                    <div className="text-sm text-gray-500">Service Location</div>
-                    <div className="font-medium text-gray-800">
-                      {formData.fullAddress}
-                    </div>
-                    <div className="text-sm text-gray-500">
-                      {formData.city}, {formData.state} {formData.zip}
-                    </div>
+    console.log("isSearchingProviders || !searchCompleted: ", isSearchingProviders, !searchCompleted)
 
-                    <button
-                      onClick={() => setUserFlow("edit-address")}
-                      className="mt-3 text-sm text-indigo-600 hover:underline"
-                    >
-                      Change address
-                    </button>
-                  </div>
+    // Main horizontal flow content - FIXED VERSION
+    const renderHorizontalFlow = () => {
+        return (
+            <div className="space-y-8">
 
-                  {/* SEARCH RADIUS */}
-                  <div className="border rounded-xl p-4 space-y-3">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Search Radius</span>
-                      <span className="font-medium text-gray-800">
-                        {searchWithin} miles
-                      </span>
-                    </div>
+                {/* STEPS GRID */}
+                <div className="grid gap-2 grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
 
-                    <input
-                      type="range"
-                      min={5}
-                      max={50}
-                      step={5}
-                      value={searchWithin}
-                      onChange={(e) => setSearchWithin(Number(e.target.value))}
-                      className="w-full accent-indigo-600"
-                    />
+                    {/* STEP 1 – CLIENT LOGIN */}
+                    <div className="bg-white rounded-2xl shadow-xl border border-gray-100 flex flex-col h-[650px]">
 
-                    <p className="text-xs text-gray-400">
-                      Adjust how far you want to search for providers
-                    </p>
-                  </div>
+                        {/* Header */}
+                        <div className="px-4 py-3 bg-indigo-50 flex items-center justify-between">
+                            <h3 className="text-lg font-bold">Client Login</h3>
 
-                  {/* ACTIONS */}
-                  {/* <div className="flex gap-3">
+                            {otpVerified && (
+                                <button
+                                    onClick={handleLogout}
+                                    className="text-sm text-red-600 hover:text-red-700 font-medium"
+                                >
+                                    Logout
+                                </button>
+                            )}
+                        </div>
+                        <div className="flex-1 overflow-y-auto p-6">
+
+                            {/* ================= STEP 1: ENTRY ================= */}
+                            {!otpVerified && userFlow === "entry" && (
+                                <form onSubmit={handleLoginCheck} className="space-y-6">
+
+                                    <div>
+                                        <h2 className="text-xl font-semibold text-gray-800">
+                                            Enter your details
+                                        </h2>
+                                        <p className="text-sm text-gray-500">
+                                            We’ll check your account and send a verification code
+                                        </p>
+                                    </div>
+
+                                    {/* EMAIL */}
+                                    {/* EMAIL */}
+                                    <div>
+                                        <label className="text-sm text-gray-600">Email</label>
+                                        <input
+                                            type="email"
+                                            value={loginData.email}
+                                            onChange={(e) => {
+                                                const value = e.target.value;
+                                                setLoginData(prev => ({ ...prev, email: value }));
+
+                                                // Email validation regex
+                                                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+                                                if (!value) {
+                                                    setEmailError("Email is required");
+                                                } else if (!emailRegex.test(value)) {
+                                                    setEmailError("Please enter valid email");
+                                                } else {
+                                                    setEmailError("");
+                                                }
+                                            }}
+                                            className="w-full mt-2 px-4 py-3 rounded-xl border focus:ring-2 focus:ring-indigo-500 outline-none"
+                                        />
+                                        {emailError && (
+                                            <p className="text-xs text-red-500 mt-1">{emailError}</p>
+                                        )}
+                                    </div>
+                                    {/* PHONE */}
+                                    <div>
+                                        <label className="text-sm text-gray-600">Phone</label>
+                                        <input
+                                            type="tel"
+                                            value={formatPhoneDisplay(loginData.phonenumber)}
+                                            onChange={(e) => {
+                                                const digits = e.target.value.replace(/\D/g, "").slice(0, 10);
+                                                setLoginData(prev => ({ ...prev, phonenumber: digits }));
+                                            }}
+                                            className="w-full mt-2 px-4 py-3 rounded-xl border focus:ring-2 focus:ring-indigo-500 outline-none"
+                                        />
+                                    </div>
+
+                                    {otpError && <p className="text-sm text-red-500">{otpError}</p>}
+
+                                    <button
+                                        type="submit"
+                                        disabled={otpLoading}
+                                        className="w-full bg-indigo-600 text-white py-3 rounded-xl font-medium hover:bg-indigo-700"
+                                    >
+                                        {otpLoading ? "Checking..." : "Continue"}
+                                    </button>
+                                </form>
+                            )}
+
+                            {/* ================= STEP 2: REGISTER ================= */}
+                            {!otpVerified && userFlow === "register-user" && (
+                                <div className="space-y-6">
+
+                                    <div>
+                                        <h2 className="text-xl font-semibold text-gray-800">
+                                            Create your account
+                                        </h2>
+                                        <p className="text-sm text-gray-500">
+                                            Looks like you're new here. Let’s get you set up.
+                                        </p>
+                                    </div>
+
+                                    <input
+                                        placeholder="Full Name"
+                                        onChange={(e) =>
+                                            setFormData(prev => ({ ...prev, name: e.target.value }))
+                                        }
+                                        className="w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-green-500"
+                                    />
+
+                                    <button
+                                        onClick={handleRegisterUser}
+                                        className="w-full bg-green-600 text-white py-3 rounded-xl hover:bg-green-700"
+                                    >
+                                        Continue
+                                    </button>
+                                </div>
+                            )}
+
+                            {/* ================= STEP 3: OTP ================= */}
+                            {!otpVerified && userFlow === "otp-verification" && (
+                                <div className="space-y-6">
+
+                                    <div>
+                                        <h2 className="text-xl font-semibold text-gray-800">
+                                            Verify your phone
+                                        </h2>
+                                        <p className="text-sm text-gray-500">
+                                            Enter the 6-digit code sent to your phone
+                                        </p>
+                                    </div>
+
+                                    <input
+                                        maxLength={6}
+                                        value={otp}
+                                        onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
+                                        className="w-full text-left text-2xl px-4 py-3 border rounded-xl focus:ring-2 focus:ring-indigo-500"
+                                    />
+
+                                    {otpError && <p className="text-sm text-red-500">{otpError}</p>}
+
+                                    <button
+                                        onClick={handleVerifyOTP}
+                                        disabled={otp.length !== 6}
+                                        className={`w-full py-3 rounded-xl font-medium ${otp.length === 6
+                                            ? "bg-indigo-600 text-white"
+                                            : "bg-gray-300 text-gray-500"
+                                            }`}
+                                    >
+                                        Verify OTP
+                                    </button>
+                                </div>
+                            )}
+
+                            {/* ================= STEP 4A: NEW USER ADDRESS ================= */}
+                            {otpVerified && userFlow === "collect-address" && (
+                                <div className="space-y-6">
+
+                                    <div>
+                                        <h2 className="text-xl font-semibold text-gray-800">
+                                            Set your service location
+                                        </h2>
+                                        <p className="text-sm text-gray-500">
+                                            This helps us find providers near you
+                                        </p>
+                                    </div>
+
+                                    {["fullAddress", "city", "state", "zip"].map((field) => (
+                                        <input
+                                            key={field}
+                                            placeholder={field}
+                                            value={formData[field] || ""}
+                                            onChange={(e) =>
+                                                setFormData(prev => ({
+                                                    ...prev,
+                                                    [field]: e.target.value
+                                                }))
+                                            }
+                                            className="w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-indigo-500"
+                                        />
+                                    ))}
+
+                                    <button
+                                        onClick={handleSaveAddress}
+                                        className="w-full bg-indigo-600 text-white py-3 rounded-xl hover:bg-indigo-700"
+                                    >
+                                        Save & Continue
+                                    </button>
+                                </div>
+                            )}
+
+                            {/* ================= STEP 4B: EXISTING USER ================= */}
+                            {otpVerified && userFlow === "confirm-address" && (
+                                <div className="space-y-6">
+
+                                    <div>
+                                        <h2 className="text-xl font-semibold text-gray-800">
+                                            Confirm your service location
+                                        </h2>
+                                        <p className="text-sm text-gray-500">
+                                            Will your appointment be at this address?
+                                        </p>
+                                    </div>
+
+                                    <div className="p-4 border rounded-xl bg-gray-50">
+                                        <p className="font-medium">{formData.fullAddress}</p>
+                                        <p className="text-sm text-gray-500">
+                                            {formData.city}, {formData.state} {formData.zip}
+                                        </p>
+                                    </div>
+
+                                    <button
+                                        onClick={handleUseSavedAddress}
+                                        className="w-full bg-indigo-600 text-white py-3 rounded-xl"
+                                    >
+                                        Yes, use this address
+                                    </button>
+
+                                    <button
+                                        onClick={() => setUserFlow("edit-address")}
+                                        className="w-full border py-3 rounded-xl"
+                                    >
+                                        No, use different address
+                                    </button>
+                                </div>
+                            )}
+
+                            {/* ================= STEP 5: TEMP ADDRESS ================= */}
+                            {otpVerified && userFlow === "edit-address" && (
+                                <div className="space-y-6">
+
+                                    <div>
+                                        <h2 className="text-xl font-semibold text-gray-800">
+                                            Enter a different location
+                                        </h2>
+                                        <p className="text-sm text-gray-500">
+                                            This will be used only for this booking
+                                        </p>
+                                    </div>
+
+                                    {["fullAddress", "city", "state", "zip"].map((field) => (
+                                        <input
+                                            key={field}
+                                            placeholder={field}
+                                            value={formData[field] || ""}
+                                            onChange={(e) =>
+                                                setFormData(prev => ({
+                                                    ...prev,
+                                                    [field]: e.target.value
+                                                }))
+                                            }
+                                            className="w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-indigo-500"
+                                        />
+                                    ))}
+
+                                    <button
+                                        onClick={handleUseTempAddress}
+                                        className="w-full bg-indigo-600 text-white py-3 rounded-xl"
+                                    >
+                                        Continue
+                                    </button>
+                                </div>
+                            )}
+
+                            {otpVerified && userFlow === "authenticated" && (
+                                <div className="space-y-6">
+
+                                    {/* HEADER */}
+                                    <div>
+                                        <h2 className="text-xl font-semibold text-gray-800">
+                                            Booking Details
+                                        </h2>
+                                        <p className="text-sm text-gray-500">
+                                            You're ready to select a provider
+                                        </p>
+                                    </div>
+
+                                    {/* USER INFO */}
+                                    <div className="bg-gray-50 border rounded-xl p-4 space-y-2">
+                                        <div className="text-sm text-gray-600">
+                                            <span className="font-medium text-gray-800">Email:</span> {userEmail}
+                                        </div>
+                                        <div className="text-sm text-gray-600">
+                                            <span className="font-medium text-gray-800">Phone:</span> {loginData.phonenumber}
+                                        </div>
+                                    </div>
+
+                                    {/* ADDRESS */}
+                                    <div className="border rounded-xl p-4 space-y-2">
+                                        <div className="text-sm text-gray-500">Service Location</div>
+                                        <div className="font-medium text-gray-800">
+                                            {formData.fullAddress}
+                                        </div>
+                                        <div className="font-medium text-gray-800">
+                                            {formData.city}, {formData.state}, {formData.zip}
+                                        </div>
+
+                                        <button
+                                            onClick={() => setUserFlow("edit-address")}
+                                            className="mt-3 text-sm text-indigo-600 hover:underline"
+                                        >
+                                            Change address
+                                        </button>
+                                    </div>
+
+                                    {/* SEARCH RADIUS */}
+                                    <div className="border rounded-xl p-4 space-y-3">
+                                        <div className="flex justify-between text-sm">
+                                            <span className="text-gray-600">Search Radius</span>
+                                            <span className="font-medium text-gray-800">
+                                                {searchWithin} miles
+                                            </span>
+                                        </div>
+
+                                        <input
+                                            type="range"
+                                            min={5}
+                                            max={50}
+                                            step={5}
+                                            value={searchWithin}
+                                            onChange={(e) => setSearchWithin(Number(e.target.value))}
+                                            className="w-full accent-indigo-600"
+                                        />
+
+                                        <p className="text-xs text-gray-400">
+                                            Adjust how far you want to search for providers
+                                        </p>
+                                    </div>
+
+                                    {/* ACTIONS */}
+                                    {/* <div className="flex gap-3">
                     <button
                       onClick={handleFullReset}
                       className="flex-1 border border-gray-300 py-2 rounded-xl text-sm hover:bg-gray-50"
@@ -1470,69 +1483,69 @@ export default function ScheduleServices({ providers, events, locations, clients
                     </button>
                   </div> */}
 
-                </div>
-              )}
+                                </div>
+                            )}
 
-            </div>
-          </div>
+                        </div>
+                    </div>
 
-          {/* STEP 1 – PROVIDER */}
-          {/* STEP – PROVIDER */}
-          <div className="bg-white rounded-2xl shadow-lg flex flex-col h-[650px]">
-            <div className="px-4 py-3 bg-indigo-50">
-              <h3 className="text-lg font-bold">Service Provider</h3>
-            </div>
+                    {/* STEP 1 – PROVIDER */}
+                    {/* STEP – PROVIDER */}
+                    <div className="bg-white rounded-2xl shadow-lg flex flex-col h-[650px]">
+                        <div className="px-4 py-3 bg-indigo-50">
+                            <h3 className="text-lg font-bold">Service Provider</h3>
+                        </div>
 
-            <div className="flex-1 overflow-y-auto p-4">
-              {!otpVerified ? (
+                        <div className="flex-1 overflow-y-auto p-4">
+                            {!otpVerified ? (
 
-                <StepLocked
-                  title="Login Required"
-                  message="Please login to select a provider"
-                />
+                                <StepLocked
+                                    title="Login Required"
+                                    message="Please login to select a provider"
+                                />
 
-              ) : !hasSearched || !clientLocation ? (
+                            ) : !hasSearched || !clientLocation ? (
 
-                <StepLocked
-                  title="Select Address"
-                  message="Please enter or confirm your address to see providers"
-                />
+                                <StepLocked
+                                    title="Select Address"
+                                    message="Please enter or confirm your address to see providers"
+                                />
 
-              ) : isSearchingProviders || loadingProviders ? (
+                            ) : isSearchingProviders || loadingProviders ? (
 
-                // ✅ FORCE loader until data is stable
-                <div className="flex flex-col items-center justify-center h-full text-gray-500">
-                  <div className="w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mb-3"></div>
-                  <p className="text-sm">Finding providers near you...</p>
-                </div>
+                                // ✅ FORCE loader until data is stable
+                                <div className="flex flex-col items-center justify-center h-full text-gray-500">
+                                    <div className="w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mb-3"></div>
+                                    <p className="text-sm">Finding providers near you...</p>
+                                </div>
 
-              ) : filteredProviders.length > 0 ? (
+                            ) : filteredProviders.length > 0 ? (
 
-                <ProvidersSection
-                  providers={filteredProviders}
-                  locations={locations}
-                  clientLocation={clientLocation}
-                  searchWithin={searchWithin}
-                  selectedProvider={selectedProvider}
-                  userEmail={userEmail}
-                  onProviderSelect={handleProviderSelect}
-                  onBlacklist={handleBlacklist}
-                  events={events}
-                  categories={categories}
-                  compactMode
-                  setHoveredProvider={setHoveredProvider}
-                />
+                                <ProvidersSection
+                                    providers={filteredProviders}
+                                    locations={locations}
+                                    clientLocation={clientLocation}
+                                    searchWithin={searchWithin}
+                                    selectedProvider={selectedProvider}
+                                    userEmail={userEmail}
+                                    onProviderSelect={handleProviderSelect}
+                                    onBlacklist={handleBlacklist}
+                                    events={events}
+                                    categories={categories}
+                                    compactMode
+                                    setHoveredProvider={setHoveredProvider}
+                                />
 
-              ) : (
+                            ) : (
 
-                <NoProvidersSection />
+                                <NoProvidersSection />
 
-              )}
-            </div>
-          </div>
+                            )}
+                        </div>
+                    </div>
 
-          {/* STEP 2 – CATEGORY */}
-          {/* <div className="bg-white rounded-2xl shadow-lg flex flex-col h-[650px]">
+                    {/* STEP 2 – CATEGORY */}
+                    {/* <div className="bg-white rounded-2xl shadow-lg flex flex-col h-[650px]">
             <div className="px-4 py-3 bg-purple-50">
               <h3 className="text-lg font-bold">Services</h3>
             </div>
@@ -1557,52 +1570,52 @@ export default function ScheduleServices({ providers, events, locations, clients
             </div>
           </div> */}
 
-          {/* STEP 2 – SERVICES */}
-          <div className="bg-white rounded-2xl shadow-lg flex flex-col h-[650px]">
-            <div className="px-4 py-3 bg-purple-50">
-              <h3 className="text-lg font-bold">
-                {activeProvider
-                  ? `${cleanName(activeProvider.name)}'s Services`
-                  : "Services"}
-              </h3>
-            </div>
+                    {/* STEP 2 – SERVICES */}
+                    <div className="bg-white rounded-2xl shadow-lg flex flex-col h-[650px]">
+                        <div className="px-4 py-3 bg-purple-50">
+                            <h3 className="text-lg font-bold">
+                                {activeProvider
+                                    ? `${cleanName(activeProvider.name)}'s Services`
+                                    : "Services"}
+                            </h3>
+                        </div>
 
-            <div className="flex-1 overflow-y-auto p-4">
-              {otpVerified && activeProvider ? (<>
-                {/* ⭐ Hidden data loader */}
-                <ServiceCategorySection
-                  selectedProvider={hoverProviderObj?.id || selectedProvider}
-                  providers={providers}
+                        <div className="flex-1 overflow-y-auto p-4">
+                            {otpVerified && activeProvider ? (<>
+                                {/* ⭐ Hidden data loader */}
+                                <ServiceCategorySection
+                                    selectedProvider={hoverProviderObj?.id || selectedProvider}
+                                    providers={providers}
 
-                  events={events}
-                  categories={categories}
-                  loading={loadingServices}
-                  onCategoriesReady={setProviderCategories}
-                />
+                                    events={events}
+                                    categories={categories}
+                                    loading={loadingServices}
+                                    onCategoriesReady={setProviderCategories}
+                                />
 
-                {/* ⭐ Actual UI */}
-                <ServiceSelectionSection
-                  hoveredProvider={hoveredProvider}
-                  categories={providerCategories}
-                  services={services}
-                  onCheckboxChange={handleCheckboxChange}
-                  selectedProvider={selectedProvider}
-                  providers={providers}
-                  selectedCategory={searchCategory}
-                />
-              </>
-              ) : (
-                <StepLocked
-                  title="Select a Provider"
-                  message="Please choose a provider to view service categories"
-                />
-              )}
-            </div>
-          </div>
+                                {/* ⭐ Actual UI */}
+                                <ServiceSelectionSection
+                                    hoveredProvider={hoveredProvider}
+                                    categories={providerCategories}
+                                    services={services}
+                                    onCheckboxChange={handleCheckboxChange}
+                                    selectedProvider={selectedProvider}
+                                    providers={providers}
+                                    selectedCategory={searchCategory}
+                                />
+                            </>
+                            ) : (
+                                <StepLocked
+                                    title="Select a Provider"
+                                    message="Please choose a provider to view service categories"
+                                />
+                            )}
+                        </div>
+                    </div>
 
 
-          {/* STEP 3 – SERVICE */}
-          {/* <div className="bg-white rounded-2xl shadow-lg flex flex-col h-[650px]">
+                    {/* STEP 3 – SERVICE */}
+                    {/* <div className="bg-white rounded-2xl shadow-lg flex flex-col h-[650px]">
             <div className="px-4 py-3 bg-pink-50">
               <h3 className="text-lg font-bold">Selected Service</h3>
             </div>
@@ -1628,40 +1641,40 @@ export default function ScheduleServices({ providers, events, locations, clients
             </div>
           </div> */}
 
-          {/* STEP 4 – AVAILABILITY */}
-          <div className="bg-white rounded-2xl shadow-lg flex flex-col h-[650px]">
-            <div className="px-4 py-3 bg-green-50">
-              <h3 className="text-lg font-bold">Availability</h3>
-            </div>
-            <div ref={availabilityScrollRef} className="flex-1 overflow-y-auto p-4">
-              {Object.values(services).some(Boolean) ? (
-                <AvailabilitySection
-                  key={otpVerified ? "logged-in" : "logged-out"}
-                  scrollContainerRef={availabilityScrollRef}
-                  workCalandar={workCalandar}
-                  selectedDate={selectedDate}
-                  selectedTime={selectedTime}
-                  slots={slots}
-                  onDateSelect={(date) => {
-                    setSelectedDate(date);
-                    setSelectedTime("");
-                  }}
-                  onTimeSelect={setSelectedTime}
-                  loadingCalendar={loadingCalendar}
-                  loadingTimeSlots={loadingTimeSlots}
-                  totalDuration={totalDuration}
-                />
-              ) : (
-                <StepLocked
-                  title="Select Time Slot"
-                  message="Choose a date and time to complete booking"
-                />
-              )}
-            </div>
-          </div>
+                    {/* STEP 4 – AVAILABILITY */}
+                    <div className="bg-white rounded-2xl shadow-lg flex flex-col h-[650px]">
+                        <div className="px-4 py-3 bg-green-50">
+                            <h3 className="text-lg font-bold">Availability</h3>
+                        </div>
+                        <div ref={availabilityScrollRef} className="flex-1 overflow-y-auto p-4">
+                            {Object.values(services).some(Boolean) ? (
+                                <AvailabilitySection
+                                    key={otpVerified ? "logged-in" : "logged-out"}
+                                    scrollContainerRef={availabilityScrollRef}
+                                    workCalandar={workCalandar}
+                                    selectedDate={selectedDate}
+                                    selectedTime={selectedTime}
+                                    slots={slots}
+                                    onDateSelect={(date) => {
+                                        setSelectedDate(date);
+                                        setSelectedTime("");
+                                    }}
+                                    onTimeSelect={setSelectedTime}
+                                    loadingCalendar={loadingCalendar}
+                                    loadingTimeSlots={loadingTimeSlots}
+                                    totalDuration={totalDuration}
+                                />
+                            ) : (
+                                <StepLocked
+                                    title="Select Time Slot"
+                                    message="Choose a date and time to complete booking"
+                                />
+                            )}
+                        </div>
+                    </div>
 
-          {/* STEP 5 – SUMMARY */}
-          {/* <div className="bg-white rounded-2xl shadow-lg flex flex-col h-[650px]">
+                    {/* STEP 5 – SUMMARY */}
+                    {/* <div className="bg-white rounded-2xl shadow-lg flex flex-col h-[650px]">
             <div className="px-4 py-3 bg-blue-50">
               <h3 className="text-lg font-bold">Complete Booking</h3>
             </div>
@@ -1691,66 +1704,66 @@ export default function ScheduleServices({ providers, events, locations, clients
               )}
             </div>
           </div> */}
+                </div>
+            </div>
+        );
+    };
+
+    return (
+        <div className="w-full mx-auto mt-6 mb-16 p-6 space-y-10 bg-gradient-to-br from-white via-blue-50 to-indigo-100 shadow-2xl rounded-3xl border border-gray-100 relative">
+            {/* Success Notification */}
+            {showSuccess && bookingDetails && (
+                <SuccessNotification
+                    bookingDetails={bookingDetails}
+                    onClose={handleCloseSuccess}
+                />
+            )}
+
+            {/* Background Decorative Elements */}
+            <div className="absolute top-0 left-0 w-72 h-72 bg-blue-200 rounded-full -translate-x-1/2 -translate-y-1/2 opacity-20 blur-3xl"></div>
+            {/* <div className="absolute bottom-0 right-0 w-96 h-96 bg-indigo-200 rounded-full translate-x-1/3 translate-y-1/3 opacity-20 blur-3xl"></div> */}
+
+            {/* Header Section */}
+            <div className="relative text-center space-y-4">
+                <div className="inline-flex items-center justify-center w-16 h-16 bg-indigo-600 rounded-2xl shadow-lg mb-4">
+                    <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                </div>
+                <h1 className="text-5xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+                    Schedule Door-To-Door Services
+                </h1>
+                <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+                    Find the perfect service provider near you and schedule your appointment in just a few clicks
+                </p>
+            </div>
+
+            {/* Show booking form only if not in success state */}
+            {!showSuccess ? (
+                <>
+                    {
+                        renderHorizontalFlow()
+                    }
+                </>
+            ) : (
+                /* Success State - Option to book another appointment */
+                <div className="text-center py-12">
+                    <div className="max-w-md mx-auto">
+                        <button
+                            onClick={handleFullReset}
+                            className="inline-flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-lg font-semibold rounded-2xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
+                        >
+                            <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                            </svg>
+                            Book Another Appointment
+                        </button>
+                        <p className="text-gray-600 mt-4">
+                            Want to schedule another service? Start a new booking.
+                        </p>
+                    </div>
+                </div>
+            )}
         </div>
-      </div>
     );
-  };
-
-  return (
-    <div className="w-full mx-auto mt-6 mb-16 p-6 space-y-10 bg-gradient-to-br from-white via-blue-50 to-indigo-100 shadow-2xl rounded-3xl border border-gray-100 relative">
-      {/* Success Notification */}
-      {showSuccess && bookingDetails && (
-        <SuccessNotification
-          bookingDetails={bookingDetails}
-          onClose={handleCloseSuccess}
-        />
-      )}
-
-      {/* Background Decorative Elements */}
-      <div className="absolute top-0 left-0 w-72 h-72 bg-blue-200 rounded-full -translate-x-1/2 -translate-y-1/2 opacity-20 blur-3xl"></div>
-      {/* <div className="absolute bottom-0 right-0 w-96 h-96 bg-indigo-200 rounded-full translate-x-1/3 translate-y-1/3 opacity-20 blur-3xl"></div> */}
-
-      {/* Header Section */}
-      <div className="relative text-center space-y-4">
-        <div className="inline-flex items-center justify-center w-16 h-16 bg-indigo-600 rounded-2xl shadow-lg mb-4">
-          <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-          </svg>
-        </div>
-        <h1 className="text-5xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-          Schedule Door-To-Door Services
-        </h1>
-        <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-          Find the perfect service provider near you and schedule your appointment in just a few clicks
-        </p>
-      </div>
-
-      {/* Show booking form only if not in success state */}
-      {!showSuccess ? (
-        <>
-          {
-            renderHorizontalFlow()
-          }
-        </>
-      ) : (
-        /* Success State - Option to book another appointment */
-        <div className="text-center py-12">
-          <div className="max-w-md mx-auto">
-            <button
-              onClick={handleFullReset}
-              className="inline-flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-lg font-semibold rounded-2xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
-            >
-              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
-              Book Another Appointment
-            </button>
-            <p className="text-gray-600 mt-4">
-              Want to schedule another service? Start a new booking.
-            </p>
-          </div>
-        </div>
-      )}
-    </div>
-  );
 }
