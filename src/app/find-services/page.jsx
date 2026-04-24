@@ -5,7 +5,7 @@ import FindBooking from "../components/FindBooking";
 import { useAppData } from "../context/AppDataContext";
 import { useEffect } from "react";
 
-export default function ScheduleServices() {
+export default function FindServicesPage() {
   const {
     providers,
     events,

@@ -834,7 +834,7 @@ useEffect(() => {
 
   async function filterProviders() {
     if (!userEmail) {
-      // setFilteredProviders(limitedProviders);
+      setFilteredProviders(limitedProviders);
       setLoadingProviders(false);
       return;
     }

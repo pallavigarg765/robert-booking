@@ -958,7 +958,10 @@ export default function FindBooking({ providers, events, locations, clients, cat
     );
   };
 
-
+  console.log("isSearchedAddress: ", isSearchedAddress)
+  console.log("clientLocation: ", clientLocation)
+  console.log("!loadingAddress: ", !loadingAddress)
+  console.log("filteredProviders.length: ", filteredProviders.length)
 
   // Main horizontal flow content - FIXED VERSION
   const renderHorizontalFlow = () => {

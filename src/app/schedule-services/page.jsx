@@ -5,7 +5,7 @@ import ScheduleServices from "../components/ScheduleServices";
 import { useAppData } from "../context/AppDataContext";
 import { useEffect } from "react";
 
-export default function FindServices() {
+export default function ScheduleServicesPage() {
   const {
     providers,
     events,
