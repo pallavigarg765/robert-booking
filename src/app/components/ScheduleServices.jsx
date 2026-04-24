@@ -93,7 +93,7 @@ export default function ScheduleServices({ providers, events, locations, clients
             timestamp: Date.now()
         };
 
-        sessionStorage.setItem('bookingState', JSON.stringify(bookingState));
+        localStorage.setItem('bookingState', JSON.stringify(bookingState));
         console.log('💾 Saved booking state for navigation');
     };
 
@@ -377,45 +377,69 @@ export default function ScheduleServices({ providers, events, locations, clients
 
     // Load auth state from session storage
     useEffect(() => {
-        const loadAuthState = () => {
-            if (typeof window !== 'undefined') {
-                const savedAuth = sessionStorage.getItem('userAuth');
-                if (savedAuth) {
-                    try {
-                        const parsed = JSON.parse(savedAuth);
-                        if (parsed.isAuthenticated) {
-                            setUserEmail(parsed.userEmail);
-                            setFormData(prev => ({ ...prev, email: parsed.userEmail }));
+    const loadAuthState = () => {
+        if (typeof window === 'undefined') return;
 
-                            if (parsed.userData?.lastAddress) {
-                                const addr = parsed.userData.lastAddress;
-                                if (addr.fullAddress) {
-                                    handleFieldChange({
-                                        target: { name: "fullAddress", value: addr.fullAddress }
-                                    });
-                                }
-                                if (addr.city) {
-                                    handleFieldChange({
-                                        target: { name: "city", value: addr.city }
-                                    });
-                                }
-                                if (addr.state) {
-                                    handleFieldChange({
-                                        target: { name: "state", value: addr.state }
-                                    });
-                                }
-                            }
-                        }
-                    } catch (error) {
-                        console.error('❌ Error loading auth state:', error);
-                        sessionStorage.removeItem('userAuth');
-                    }
+        const savedAuth = localStorage.getItem('userAuth');
+        if (!savedAuth) return;
+
+        try {
+            const parsed = JSON.parse(savedAuth);
+
+            if (parsed.isAuthenticated) {
+                console.log("✅ Restoring auth session");
+
+                // ✅ REQUIRED (you were missing this)
+                setOtpVerified(true);
+
+                // ✅ restore email
+                setUserEmail(parsed.userEmail);
+
+                setFormData(prev => ({
+                    ...prev,
+                    email: parsed.userEmail
+                }));
+
+                // ✅ restore login data (IMPORTANT for UI)
+                if (parsed.loginData) {
+                    setLoginData(parsed.loginData);
                 }
-            }
-        };
 
-        loadAuthState();
-    }, []);
+                // ✅ KEEP your existing address logic
+                if (parsed.userData?.fullAddress) {
+                    const addr = parsed.userData;
+
+                    // fill form
+                    setFormData(prev => ({
+                        ...prev,
+                        fullAddress: addr.fullAddress || "",
+                        city: addr.city || "",
+                        state: addr.state || "",
+                        zip: addr.zip || ""
+                    }));
+
+                    // 👉 IMPORTANT: decide flow
+                    setUserFlow("confirm-address");
+
+                    // 👉 trigger provider search after hydration
+                    setAddressReady(true);
+
+                } else {
+                    setUserFlow("collect-address");
+                }
+
+                // optional
+                setCurrentEmail(true);
+            }
+
+        } catch (error) {
+            console.error('❌ Error loading auth state:', error);
+            localStorage.removeItem('userAuth');
+        }
+    };
+
+    loadAuthState();
+}, []);
 
     // Listen for reset events from Header and NoProvidersSection
     useEffect(() => {
@@ -490,8 +514,8 @@ export default function ScheduleServices({ providers, events, locations, clients
         setSelectedServices([]);
         setActiveStep(1);
         setTimeout(() => setResetForm(false), 100);
-        sessionStorage.removeItem('userAuth');
-        sessionStorage.removeItem('bookingState');
+        localStorage.removeItem('userAuth');
+        localStorage.removeItem('bookingState');
         console.log('🗑️ Cleared auth state from session storage');
     };
 
@@ -500,7 +524,8 @@ export default function ScheduleServices({ providers, events, locations, clients
         resetBooking();
         setSelectedServices([]);
         setActiveStep(1);
-        sessionStorage.clear();
+        localStorage.removeItem('bookingState');
+        // localStorage.clear();
         window.dispatchEvent(new CustomEvent('reset-booking-form'));
         console.log('🔙 Resetting booking form');
     };
@@ -623,7 +648,7 @@ export default function ScheduleServices({ providers, events, locations, clients
                     timestamp: new Date().toISOString()
                 };
 
-                sessionStorage.setItem('userAuth', JSON.stringify(authData));
+                localStorage.setItem('userAuth', JSON.stringify(authData));
                 window.dispatchEvent(new Event("session-changed"));
 
                 // Auto fill last address if exists
@@ -911,7 +936,7 @@ export default function ScheduleServices({ providers, events, locations, clients
 
     const handleLogout = () => {
         // Clear session storage
-        sessionStorage.removeItem("userAuth");
+        localStorage.removeItem("userAuth");
         resetBooking();
 
         // Reset states
