@@ -26,6 +26,19 @@ const dayMap = {
 };
 
 
+const states = [
+    "AL", "AK", "AZ", "AR", "CA",
+    "CO", "CT", "DE", "FL", "GA",
+    "HI", "ID", "IL", "IN", "IA", "KS",
+    "KY", "LA", "ME", "MD", "MA",
+    "MI", "MN", "MS", "MO", "MT",
+    "NE", "NV", "NH", "NJ", "NM",
+    "NY", "NC", "ND", "OH", "OK",
+    "OR", "PA", "RI", "SC",
+    "SD", "TN", "TX", "UT", "VT",
+    "VA", "WA", "WV", "WI", "WY",
+];
+
 function StepLocked({ title, message }) {
     return (
         <div className="flex flex-col items-center justify-center h-full text-center text-gray-500 px-6">
@@ -65,11 +78,26 @@ export default function ScheduleServices({ providers, events, locations, clients
     const [isSearchingProviders, setIsSearchingProviders] = useState(false);
     const [hasSearched, setHasSearched] = useState(false);
     const [searchCompleted, setSearchCompleted] = useState(false);
-
+    const [showStateDropdown, setShowStateDropdown] = useState(false);
+    const dropdownRef = useRef(null);
     const [loginData, setLoginData] = useState({
         email: "",
         phonenumber: ""
     });
+    const [activeField, setActiveField] = useState(null);
+    const [phoneError, setPhoneError] = useState("");
+
+    useEffect(() => {
+        function handleClickOutside(event) {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+                setShowStateDropdown(false);
+            }
+        }
+
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, []);
+
     const cleanName = (name = "") =>
         name
             .replace(/^\d+[a-z]\),?\s*/i, "")
@@ -77,6 +105,7 @@ export default function ScheduleServices({ providers, events, locations, clients
             .trim();
 
     const [activeStep, setActiveStep] = useState(1); // 1: Providers, 2: Services, 3: Date, 4: Time, 5: Booking
+
 
     const saveBookingState = () => {
         const bookingState = {
@@ -241,6 +270,13 @@ export default function ScheduleServices({ providers, events, locations, clients
         }
     };
 
+
+    const isTempAddressValid =
+        formData.fullAddress?.trim() &&
+        formData.city?.trim() &&
+        formData.state?.trim() &&
+        formData.zip?.trim();
+
     const handleUseSavedAddress = async () => {
 
         // 🔥 sync formData → address
@@ -377,69 +413,69 @@ export default function ScheduleServices({ providers, events, locations, clients
 
     // Load auth state from session storage
     useEffect(() => {
-    const loadAuthState = () => {
-        if (typeof window === 'undefined') return;
+        const loadAuthState = () => {
+            if (typeof window === 'undefined') return;
 
-        const savedAuth = localStorage.getItem('userAuth');
-        if (!savedAuth) return;
+            const savedAuth = localStorage.getItem('userAuth');
+            if (!savedAuth) return;
 
-        try {
-            const parsed = JSON.parse(savedAuth);
+            try {
+                const parsed = JSON.parse(savedAuth);
 
-            if (parsed.isAuthenticated) {
-                console.log("✅ Restoring auth session");
+                if (parsed.isAuthenticated) {
+                    console.log("✅ Restoring auth session");
 
-                // ✅ REQUIRED (you were missing this)
-                setOtpVerified(true);
+                    // ✅ REQUIRED (you were missing this)
+                    setOtpVerified(true);
 
-                // ✅ restore email
-                setUserEmail(parsed.userEmail);
+                    // ✅ restore email
+                    setUserEmail(parsed.userEmail);
 
-                setFormData(prev => ({
-                    ...prev,
-                    email: parsed.userEmail
-                }));
-
-                // ✅ restore login data (IMPORTANT for UI)
-                if (parsed.loginData) {
-                    setLoginData(parsed.loginData);
-                }
-
-                // ✅ KEEP your existing address logic
-                if (parsed.userData?.fullAddress) {
-                    const addr = parsed.userData;
-
-                    // fill form
                     setFormData(prev => ({
                         ...prev,
-                        fullAddress: addr.fullAddress || "",
-                        city: addr.city || "",
-                        state: addr.state || "",
-                        zip: addr.zip || ""
+                        email: parsed.userEmail
                     }));
 
-                    // 👉 IMPORTANT: decide flow
-                    setUserFlow("confirm-address");
+                    // ✅ restore login data (IMPORTANT for UI)
+                    if (parsed.loginData) {
+                        setLoginData(parsed.loginData);
+                    }
 
-                    // 👉 trigger provider search after hydration
-                    setAddressReady(true);
+                    // ✅ KEEP your existing address logic
+                    if (parsed.userData?.fullAddress) {
+                        const addr = parsed.userData;
 
-                } else {
-                    setUserFlow("collect-address");
+                        // fill form
+                        setFormData(prev => ({
+                            ...prev,
+                            fullAddress: addr.fullAddress || "",
+                            city: addr.city || "",
+                            state: addr.state || "",
+                            zip: addr.zip || ""
+                        }));
+
+                        // 👉 IMPORTANT: decide flow
+                        setUserFlow("confirm-address");
+
+                        // 👉 trigger provider search after hydration
+                        setAddressReady(true);
+
+                    } else {
+                        setUserFlow("collect-address");
+                    }
+
+                    // optional
+                    setCurrentEmail(true);
                 }
 
-                // optional
-                setCurrentEmail(true);
+            } catch (error) {
+                console.error('❌ Error loading auth state:', error);
+                localStorage.removeItem('userAuth');
             }
+        };
 
-        } catch (error) {
-            console.error('❌ Error loading auth state:', error);
-            localStorage.removeItem('userAuth');
-        }
-    };
-
-    loadAuthState();
-}, []);
+        loadAuthState();
+    }, []);
 
     // Listen for reset events from Header and NoProvidersSection
     useEffect(() => {
@@ -1001,6 +1037,13 @@ export default function ScheduleServices({ providers, events, locations, clients
             };
         };
 
+        const isFormValid =
+  loginData.email &&
+  loginData.phonenumber &&
+  !emailError &&
+  !phoneError &&
+  loginData.phonenumber.length === 10;
+
         return (
             <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-12 px-4">
                 <div className="max-w-4xl mx-auto">
@@ -1156,6 +1199,13 @@ export default function ScheduleServices({ providers, events, locations, clients
 
     console.log("isSearchingProviders || !searchCompleted: ", isSearchingProviders, !searchCompleted)
 
+    const isFormValid =
+  loginData.email &&
+  loginData.phonenumber &&
+  !emailError &&
+  !phoneError &&
+  loginData.phonenumber.length === 10;
+
     // Main horizontal flow content - FIXED VERSION
     const renderHorizontalFlow = () => {
         return (
@@ -1196,7 +1246,6 @@ export default function ScheduleServices({ providers, events, locations, clients
                                     </div>
 
                                     {/* EMAIL */}
-                                    {/* EMAIL */}
                                     <div>
                                         <label className="text-sm text-gray-600">Email</label>
                                         <input
@@ -1206,7 +1255,6 @@ export default function ScheduleServices({ providers, events, locations, clients
                                                 const value = e.target.value;
                                                 setLoginData(prev => ({ ...prev, email: value }));
 
-                                                // Email validation regex
                                                 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
                                                 if (!value) {
@@ -1232,17 +1280,31 @@ export default function ScheduleServices({ providers, events, locations, clients
                                             onChange={(e) => {
                                                 const digits = e.target.value.replace(/\D/g, "").slice(0, 10);
                                                 setLoginData(prev => ({ ...prev, phonenumber: digits }));
+
+                                                if (!digits) {
+                                                    setPhoneError("Phone number is required");
+                                                } else if (digits.length !== 10) {
+                                                    setPhoneError("Please enter 10 digit number");
+                                                } else {
+                                                    setPhoneError("");
+                                                }
                                             }}
                                             className="w-full mt-2 px-4 py-3 rounded-xl border focus:ring-2 focus:ring-indigo-500 outline-none"
                                         />
+                                        {phoneError && (
+                                            <p className="text-xs text-red-500 mt-1">{phoneError}</p>
+                                        )}
                                     </div>
 
                                     {otpError && <p className="text-sm text-red-500">{otpError}</p>}
 
                                     <button
                                         type="submit"
-                                        disabled={otpLoading}
-                                        className="w-full bg-indigo-600 text-white py-3 rounded-xl font-medium hover:bg-indigo-700"
+                                        disabled={!isFormValid || otpLoading}
+                                        className={`w-full py-3 rounded-xl font-medium transition 
+    ${isFormValid
+                                                ? "bg-indigo-600 hover:bg-indigo-700 text-white"
+                                                : "bg-gray-400 text-gray-200 cursor-not-allowed"}`}
                                     >
                                         {otpLoading ? "Checking..." : "Continue"}
                                     </button>
@@ -1366,7 +1428,7 @@ export default function ScheduleServices({ providers, events, locations, clients
 
                                     <div className="p-4 border rounded-xl bg-gray-50">
                                         <p className="font-medium">{formData.fullAddress}</p>
-                                        <p className="text-sm text-gray-500">
+                                        <p className="font-medium">
                                             {formData.city}, {formData.state} {formData.zip}
                                         </p>
                                     </div>
@@ -1400,24 +1462,76 @@ export default function ScheduleServices({ providers, events, locations, clients
                                         </p>
                                     </div>
 
-                                    {["fullAddress", "city", "state", "zip"].map((field) => (
-                                        <input
-                                            key={field}
-                                            placeholder={field}
-                                            value={formData[field] || ""}
-                                            onChange={(e) =>
-                                                setFormData(prev => ({
-                                                    ...prev,
-                                                    [field]: e.target.value
-                                                }))
-                                            }
-                                            className="w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-indigo-500"
-                                        />
-                                    ))}
+                                    {["fullAddress", "city", "state", "zip"].map((field) => {
+                                        if (field === "state") {
+                                            return (
+                                                <div key={field} className="relative">
+                                                    <input
+                                                        placeholder="Enter or Select State"
+                                                        value={formData.state || ""}
+                                                        onChange={(e) => {
+                                                            setFormData((prev) => ({
+                                                                ...prev,
+                                                                state: e.target.value,
+                                                            }));
+                                                            setShowStateDropdown(true);
+                                                        }}
+                                                        onFocus={() => setShowStateDropdown(true)}
+                                                        className="w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-indigo-500"
+                                                    />
+
+                                                    {showStateDropdown && (
+                                                        <div className="absolute left-0 mt-1 w-full bg-white border rounded-xl shadow-lg z-50 max-h-48 overflow-y-auto">
+                                                            {states
+                                                                .filter((state) =>
+                                                                    state
+                                                                        .toLowerCase()
+                                                                        .includes((formData.state || "").toLowerCase())
+                                                                )
+                                                                .map((state) => (
+                                                                    <div
+                                                                        key={state}
+                                                                        onClick={() => {
+                                                                            setFormData((prev) => ({
+                                                                                ...prev,
+                                                                                state: state,
+                                                                            }));
+                                                                            setShowStateDropdown(false);
+                                                                        }}
+                                                                        className="px-4 py-2 hover:bg-indigo-100 cursor-pointer"
+                                                                    >
+                                                                        {state}
+                                                                    </div>
+                                                                ))}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            );
+                                        }
+
+                                        return (
+                                            <input
+                                                key={field}
+                                                placeholder={field}
+                                                value={formData[field] || ""}
+                                                onChange={(e) =>
+                                                    setFormData((prev) => ({
+                                                        ...prev,
+                                                        [field]: e.target.value,
+                                                    }))
+                                                }
+                                                className="w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-indigo-500"
+                                            />
+                                        );
+                                    })}
 
                                     <button
                                         onClick={handleUseTempAddress}
-                                        className="w-full bg-indigo-600 text-white py-3 rounded-xl"
+                                        disabled={!isTempAddressValid}
+                                        className={`w-full py-3 rounded-xl text-white transition 
+    ${isTempAddressValid
+                                                ? "bg-indigo-600 hover:bg-indigo-700 cursor-pointer"
+                                                : "bg-gray-400 cursor-not-allowed"}`}
                                     >
                                         Continue
                                     </button>

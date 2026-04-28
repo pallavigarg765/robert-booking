@@ -81,7 +81,7 @@ export default function ProvidersSection({
       setBlacklistingProvider(null);
     }
   };
-  
+
 
   // Compact mode - just show provider cards without map
   if (compactMode) {
@@ -504,10 +504,10 @@ function ProviderCard({
 
 
   useEffect(() => {
-  if (!isSelected) {
-    setShowDescription(false);
-  }
-}, [isSelected]);
+    if (!isSelected) {
+      setShowDescription(false);
+    }
+  }, [isSelected]);
   // Compact mode for column display
   if (compact) {
     return (
@@ -518,11 +518,13 @@ ${isExpanded
             ? "flex flex-col items-center text-center"
             : "flex items-start gap-3"}`}
         onMouseEnter={() => {
+          if (hasAnySelection) return; // 🚫 stop hover if someone selected
           setIsHovered(true);
           onHover(provider);
         }}
 
         onMouseLeave={() => {
+          if (hasAnySelection) return; // 🚫 stop hover if someone selected
           setIsHovered(false);
           onHover(null);
         }}
