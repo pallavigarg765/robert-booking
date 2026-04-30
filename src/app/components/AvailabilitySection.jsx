@@ -519,12 +519,77 @@ export default function AvailabilitySection({
                 <div className="flex gap-2">
 
                     {/* Previous Month */}
-                    <button
-                        onClick={() => handleMonthChange("prev")}
-                    >
-                        <ChevronsLeft className="w-5 h-5" />
-                    </button>
+                   <button
+  onClick={() => {
+    if (!selectedDate) return;
 
+    let targetMonth;
+    let newDate;
+
+    const isFirstOfMonth = selectedDate.getDate() === 1;
+
+    if (!isFirstOfMonth) {
+      // First click → go to same month
+      targetMonth = new Date(
+        selectedDate.getFullYear(),
+        selectedDate.getMonth(),
+        1
+      );
+    } else {
+      // Second click → previous month
+      targetMonth = new Date(
+        selectedDate.getFullYear(),
+        selectedDate.getMonth() - 1,
+        1
+      );
+    }
+
+    // Find first valid (not past + not day off) date in that month
+    const daysInMonth = new Date(
+      targetMonth.getFullYear(),
+      targetMonth.getMonth() + 1,
+      0
+    ).getDate();
+
+    for (let d = 1; d <= daysInMonth; d++) {
+      const checkDate = new Date(
+        targetMonth.getFullYear(),
+        targetMonth.getMonth(),
+        d
+      );
+
+      const key = getLocalDateKey(checkDate);
+      const dayInfo = workCalandar?.[key];
+
+      const isDayOff =
+        !dayInfo ||
+        dayInfo.is_day_off === 1 ||
+        dayInfo.is_day_off === "1" ||
+        dayInfo.is_day_off === true;
+
+      const isPast = checkDate < today;
+
+      if (!isDayOff && !isPast) {
+        newDate = checkDate;
+        break;
+      }
+    }
+
+    if (!newDate) return; // no valid day found
+
+    setCurrentMonth(
+      new Date(
+        newDate.getFullYear(),
+        newDate.getMonth(),
+        1
+      )
+    );
+
+    onDateSelect(newDate);
+  }}
+>
+  <ChevronsLeft className="w-5 h-5" />
+</button>
                     {/* Previous Week */}
                     <button
                         onClick={() => handleWeekChange("prev")}

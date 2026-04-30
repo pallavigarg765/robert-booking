@@ -1,12 +1,6 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
-import SearchSection from "./SearchSection";
 import ProvidersSection from "./ProvidersSection";
-import ProvidersMap from "./ProvidersMap";
-import ServicesSection from "./ServicesSection";
-import DatePickerSection from "./DatePickerSection";
-import TimeSlotsSection from "./TimeSlotsSection";
-import BookingSummary from "./BookingSummary";
 import NoProvidersSection from "./NoProvidersSection";
 import SuccessNotification from "./SuccessNotification";
 import { useBooking } from "./useBooking";
@@ -24,7 +18,6 @@ const dayMap = {
     5: "Friday",
     6: "Saturday",
 };
-
 
 const states = [
     "AL", "AK", "AZ", "AR", "CA",
@@ -51,18 +44,13 @@ function StepLocked({ title, message }) {
     );
 }
 
-
 export default function ScheduleServices({ providers, events, locations, clients, categories }) {
     const [showSuccess, setShowSuccess] = useState(false);
     const [bookingDetails, setBookingDetails] = useState(null);
     const [userFlow, setUserFlow] = useState("entry");
-    const [calendarMonth, setCalendarMonth] = useState(new Date()); // 👈 Parent controls month
-    const [selectedTreatment, setSelectedTreatment] = useState(null);
-    const [currentView, setCurrentView] = useState('providers');
     const [blacklistedProviders, setBlacklistedProviders] = useState([]);
     const [loadingBlacklist, setLoadingBlacklist] = useState(false);
     const [unblacklisting, setUnblacklisting] = useState(null);
-    const [resetForm, setResetForm] = useState(false);
     const [selectedServices, setSelectedServices] = useState([]);
     const [currentEmail, setCurrentEmail] = useState(false);
     const [otpVerified, setOtpVerified] = useState(false);
@@ -93,7 +81,6 @@ export default function ScheduleServices({ providers, events, locations, clients
                 setShowStateDropdown(false);
             }
         }
-
         document.addEventListener("mousedown", handleClickOutside);
         return () => document.removeEventListener("mousedown", handleClickOutside);
     }, []);
@@ -103,9 +90,7 @@ export default function ScheduleServices({ providers, events, locations, clients
             .replace(/^\d+[a-z]\),?\s*/i, "")
             .replace(/\s*,?\s*(DTD|Salon)(\s*Schedule)?/gi, "")
             .trim();
-
     const [activeStep, setActiveStep] = useState(1); // 1: Providers, 2: Services, 3: Date, 4: Time, 5: Booking
-
 
     const saveBookingState = () => {
         const bookingState = {
@@ -193,8 +178,6 @@ export default function ScheduleServices({ providers, events, locations, clients
         // reset downstream steps
         setSelectedDate(null);
         setSelectedTime("");
-
-
         setActiveStep(2); // Move to Services step
     };
 
@@ -203,19 +186,13 @@ export default function ScheduleServices({ providers, events, locations, clients
             setIsSearchingProviders(true);
             setHasSearched(false);
             setSearchCompleted(false); // ✅ NEW
-
             setSelectedProvider("");
             setSelectedServices([]);
             setActiveStep(1);
-
             await getLatLngFromAddress();
-
-            // wait for React state to flush
             await new Promise((r) => setTimeout(r, 0));
-
             setHasSearched(true);
             setSearchCompleted(true); // ✅ ONLY AFTER EVERYTHING
-
         } catch (err) {
             console.error(err);
         } finally {
@@ -1038,11 +1015,11 @@ export default function ScheduleServices({ providers, events, locations, clients
         };
 
         const isFormValid =
-  loginData.email &&
-  loginData.phonenumber &&
-  !emailError &&
-  !phoneError &&
-  loginData.phonenumber.length === 10;
+            loginData.email &&
+            loginData.phonenumber &&
+            !emailError &&
+            !phoneError &&
+            loginData.phonenumber.length === 10;
 
         return (
             <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-12 px-4">
@@ -1200,11 +1177,37 @@ export default function ScheduleServices({ providers, events, locations, clients
     console.log("isSearchingProviders || !searchCompleted: ", isSearchingProviders, !searchCompleted)
 
     const isFormValid =
-  loginData.email &&
-  loginData.phonenumber &&
-  !emailError &&
-  !phoneError &&
-  loginData.phonenumber.length === 10;
+        loginData.email &&
+        loginData.phonenumber &&
+        !emailError &&
+        !phoneError &&
+        loginData.phonenumber.length === 10;
+
+    const getCaretIndexFromClick = (input, clickX) => {
+        const style = window.getComputedStyle(input);
+        const font = `${style.fontSize} ${style.fontFamily}`;
+
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d");
+        ctx.font = font;
+
+        const paddingLeft = parseFloat(style.paddingLeft);
+        const x = clickX - paddingLeft;
+
+        let width = 0;
+
+        for (let i = 0; i < input.value.length; i++) {
+            const charWidth = ctx.measureText(input.value[i]).width;
+
+            if (width + charWidth / 2 > x) {
+                return i;
+            }
+
+            width += charWidth;
+        }
+
+        return input.value.length;
+    };
 
     // Main horizontal flow content - FIXED VERSION
     const renderHorizontalFlow = () => {
@@ -1469,10 +1472,17 @@ export default function ScheduleServices({ providers, events, locations, clients
                                                     <input
                                                         placeholder="Enter or Select State"
                                                         value={formData.state || ""}
+                                                        maxLength={2}   // ✅ max 2 chars
+                                                        onClick={(e) => e.target.select()}
                                                         onChange={(e) => {
+                                                            const value = e.target.value
+                                                                .replace(/[^a-zA-Z]/g, "")   // only letters
+                                                                .toUpperCase()               // uppercase
+                                                                .slice(0, 2);                // max 2
+
                                                             setFormData((prev) => ({
                                                                 ...prev,
-                                                                state: e.target.value,
+                                                                state: value,
                                                             }));
                                                             setShowStateDropdown(true);
                                                         }}
@@ -1486,7 +1496,7 @@ export default function ScheduleServices({ providers, events, locations, clients
                                                                 .filter((state) =>
                                                                     state
                                                                         .toLowerCase()
-                                                                        .includes((formData.state || "").toLowerCase())
+                                                                        .startsWith((formData.state || "").toLowerCase())
                                                                 )
                                                                 .map((state) => (
                                                                     <div
@@ -1494,7 +1504,7 @@ export default function ScheduleServices({ providers, events, locations, clients
                                                                         onClick={() => {
                                                                             setFormData((prev) => ({
                                                                                 ...prev,
-                                                                                state: state,
+                                                                                state: state.slice(0, 2).toUpperCase(),
                                                                             }));
                                                                             setShowStateDropdown(false);
                                                                         }}
@@ -1514,12 +1524,55 @@ export default function ScheduleServices({ providers, events, locations, clients
                                                 key={field}
                                                 placeholder={field}
                                                 value={formData[field] || ""}
-                                                onChange={(e) =>
+
+                                                maxLength={field === "city" || field === "fullAddress" ? 50 : undefined}
+
+                                                onClick={(e) => {
+                                                    if (e.detail === 1) {
+                                                        e.target.select();
+                                                    }
+                                                }}
+
+                                                onDoubleClick={(e) => {
+                                                    e.preventDefault();
+                                                    const input = e.target;
+                                                    const clickX = e.nativeEvent.offsetX;
+                                                    const caretIndex = getCaretIndexFromClick(input, clickX);
+                                                    input.setSelectionRange(caretIndex, caretIndex);
+                                                }}
+
+                                                onMouseDown={(e) => {
+                                                    if (e.detail > 1) {
+                                                        e.preventDefault();
+                                                    }
+                                                }}
+
+                                                onChange={(e) => {
+                                                    let value = e.target.value;
+
+                                                    if (field === "zip") {
+                                                        value = value.replace(/\D/g, ""); // ✅ numbers only
+                                                    }
+
+                                                    if (field === "city") {
+                                                        value = value
+                                                            .replace(/[^a-zA-Z\s]/g, "") // letters + space only
+                                                            .slice(0, 50);
+
+                                                        // capitalize first letter
+                                                        value = value.charAt(0).toUpperCase() + value.slice(1);
+                                                    }
+
+                                                    if (field === "fullAddress") {
+                                                        value = value.slice(0, 50);
+                                                    }
+
                                                     setFormData((prev) => ({
                                                         ...prev,
-                                                        [field]: e.target.value,
-                                                    }))
-                                                }
+                                                        [field]: value,
+                                                    }));
+                                                }}
+
                                                 className="w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-indigo-500"
                                             />
                                         );
