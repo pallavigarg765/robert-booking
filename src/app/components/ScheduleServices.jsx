@@ -894,6 +894,86 @@ export default function ScheduleServices({ providers, events, locations, clients
     //   setSelectedTime("");
     // }, [selectedProvider]);
 
+    useEffect(() => {
+        if (!selectedProvider) return;
+
+        // FORCE clear services state
+        Object.keys(services).forEach((key) => {
+            if (services[key]) {
+                handleCheckboxChange({
+                    target: { name: key, checked: false },
+                });
+            }
+        });
+    }, [selectedProvider]);
+
+
+    useEffect(() => {
+        if (!otpVerified) return;
+
+        let timeout;
+
+        const logoutAfterInactivity = () => {
+            console.log("⏳ Auto logout (inactive)");
+            handleLogout();
+        };
+
+        const updateLastActivity = () => {
+            localStorage.setItem("lastActivity", Date.now().toString());
+        };
+
+        const resetTimer = () => {
+            updateLastActivity();
+            clearTimeout(timeout);
+            timeout = setTimeout(logoutAfterInactivity, 5 * 60 * 1000); // 5 min
+        };
+
+        const events = ["mousemove", "mousedown", "keydown", "scroll", "touchstart"];
+
+        events.forEach((event) => {
+            window.addEventListener(event, resetTimer);
+        });
+
+        // start timer
+        resetTimer();
+
+        return () => {
+            clearTimeout(timeout);
+            events.forEach((event) => {
+                window.removeEventListener(event, resetTimer);
+            });
+        };
+    }, [otpVerified]);
+
+    const checkInactivity = () => {
+        const lastActivity = Number(localStorage.getItem("lastActivity"));
+        const now = Date.now();
+
+        if (lastActivity && now - lastActivity > 5 * 60 * 1000) {
+            console.log("⏳ Session expired (background)");
+            handleLogout();
+        }
+    };
+
+    useEffect(() => {
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === "visible") {
+                checkInactivity(); // 🔥 runs when user comes back
+            }
+        };
+
+        document.addEventListener("visibilitychange", handleVisibilityChange);
+
+        return () => {
+            document.removeEventListener("visibilitychange", handleVisibilityChange);
+        };
+    }, []);
+
+    useEffect(() => {
+        checkInactivity(); 
+    }, []);
+
+    const finalProvider = (!selectedProvider && hoverProviderObj) ? hoverProviderObj.id : selectedProvider;
 
     const formatPhoneDisplay = (value) => {
         const digits = value.replace(/\D/g, "").slice(0, 10);
@@ -961,17 +1041,17 @@ export default function ScheduleServices({ providers, events, locations, clients
             email: "",
             phonenumber: ""
         });
-        setUser(null);
+        // setUser(null);
 
         // 🧹 Clear booking state
         setSelectedDate(null);
         setSelectedTime("");
         // setSlots([]);
-        setWorkCalandar({});
-        setServices({}); // VERY IMPORTANT
+        // setWorkCalandar({});
+        // setServices({}); // VERY IMPORTANT
 
         // 🔥 Reset booking related states
-        setTotalDuration(0);
+        // setTotalDuration(0);
         setHasSearched(false);
 
         // Optional: notify other components
@@ -1776,7 +1856,7 @@ export default function ScheduleServices({ providers, events, locations, clients
                             {otpVerified && activeProvider ? (<>
                                 {/* ⭐ Hidden data loader */}
                                 <ServiceCategorySection
-                                    selectedProvider={hoverProviderObj?.id || selectedProvider}
+                                    selectedProvider={finalProvider}
                                     providers={providers}
 
                                     events={events}
@@ -1787,11 +1867,11 @@ export default function ScheduleServices({ providers, events, locations, clients
 
                                 {/* ⭐ Actual UI */}
                                 <ServiceSelectionSection
-                                    hoveredProvider={hoveredProvider}
+                                    hoveredProvider={finalProvider}
                                     categories={providerCategories}
                                     services={services}
                                     onCheckboxChange={handleCheckboxChange}
-                                    selectedProvider={selectedProvider}
+                                    selectedProvider={finalProvider}
                                     providers={providers}
                                     selectedCategory={searchCategory}
                                 />
