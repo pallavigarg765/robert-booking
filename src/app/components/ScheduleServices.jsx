@@ -74,6 +74,25 @@ export default function ScheduleServices({ providers, events, locations, clients
     });
     const [activeField, setActiveField] = useState(null);
     const [phoneError, setPhoneError] = useState("");
+    const stateDropdownRef = useRef(null);
+
+
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (
+                stateDropdownRef.current &&
+                !stateDropdownRef.current.contains(event.target)
+            ) {
+                setShowStateDropdown(false);
+            }
+        };
+
+        document.addEventListener("mousedown", handleClickOutside);
+
+        return () => {
+            document.removeEventListener("mousedown", handleClickOutside);
+        };
+    }, []);
 
     useEffect(() => {
         function handleClickOutside(event) {
@@ -970,7 +989,7 @@ export default function ScheduleServices({ providers, events, locations, clients
     }, []);
 
     useEffect(() => {
-        checkInactivity(); 
+        checkInactivity();
     }, []);
 
     const finalProvider = (!selectedProvider && hoverProviderObj) ? hoverProviderObj.id : selectedProvider;
@@ -1548,27 +1567,26 @@ export default function ScheduleServices({ providers, events, locations, clients
                                     {["fullAddress", "city", "state", "zip"].map((field) => {
                                         if (field === "state") {
                                             return (
-                                                <div key={field} className="relative">
-                                                    <input
-                                                        placeholder="Enter or Select State"
-                                                        value={formData.state || ""}
-                                                        maxLength={2}   // ✅ max 2 chars
-                                                        onClick={(e) => e.target.select()}
-                                                        onChange={(e) => {
-                                                            const value = e.target.value
-                                                                .replace(/[^a-zA-Z]/g, "")   // only letters
-                                                                .toUpperCase()               // uppercase
-                                                                .slice(0, 2);                // max 2
+                                                <div key={field} className="relative" ref={stateDropdownRef}>                                                    <input
+                                                    placeholder="Enter or Select State"
+                                                    value={formData.state || ""}
+                                                    maxLength={2}   // ✅ max 2 chars
+                                                    onClick={(e) => e.target.select()}
+                                                    onChange={(e) => {
+                                                        const value = e.target.value
+                                                            .replace(/[^a-zA-Z]/g, "")   // only letters
+                                                            .toUpperCase()               // uppercase
+                                                            .slice(0, 2);                // max 2
 
-                                                            setFormData((prev) => ({
-                                                                ...prev,
-                                                                state: value,
-                                                            }));
-                                                            setShowStateDropdown(true);
-                                                        }}
-                                                        onFocus={() => setShowStateDropdown(true)}
-                                                        className="w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-indigo-500"
-                                                    />
+                                                        setFormData((prev) => ({
+                                                            ...prev,
+                                                            state: value,
+                                                        }));
+                                                        setShowStateDropdown(true);
+                                                    }}
+                                                    onFocus={() => setShowStateDropdown(true)}
+                                                    className="w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-indigo-500"
+                                                />
 
                                                     {showStateDropdown && (
                                                         <div className="absolute left-0 mt-1 w-full bg-white border rounded-xl shadow-lg z-50 max-h-48 overflow-y-auto">
@@ -1605,8 +1623,13 @@ export default function ScheduleServices({ providers, events, locations, clients
                                                 placeholder={field}
                                                 value={formData[field] || ""}
 
-                                                maxLength={field === "city" || field === "fullAddress" ? 50 : undefined}
-
+                                                maxLength={
+                                                    field === "city" || field === "fullAddress"
+                                                        ? 50
+                                                        : field === "zip"
+                                                            ? 5
+                                                            : undefined
+                                                }
                                                 onClick={(e) => {
                                                     if (e.detail === 1) {
                                                         e.target.select();
@@ -1636,15 +1659,17 @@ export default function ScheduleServices({ providers, events, locations, clients
 
                                                     if (field === "city") {
                                                         value = value
-                                                            .replace(/[^a-zA-Z\s]/g, "") // letters + space only
-                                                            .slice(0, 50);
-
-                                                        // capitalize first letter
-                                                        value = value.charAt(0).toUpperCase() + value.slice(1);
+                                                            .replace(/[^a-zA-Z\s]/g, "")   // letters + space only
+                                                            .slice(0, 50)
+                                                            .toLowerCase()
+                                                            .replace(/\b\w/g, (char) => char.toUpperCase()); // capitalize each word
                                                     }
 
                                                     if (field === "fullAddress") {
-                                                        value = value.slice(0, 50);
+                                                        value = value
+                                                            .slice(0, 50)
+                                                            .toLowerCase()
+                                                            .replace(/\b\w/g, (char) => char.toUpperCase()); // capitalize each word
                                                     }
 
                                                     setFormData((prev) => ({
@@ -1697,10 +1722,10 @@ export default function ScheduleServices({ providers, events, locations, clients
                                     {/* ADDRESS */}
                                     <div className="border rounded-xl p-4 space-y-2">
                                         <div className="text-sm text-gray-500">Service Location</div>
-                                        <div className="font-medium text-gray-800">
+                                        <div className="text-sm text-gray-500">
                                             {formData.fullAddress}
                                         </div>
-                                        <div className="font-medium text-gray-800">
+                                        <div className="text-sm text-gray-500">
                                             {formData.city}, {formData.state}, {formData.zip}
                                         </div>
 
