@@ -16,11 +16,9 @@ export default function ServiceSelectionSection({
   const hoverTimeoutRef = useRef(null);
   const isClickingRef = useRef(false);
 
-  const provider = providers.filter((item) => {
+  const provider = providers.find((item) => {
     return item.id == selectedProvider
   });
-
-  console.log("selectedCategory: ", selectedCategory);
 
   const toggleCategory = (catId) => {
     setCollapsed(prev => ({

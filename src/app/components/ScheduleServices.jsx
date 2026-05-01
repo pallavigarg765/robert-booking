@@ -127,7 +127,7 @@ export default function ScheduleServices({ providers, events, locations, clients
         };
 
         localStorage.setItem('bookingState', JSON.stringify(bookingState));
-        console.log('💾 Saved booking state for navigation');
+        // console.log('💾 Saved booking state for navigation');
     };
 
     // Get all hook functions FIRST
@@ -322,11 +322,6 @@ export default function ScheduleServices({ providers, events, locations, clients
         setAddressReady(true);
     };
 
-    const selectedProviderObj = providers.find(
-        (p) => p.id === selectedProvider
-    );
-    const hoverProviderObj = hoveredProvider;
-    const activeProvider = hoveredProvider || selectedProviderObj;
     // Custom handler for service selection - THIS IS THE KEY FIX
     const handleServiceSelection = (serviceId) => {
         setSelectedServices(prev => {
@@ -992,7 +987,14 @@ export default function ScheduleServices({ providers, events, locations, clients
         checkInactivity();
     }, []);
 
+    const hoverProviderObj = hoveredProvider;
+    
     const finalProvider = (!selectedProvider && hoverProviderObj) ? hoverProviderObj.id : selectedProvider;
+
+    const selectedProviderObj = providers.find(
+        (p) => p.id === finalProvider
+    );
+    const activeProvider = selectedProviderObj;
 
     const formatPhoneDisplay = (value) => {
         const digits = value.replace(/\D/g, "").slice(0, 10);
@@ -1273,7 +1275,7 @@ export default function ScheduleServices({ providers, events, locations, clients
         );
     };
 
-    console.log("isSearchingProviders || !searchCompleted: ", isSearchingProviders, !searchCompleted)
+    // console.log("isSearchingProviders || !searchCompleted: ", isSearchingProviders, !searchCompleted)
 
     const isFormValid =
         loginData.email &&

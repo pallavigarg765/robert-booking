@@ -491,7 +491,7 @@ export function useBooking({ providers, events, locations, clients, categories, 
   const handleSearchSelect = (place) => {
     setQuery(place.display_name);
     setSuggestions([]);
-    console.log("Selected place:", place);
+    // console.log("Selected place:", place);
     setClientLocation([place.lat, place.lon]);
 
     // Extract state from the selected place
@@ -522,7 +522,7 @@ export function useBooking({ providers, events, locations, clients, categories, 
       );
 
       const data = await res.json();
-      console.log("📍 Location data:", data);
+      // console.log("📍 Location data:", data);
 
       if (!Array.isArray(data) || data.length === 0) {
         throw new Error("No location found");
@@ -687,9 +687,9 @@ export function useBooking({ providers, events, locations, clients, categories, 
   }, [selectedDate, workCalandar]);
 
 useEffect(() => {
-  console.log("🔍 Filtering providers...");
-  console.log("Client location:", clientLocation);
-  console.log("Client state:", address.state);
+  // console.log("🔍 Filtering providers...");
+  // console.log("Client location:", clientLocation);
+  // console.log("Client state:", address.state);
 
   if (!providerArray || providerArray.length === 0) {
     setFilteredProviders([]);
