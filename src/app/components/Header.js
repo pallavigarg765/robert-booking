@@ -30,8 +30,16 @@ export default function Header() {
 
   // ✅ Real routes now
   const navItems = [
+    { label: "Home", href: "/home" },
+    { label: "About", href: "/about" },
+
     { label: "Find Services", href: "/find-services" },
     { label: "Schedule Services", href: "/schedule-services" },
+    { label: "Notify-users", href: "/notify-users" },
+
+    // { label: "Services", href: "/find-services" },
+    { label: "Contact", href: "/contact" },
+
   ];
 
   const updatedNavItems = hasUser
@@ -67,11 +75,10 @@ export default function Header() {
             <button
               key={idx}
               onClick={() => handleNavigation(item.href)}
-              className={`transition ${
-                isActive(item.href)
-                  ? "text-blue-600 font-semibold"
-                  : "text-gray-700 hover:text-blue-600"
-              }`}
+              className={`transition ${isActive(item.href)
+                ? "text-blue-600 font-semibold"
+                : "text-gray-700 hover:text-blue-600"
+                }`}
             >
               {item.label}
             </button>

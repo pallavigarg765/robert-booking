@@ -8,7 +8,7 @@ import ServiceCategorySection from "./ServiceCategorySection";
 import ServiceSelectionSection from "./ServiceSelectionSection";
 import AvailabilitySection from "./AvailabilitySection";
 import { Calendar, Clock, CheckCircle, ChevronRight, User, Scissors, CalendarDays, Clock4, FileText } from "lucide-react";
-
+import { useRouter } from "next/navigation";
 const dayMap = {
     0: "Sunday",
     1: "Monday",
@@ -75,7 +75,12 @@ export default function ScheduleServices({ providers, events, locations, clients
     const [activeField, setActiveField] = useState(null);
     const [phoneError, setPhoneError] = useState("");
     const stateDropdownRef = useRef(null);
+    const addressRefs = useRef([]);
+    const continueBtnRef = useRef(null);
+    const [highlightIndex, setHighlightIndex] = useState(-1);
 
+
+const router = useRouter();
 
     useEffect(() => {
         const handleClickOutside = (event) => {
@@ -103,6 +108,34 @@ export default function ScheduleServices({ providers, events, locations, clients
         document.addEventListener("mousedown", handleClickOutside);
         return () => document.removeEventListener("mousedown", handleClickOutside);
     }, []);
+
+
+    const handleCancelEditAddress = () => {
+                handleFieldChange({
+            target: { name: "fullAddress", value: formData.fullAddress }
+        });
+
+        handleFieldChange({
+            target: { name: "city", value: formData.city }
+        });
+
+        handleFieldChange({
+            target: { name: "state", value: formData.state }
+        });
+
+        handleFieldChange({
+            target: { name: "zip", value: formData.zip }
+        });
+
+        setUserFlow("authenticated");
+
+        // ✅ trigger AFTER syncing
+        setAddressReady(true);
+
+        setUserFlow("authenticated");
+        setShowStateDropdown(false);
+        setHighlightIndex(-1);
+    };
 
     const cleanName = (name = "") =>
         name
@@ -200,6 +233,15 @@ export default function ScheduleServices({ providers, events, locations, clients
         setActiveStep(2); // Move to Services step
     };
 
+    const focusAndSelect = (ref) => {
+        if (ref) {
+            ref.focus();
+            setTimeout(() => {
+                ref.select();
+            }, 0);
+        }
+    };
+
     const triggerProviderSearch = async () => {
         try {
             setIsSearchingProviders(true);
@@ -265,7 +307,11 @@ export default function ScheduleServices({ providers, events, locations, clients
             console.error(err);
         }
     };
-
+    const filteredStates = states.filter((state) =>
+        state
+            .toLowerCase()
+            .startsWith((formData.state || "").toLowerCase())
+    );
 
     const isTempAddressValid =
         formData.fullAddress?.trim() &&
@@ -930,6 +976,7 @@ export default function ScheduleServices({ providers, events, locations, clients
         const logoutAfterInactivity = () => {
             console.log("⏳ Auto logout (inactive)");
             handleLogout();
+router.push("/find-services");
         };
 
         const updateLastActivity = () => {
@@ -988,7 +1035,7 @@ export default function ScheduleServices({ providers, events, locations, clients
     }, []);
 
     const hoverProviderObj = hoveredProvider;
-    
+
     const finalProvider = (!selectedProvider && hoverProviderObj) ? hoverProviderObj.id : selectedProvider;
 
     const selectedProviderObj = providers.find(
@@ -1566,53 +1613,159 @@ export default function ScheduleServices({ providers, events, locations, clients
                                         </p>
                                     </div>
 
-                                    {["fullAddress", "city", "state", "zip"].map((field) => {
-                                        if (field === "state") {
-                                            return (
-                                                <div key={field} className="relative" ref={stateDropdownRef}>                                                    <input
-                                                    placeholder="Enter or Select State"
-                                                    value={formData.state || ""}
-                                                    maxLength={2}   // ✅ max 2 chars
-                                                    onClick={(e) => e.target.select()}
-                                                    onChange={(e) => {
-                                                        const value = e.target.value
-                                                            .replace(/[^a-zA-Z]/g, "")   // only letters
-                                                            .toUpperCase()               // uppercase
-                                                            .slice(0, 2);                // max 2
+                                    {["fullAddress", "city", "state", "zip"].map((field, index) => {
+                                        const handleKeyDown = (e) => {
+
+                                            // -------------------------
+                                            // DROPDOWN KEYBOARD CONTROL
+                                            // -------------------------
+                                            if (field === "state") {
+
+                                                // -------------------------
+                                                // ARROW KEYS (only when dropdown open)
+                                                // -------------------------
+                                                if (showStateDropdown) {
+
+                                                    if (e.key === "ArrowDown") {
+                                                        e.preventDefault();
+                                                        setHighlightIndex((prev) =>
+                                                            prev < filteredStates.length - 1 ? prev + 1 : 0
+                                                        );
+                                                        return;
+                                                    }
+
+                                                    if (e.key === "ArrowUp") {
+                                                        e.preventDefault();
+                                                        setHighlightIndex((prev) =>
+                                                            prev > 0 ? prev - 1 : filteredStates.length - 1
+                                                        );
+                                                        return;
+                                                    }
+                                                }
+
+                                                // -------------------------
+                                                // ENTER (ALWAYS move forward)
+                                                // -------------------------
+                                                if (e.key === "Enter") {
+                                                    e.preventDefault();
+
+                                                    // If dropdown open + something selected
+                                                    if (showStateDropdown && highlightIndex >= 0) {
+                                                        const selected = filteredStates[highlightIndex];
 
                                                         setFormData((prev) => ({
                                                             ...prev,
-                                                            state: value,
+                                                            state: selected.slice(0, 2).toUpperCase(),
                                                         }));
-                                                        setShowStateDropdown(true);
-                                                    }}
-                                                    onFocus={() => setShowStateDropdown(true)}
-                                                    className="w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-indigo-500"
-                                                />
+                                                    }
+
+                                                    setShowStateDropdown(false);
+                                                    setHighlightIndex(-1);
+
+                                                    setTimeout(() => {
+                                                        focusAndSelect(addressRefs.current[index + 1]);
+                                                    }, 0);
+
+                                                    return;
+                                                }
+
+                                                // -------------------------
+                                                // ESC
+                                                // -------------------------
+                                                if (e.key === "Escape") {
+                                                    setShowStateDropdown(false);
+                                                    setHighlightIndex(-1);
+                                                    return;
+                                                }
+                                            }
+
+                                            // -------------------------
+                                            // TAB NAVIGATION
+                                            // -------------------------
+                                            if (e.key === "Tab") {
+                                                e.preventDefault();
+
+                                                if (field === "state") {
+                                                    setShowStateDropdown(false);
+                                                    setHighlightIndex(-1);
+                                                }
+
+                                                if (e.shiftKey) {
+                                                    if (index > 0) {
+                                                        addressRefs.current[index - 1]?.focus();
+                                                    } else {
+                                                        focusAndSelect(continueBtnRef.current);
+                                                    }
+                                                } else {
+                                                    if (index < 3) {
+                                                        focusAndSelect(addressRefs.current[index + 1]);
+                                                    } else {
+                                                        focusAndSelect(continueBtnRef.current);
+                                                    }
+                                                }
+                                            }
+
+                                            // -------------------------
+                                            // ENTER (Normal fields)
+                                            // -------------------------
+                                            if (e.key === "Enter" && field !== "state") {
+                                                e.preventDefault();
+
+                                                if (index < 3) {
+                                                    focusAndSelect(addressRefs.current[index + 1]);
+                                                } else {
+                                                    focusAndSelect(continueBtnRef.current);
+                                                }
+                                            }
+                                        };
+                                        if (field === "state") {
+                                            return (
+                                                <div key={field} className="relative" ref={stateDropdownRef}>
+                                                    <input
+                                                        ref={(el) => (addressRefs.current[index] = el)}
+                                                        placeholder="Enter or Select State"
+                                                        value={formData.state || ""}
+                                                        maxLength={2}
+                                                        onKeyDown={handleKeyDown}
+                                                        onClick={(e) => e.target.select()}
+                                                        onChange={(e) => {
+                                                            const value = e.target.value
+                                                                .replace(/[^a-zA-Z]/g, "")
+                                                                .toUpperCase()
+                                                                .slice(0, 2);
+
+                                                            setFormData((prev) => ({
+                                                                ...prev,
+                                                                state: value,
+                                                            }));
+                                                            setShowStateDropdown(true);
+                                                        }}
+                                                        // onFocus={() => setShowStateDropdown(true)}
+                                                        className="w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-indigo-500"
+                                                    />
 
                                                     {showStateDropdown && (
                                                         <div className="absolute left-0 mt-1 w-full bg-white border rounded-xl shadow-lg z-50 max-h-48 overflow-y-auto">
-                                                            {states
-                                                                .filter((state) =>
-                                                                    state
-                                                                        .toLowerCase()
-                                                                        .startsWith((formData.state || "").toLowerCase())
-                                                                )
-                                                                .map((state) => (
-                                                                    <div
-                                                                        key={state}
-                                                                        onClick={() => {
-                                                                            setFormData((prev) => ({
-                                                                                ...prev,
-                                                                                state: state.slice(0, 2).toUpperCase(),
-                                                                            }));
-                                                                            setShowStateDropdown(false);
-                                                                        }}
-                                                                        className="px-4 py-2 hover:bg-indigo-100 cursor-pointer"
-                                                                    >
-                                                                        {state}
-                                                                    </div>
-                                                                ))}
+                                                            {filteredStates.map((state, i) => (
+                                                                <div
+                                                                    key={state}
+                                                                    onClick={() => {
+                                                                        setFormData((prev) => ({
+                                                                            ...prev,
+                                                                            state: state.slice(0, 2).toUpperCase(),
+                                                                        }));
+                                                                        setShowStateDropdown(false);
+                                                                        setHighlightIndex(-1);
+                                                                    }}
+                                                                    className={`px-4 py-2 cursor-pointer 
+                    ${i === highlightIndex
+                                                                            ? "bg-indigo-200"
+                                                                            : "hover:bg-indigo-100"
+                                                                        }`}
+                                                                >
+                                                                    {state}
+                                                                </div>
+                                                            ))}
                                                         </div>
                                                     )}
                                                 </div>
@@ -1622,9 +1775,11 @@ export default function ScheduleServices({ providers, events, locations, clients
                                         return (
                                             <input
                                                 key={field}
+                                                ref={(el) => (addressRefs.current[index] = el)}
+
                                                 placeholder={field}
                                                 value={formData[field] || ""}
-
+                                                onKeyDown={handleKeyDown}
                                                 maxLength={
                                                     field === "city" || field === "fullAddress"
                                                         ? 50
@@ -1685,18 +1840,42 @@ export default function ScheduleServices({ providers, events, locations, clients
                                         );
                                     })}
 
+                                    {/* Cancel */}
                                     <button
+                                        type="button"
+                                        onClick={handleCancelEditAddress}
+                                        className="w-full py-3 rounded-xl text-white transition bg-indigo-600 hover:bg-indigo-700 cursor-pointer"
+                                    >
+                                        Cancel
+                                    </button>
+
+                                    <button
+                                        ref={continueBtnRef}
+                                        onKeyDown={(e) => {
+                                            if (e.key === "Tab") {
+                                                e.preventDefault();
+
+                                                if (e.shiftKey) {
+                                                    // Go back to zip
+                                                    addressRefs.current[3]?.focus();
+                                                } else {
+                                                    // Go back to first field
+                                                    addressRefs.current[0]?.focus();
+                                                }
+                                            }
+                                        }}
                                         onClick={handleUseTempAddress}
                                         disabled={!isTempAddressValid}
                                         className={`w-full py-3 rounded-xl text-white transition 
-    ${isTempAddressValid
+        ${isTempAddressValid
                                                 ? "bg-indigo-600 hover:bg-indigo-700 cursor-pointer"
-                                                : "bg-gray-400 cursor-not-allowed"}`}
+                                                : "bg-gray-400 cursor-not-allowed"
+                                            }`}
                                     >
                                         Continue
-                                    </button>
-                                </div>
+                                    </button>                                </div>
                             )}
+
 
                             {otpVerified && userFlow === "authenticated" && (
                                 <div className="space-y-6">
@@ -1717,23 +1896,22 @@ export default function ScheduleServices({ providers, events, locations, clients
                                             <span className="font-medium text-gray-800">Email:</span> {userEmail}
                                         </div>
                                         <div className="text-sm text-gray-600">
-                                            <span className="font-medium text-gray-800">Phone:</span> {loginData.phonenumber}
+                                            <span className="font-medium text-gray-800">Phone:</span> {formatPhoneDisplay(loginData.phonenumber)}
                                         </div>
                                     </div>
 
                                     {/* ADDRESS */}
                                     <div className="border rounded-xl p-4 space-y-2">
-                                        <div className="text-sm text-gray-500">Service Location</div>
-                                        <div className="text-sm text-gray-500">
+                                        <div className="text-sm text-gray-500">Service Location:</div>
+                                        <div className="text-sm text-gray-500 m-0 leading-tight">
                                             {formData.fullAddress}
                                         </div>
-                                        <div className="text-sm text-gray-500">
+                                        <div className="text-sm text-gray-500 m-0 leading-tight">
                                             {formData.city}, {formData.state}, {formData.zip}
                                         </div>
 
                                         <button
-                                            onClick={() => setUserFlow("edit-address")}
-                                            className="mt-3 text-sm text-indigo-600 hover:underline"
+                                            onClick={() => { setUserFlow("edit-address"); setHasSearched(false); setSelectedProvider(null); setHoveredProvider(null); }} className="mt-3 text-sm text-indigo-600 hover:underline"
                                         >
                                             Change address
                                         </button>
@@ -2004,7 +2182,7 @@ export default function ScheduleServices({ providers, events, locations, clients
             </div>
           </div> */}
                 </div>
-            </div>
+            </div >
         );
     };
 
