@@ -80,7 +80,7 @@ export default function ScheduleServices({ providers, events, locations, clients
     const continueBtnRef = useRef(null);
     const [highlightIndex, setHighlightIndex] = useState(-1);
 
-
+    const cancelBtnRef = useRef(null);
     const router = useRouter();
 
     useEffect(() => {
@@ -1742,7 +1742,8 @@ export default function ScheduleServices({ providers, events, locations, clients
                                                     if (index < 3) {
                                                         focusAndSelect(addressRefs.current[index + 1]);
                                                     } else {
-                                                        focusAndSelect(continueBtnRef.current);
+                                                        // Go to Cancel first
+                                                        cancelBtnRef.current?.focus();
                                                     }
                                                 }
                                             }
@@ -1756,7 +1757,7 @@ export default function ScheduleServices({ providers, events, locations, clients
                                                 if (index < 3) {
                                                     focusAndSelect(addressRefs.current[index + 1]);
                                                 } else {
-                                                    focusAndSelect(continueBtnRef.current);
+                                                    cancelBtnRef.current?.focus(); // 👈 go to Cancel first
                                                 }
                                             }
                                         };
@@ -1883,39 +1884,62 @@ export default function ScheduleServices({ providers, events, locations, clients
                                     })}
 
                                     {/* Cancel */}
-                                    <button
-                                        type="button"
-                                        onClick={handleCancelEditAddress}
-                                        className="w-full py-3 rounded-xl text-white transition bg-indigo-600 hover:bg-indigo-700 cursor-pointer"
-                                    >
-                                        Cancel
-                                    </button>
-
-                                    <button
-                                        ref={continueBtnRef}
-                                        onKeyDown={(e) => {
-                                            if (e.key === "Tab") {
-                                                e.preventDefault();
-
-                                                if (e.shiftKey) {
-                                                    // Go back to zip
-                                                    addressRefs.current[3]?.focus();
-                                                } else {
-                                                    // Go back to first field
-                                                    addressRefs.current[0]?.focus();
+                                    <div className="flex gap-4">
+                                        <button
+                                            ref={cancelBtnRef}
+                                            type="button"
+                                            onClick={handleCancelEditAddress}
+                                            onKeyDown={(e) => {
+                                                if (e.key === "Enter") {
+                                                    e.preventDefault();
+                                                    handleCancelEditAddress();
                                                 }
-                                            }
-                                        }}
-                                        onClick={handleUseTempAddress}
-                                        disabled={!isTempAddressValid}
-                                        className={`w-full py-3 rounded-xl text-white transition 
-        ${isTempAddressValid
-                                                ? "bg-indigo-600 hover:bg-indigo-700 cursor-pointer"
-                                                : "bg-gray-400 cursor-not-allowed"
-                                            }`}
-                                    >
-                                        Continue
-                                    </button>                                </div>
+
+                                                if (e.key === "Tab") {
+                                                    e.preventDefault();
+
+                                                    if (e.shiftKey) {
+                                                        addressRefs.current[3]?.focus();
+                                                    } else {
+                                                        continueBtnRef.current?.focus();
+                                                    }
+                                                }
+                                            }}
+                                            className="flex-1 py-3 rounded-xl border border-gray-400 text-gray-700 hover:bg-gray-100 transition"
+                                        >
+                                            Cancel
+                                        </button>
+
+                                        <button
+                                            ref={continueBtnRef}
+                                            onKeyDown={(e) => {
+                                                if (e.key === "Enter") {
+                                                    e.preventDefault();
+                                                    handleUseTempAddress();
+                                                }
+
+                                                if (e.key === "Tab") {
+                                                    e.preventDefault();
+
+                                                    if (e.shiftKey) {
+                                                        cancelBtnRef.current?.focus();
+                                                    } else {
+                                                        addressRefs.current[0]?.focus();
+                                                    }
+                                                }
+                                            }}
+                                            onClick={handleUseTempAddress}
+                                            disabled={!isTempAddressValid}
+                                            className={`flex-1 py-3 rounded-xl text-white transition 
+      ${isTempAddressValid
+                                                    ? "bg-indigo-600 hover:bg-indigo-700"
+                                                    : "bg-gray-400 cursor-not-allowed"
+                                                }`}
+                                        >
+                                            Continue
+                                        </button>
+                                    </div>
+                                </div>
                             )}
 
 
