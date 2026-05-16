@@ -70,7 +70,8 @@ export default function ScheduleServices({ providers, events, locations, clients
     const dropdownRef = useRef(null);
     const [loginData, setLoginData] = useState({
         email: "",
-        phonenumber: ""
+        phonenumber: "",
+        rememberMe: true,
     });
     const [activeField, setActiveField] = useState(null);
     const [phoneError, setPhoneError] = useState("");
@@ -80,7 +81,7 @@ export default function ScheduleServices({ providers, events, locations, clients
     const [highlightIndex, setHighlightIndex] = useState(-1);
 
 
-const router = useRouter();
+    const router = useRouter();
 
     useEffect(() => {
         const handleClickOutside = (event) => {
@@ -100,6 +101,18 @@ const router = useRouter();
     }, []);
 
     useEffect(() => {
+  const savedEmail = localStorage.getItem("rememberedEmail");
+
+  if (savedEmail) {
+    setLoginData(prev => ({
+      ...prev,
+      email: savedEmail,
+      rememberMe: true,
+    }));
+  }
+}, []);
+
+    useEffect(() => {
         function handleClickOutside(event) {
             if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
                 setShowStateDropdown(false);
@@ -111,7 +124,7 @@ const router = useRouter();
 
 
     const handleCancelEditAddress = () => {
-                handleFieldChange({
+        handleFieldChange({
             target: { name: "fullAddress", value: formData.fullAddress }
         });
 
@@ -622,6 +635,13 @@ const router = useRouter();
             return;
         }
 
+        console.log("loginData",loginData)
+                    if (loginData.rememberMe) {
+            localStorage.setItem("rememberedEmail", loginData.email);
+        } else {
+            localStorage.removeItem("rememberedEmail");
+        }
+
         setOtpLoading(true);
 
         try {
@@ -641,6 +661,8 @@ const router = useRouter();
                 setOtpError(checkData.message || "Something went wrong");
                 return;
             }
+
+
 
             // ✅ Email + Phone correct → Send OTP
             if (checkData.loginAllowed) {
@@ -976,7 +998,7 @@ const router = useRouter();
         const logoutAfterInactivity = () => {
             console.log("⏳ Auto logout (inactive)");
             handleLogout();
-router.push("/find-services");
+            router.push("/find-services");
         };
 
         const updateLastActivity = () => {
@@ -1421,6 +1443,26 @@ router.push("/find-services");
                                         {emailError && (
                                             <p className="text-xs text-red-500 mt-1">{emailError}</p>
                                         )}
+                                    </div>
+                                    {/* REMEMBER ME */}
+                                    <div className="flex items-center gap-2 mt-4">
+<input
+  type="checkbox"
+  checked={loginData.rememberMe}
+  onChange={(e) =>
+    setLoginData(prev => ({
+      ...prev,
+      rememberMe: e.target.checked,
+    }))
+  }
+                                            className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                                        />
+                                        <label
+                                            htmlFor="rememberMe"
+                                            className="text-sm text-gray-600 cursor-pointer"
+                                        >
+                                            Remember me
+                                        </label>
                                     </div>
                                     {/* PHONE */}
                                     <div>
