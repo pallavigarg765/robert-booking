@@ -101,16 +101,16 @@ export default function ScheduleServices({ providers, events, locations, clients
     }, []);
 
     useEffect(() => {
-  const savedEmail = localStorage.getItem("rememberedEmail");
+        const savedEmail = localStorage.getItem("rememberedEmail");
 
-  if (savedEmail) {
-    setLoginData(prev => ({
-      ...prev,
-      email: savedEmail,
-      rememberMe: true,
-    }));
-  }
-}, []);
+        if (savedEmail) {
+            setLoginData(prev => ({
+                ...prev,
+                email: savedEmail,
+                rememberMe: true,
+            }));
+        }
+    }, []);
 
     useEffect(() => {
         function handleClickOutside(event) {
@@ -635,8 +635,8 @@ export default function ScheduleServices({ providers, events, locations, clients
             return;
         }
 
-        console.log("loginData",loginData)
-                    if (loginData.rememberMe) {
+        console.log("loginData", loginData)
+        if (loginData.rememberMe) {
             localStorage.setItem("rememberedEmail", loginData.email);
         } else {
             localStorage.removeItem("rememberedEmail");
@@ -1446,15 +1446,15 @@ export default function ScheduleServices({ providers, events, locations, clients
                                     </div>
                                     {/* REMEMBER ME */}
                                     <div className="flex items-center gap-2 mt-4">
-<input
-  type="checkbox"
-  checked={loginData.rememberMe}
-  onChange={(e) =>
-    setLoginData(prev => ({
-      ...prev,
-      rememberMe: e.target.checked,
-    }))
-  }
+                                        <input
+                                            type="checkbox"
+                                            checked={loginData.rememberMe}
+                                            onChange={(e) =>
+                                                setLoginData(prev => ({
+                                                    ...prev,
+                                                    rememberMe: e.target.checked,
+                                                }))
+                                            }
                                             className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
                                         />
                                         <label
