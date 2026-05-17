@@ -73,6 +73,7 @@ export default function ScheduleServices({ providers, events, locations, clients
         phonenumber: "",
         rememberMe: true,
     });
+
     const [activeField, setActiveField] = useState(null);
     const [phoneError, setPhoneError] = useState("");
     const stateDropdownRef = useRef(null);
@@ -635,7 +636,6 @@ export default function ScheduleServices({ providers, events, locations, clients
             return;
         }
 
-        console.log("loginData", loginData)
         if (loginData.rememberMe) {
             localStorage.setItem("rememberedEmail", loginData.email);
         } else {
@@ -1127,9 +1127,13 @@ export default function ScheduleServices({ providers, events, locations, clients
         setUserFlow("entry");
         setOtp("");
         setOtpError("");
+
+        const rememberedEmail = localStorage.getItem("rememberedEmail");
+
         setLoginData({
-            email: "",
-            phonenumber: ""
+            email: rememberedEmail ? rememberedEmail : "",
+            phonenumber: "",
+            rememberMe: true,
         });
         // setUser(null);
 
@@ -1447,6 +1451,7 @@ export default function ScheduleServices({ providers, events, locations, clients
                                     {/* REMEMBER ME */}
                                     <div className="flex items-center gap-2 mt-4">
                                         <input
+                                            id="rememberMe"
                                             type="checkbox"
                                             checked={loginData.rememberMe}
                                             onChange={(e) =>
@@ -1457,6 +1462,7 @@ export default function ScheduleServices({ providers, events, locations, clients
                                             }
                                             className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
                                         />
+
                                         <label
                                             htmlFor="rememberMe"
                                             className="text-sm text-gray-600 cursor-pointer"
