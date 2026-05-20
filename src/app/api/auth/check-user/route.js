@@ -19,43 +19,55 @@ export async function POST(request) {
     const lowerEmail = email.toLowerCase().trim();
     const normalizedPhone = phonenumber.replace(/\D/g, "");
 
-    // 🔹 Find user by email only
-    const user = await User.findOne({ email: lowerEmail });
+    // 🔍 Check both independently
+    const emailUser = await User.findOne({ email: lowerEmail });
+    const phoneUser = await User.findOne({ phonenumber: normalizedPhone });
 
-    // ❌ Case 1: Email does NOT exist → allow registration
-    if (!user) {
+    // =============================
+    // 🎯 SCENARIO 4 FIX
+    // =============================
+    // Email not found BUT phone exists
+    if (!emailUser && phoneUser) {
       return NextResponse.json({
         success: true,
-        exists: false,
-        loginAllowed: false,
-        message: "Email not found. Please register.",
+        scenario: "phone-exists-different-email",
+        message:
+          "An account already exists with this phone number but under a different email.",
       });
     }
 
-    // 🔎 Case 2: Email exists → check phone number
-    const storedPhone = user.phonenumber
-      ? user.phonenumber.replace(/\D/g, "")
-      : "";
+    // =============================
+    // Scenario 1: New user
+    // =============================
+    if (!emailUser && !phoneUser) {
+      return NextResponse.json({
+        success: true,
+        scenario: "new-user",
+        loginAllowed: false,
+      });
+    }
 
-    if (storedPhone !== normalizedPhone) {
+    // =============================
+    // Scenario 3: Email exists but phone incorrect
+    // =============================
+    if (emailUser && emailUser.phonenumber !== normalizedPhone) {
       return NextResponse.json({
         success: false,
-        exists: true,
-        loginAllowed: false,
+        scenario: "wrong-phone",
         message: "Phone number is incorrect",
       });
     }
 
-    // ✅ Case 3: Email + Phone both correct → allow login
+    // =============================
+    // Scenario 2: Correct login
+    // =============================
     return NextResponse.json({
       success: true,
-      exists: true,
+      scenario: "login",
       loginAllowed: true,
-      message: "Login allowed",
     });
 
   } catch (error) {
-    console.error("Check user error:", error);
     return NextResponse.json(
       { success: false, message: "Server error" },
       { status: 500 }

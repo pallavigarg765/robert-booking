@@ -30,12 +30,11 @@ export async function POST(request) {
 
         const existingUser = await User.findOne({
             email: email.toLowerCase(),
-            phonenumber,
         });
 
         if (existingUser) {
             return NextResponse.json(
-                { success: false, message: "User already exists" },
+                { success: false, message: "Email already exists" },
                 { status: 400 }
             );
         }

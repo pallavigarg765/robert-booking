@@ -84,6 +84,9 @@ export default function ScheduleServices({ providers, events, locations, clients
     const cancelBtnRef = useRef(null);
     const router = useRouter();
 
+    const focusTrapRef = useRef(null);
+    const createBtnRef = useRef(null);
+    const backBtnRef = useRef(null);
     useEffect(() => {
         const handleClickOutside = (event) => {
             if (
@@ -100,6 +103,38 @@ export default function ScheduleServices({ providers, events, locations, clients
             document.removeEventListener("mousedown", handleClickOutside);
         };
     }, []);
+
+
+    useEffect(() => {
+        if (userFlow === "phone-exists-different-email") {
+            createBtnRef.current?.focus();
+        }
+    }, [userFlow]);
+
+    const handleTrapTab = (e) => {
+        if (e.key !== "Tab") return;
+
+        const focusableElements = focusTrapRef.current.querySelectorAll(
+            "button"
+        );
+
+        const first = focusableElements[0];
+        const last = focusableElements[focusableElements.length - 1];
+
+        if (e.shiftKey) {
+            // Shift + Tab
+            if (document.activeElement === first) {
+                e.preventDefault();
+                last.focus();
+            }
+        } else {
+            // Tab
+            if (document.activeElement === last) {
+                e.preventDefault();
+                first.focus();
+            }
+        }
+    };
 
     useEffect(() => {
         const savedEmail = localStorage.getItem("rememberedEmail");
@@ -656,16 +691,36 @@ export default function ScheduleServices({ providers, events, locations, clients
 
             const checkData = await checkRes.json();
 
-            // ❌ API returned error (like wrong phone)
             if (!checkData.success) {
                 setOtpError(checkData.message || "Something went wrong");
                 return;
             }
 
+            // 🎯 Scenario 4
+            if (checkData.scenario === "phone-exists-different-email") {
+                setUserFlow("phone-exists-different-email");
+                return;
+            }
 
+            // Scenario 1 → New user
+            if (checkData.scenario === "new-user") {
+                setUserFlow("register-user");
+                return;
+            }
 
-            // ✅ Email + Phone correct → Send OTP
-            if (checkData.loginAllowed) {
+            // Scenario 3 → Wrong phone
+            if (checkData.scenario === "wrong-phone") {
+                setOtpError(checkData.message);
+                return;
+            }
+
+            // Scenario 2 → Login
+            if (checkData.scenario === "login") {
+                // send OTP (your existing code)
+                // }
+
+                // ✅ Email + Phone correct → Send OTP
+                // if (checkData.loginAllowed) {
                 const otpRes = await fetch("/api/auth/send-otp", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
@@ -1478,7 +1533,14 @@ export default function ScheduleServices({ providers, events, locations, clients
                                             value={formatPhoneDisplay(loginData.phonenumber)}
                                             onChange={(e) => {
                                                 const digits = e.target.value.replace(/\D/g, "").slice(0, 10);
-                                                setLoginData(prev => ({ ...prev, phonenumber: digits }));
+
+                                                setLoginData(prev => ({
+                                                    ...prev,
+                                                    phonenumber: digits,
+                                                }));
+
+                                                // ✅ Clear backend error when user edits phone
+                                                setOtpError("");
 
                                                 if (!digits) {
                                                     setPhoneError("Phone number is required");
@@ -1540,6 +1602,50 @@ export default function ScheduleServices({ providers, events, locations, clients
                                 </div>
                             )}
 
+                            {!otpVerified && userFlow === "phone-exists-different-email" && (
+                                <div
+                                    ref={focusTrapRef}
+                                    tabIndex={-1}
+                                    onKeyDown={handleTrapTab}
+                                    className="space-y-6 outline-none"
+                                >
+
+                                    <div>
+                                        <h2 className="text-xl font-semibold text-gray-800">
+                                            Account Found
+                                        </h2>
+                                        <p className="text-sm text-gray-500">
+                                            This phone number is already associated with another account.
+                                            It looks like you may have mistyped your email.
+                                        </p>
+                                    </div>
+
+                                    <div className="flex flex-col gap-4">
+
+                                        <button
+                                            ref={createBtnRef}
+                                            type="button"
+                                            onClick={() => setUserFlow("register-user")}
+                                            className="w-full bg-indigo-600 text-white py-3 rounded-xl 
+                   hover:bg-indigo-700 focus:ring-2 focus:ring-indigo-400 outline-none"
+                                        >
+                                            Create New Account Anyway
+                                        </button>
+
+                                        <button
+                                            ref={backBtnRef}
+                                            type="button"
+                                            onClick={() => setUserFlow("entry")}
+                                            className="w-full bg-gray-200 text-gray-700 py-3 rounded-xl 
+                   hover:bg-gray-300 focus:ring-2 focus:ring-gray-400 outline-none"
+                                        >
+                                            Go Back
+                                        </button>
+
+                                    </div>
+
+                                </div>
+                            )}
                             {/* ================= STEP 3: OTP ================= */}
                             {!otpVerified && userFlow === "otp-verification" && (
                                 <div className="space-y-6">

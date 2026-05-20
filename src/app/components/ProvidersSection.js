@@ -25,7 +25,7 @@ export default function ProvidersSection({
 }) {
   const [blacklistingProvider, setBlacklistingProvider] = useState(null);
   const [activeProvider, setActiveProvider] = useState(null);
-
+  const [hiddenProviders, setHiddenProviders] = useState([]);
   const cleanName = (name = "") =>
     name
       // remove leading 03a) or 03a), with optional comma/space
@@ -54,6 +54,15 @@ export default function ProvidersSection({
     });
   };
 
+  useEffect(() => {
+    if (!userEmail) return;
+
+    const stored = localStorage.getItem(`hiddenProviders_${userEmail}`);
+    if (stored) {
+      setHiddenProviders(JSON.parse(stored));
+    }
+  }, [userEmail]);
+
   const filteredProviders = useMemo(() => {
     return providers.filter((provider) => {
       const providerCategories = getProviderCategories(provider);
@@ -72,10 +81,24 @@ export default function ProvidersSection({
     );
   }, [filteredProviders, locations, clientLocation, searchWithin]);
 
-  const visibleProviders = filteredProviders;
+  const visibleProviders = filteredProviders.filter((provider) => {
+    if (!userEmail) return true; // new users see all
+    return !hiddenProviders.includes(provider.id);
+  });
   const handleBlacklist = async (providerId) => {
+    if (!userEmail) return; // safety
+
     setBlacklistingProvider(providerId);
+
     try {
+      const updatedHidden = [...hiddenProviders, providerId];
+      setHiddenProviders(updatedHidden);
+
+      localStorage.setItem(
+        `hiddenProviders_${userEmail}`,
+        JSON.stringify(updatedHidden)
+      );
+
       await onBlacklist(providerId);
     } finally {
       setBlacklistingProvider(null);
@@ -727,10 +750,10 @@ ${isExpanded ? "w-full h-40 mb-3" : "w-16 h-16"}
 
           {userEmail && (
             <button
-              // onClick={(e) => {
-              //   e.stopPropagation();
-              //   onBlacklist(provider.id);
-              // }}
+              onClick={(e) => {
+                e.stopPropagation();
+                onBlacklist(provider.id);
+              }}
               className="text-red-600 text-sm"
             >
               Hide
