@@ -49,6 +49,7 @@ export default function ScheduleServices({ providers, events, locations, clients
     const [bookingDetails, setBookingDetails] = useState(null);
     const [userFlow, setUserFlow] = useState("entry");
     const [blacklistedProviders, setBlacklistedProviders] = useState([]);
+    const [allProviders, setAllProviders] = useState(providers || []);
     const [loadingBlacklist, setLoadingBlacklist] = useState(false);
     const [unblacklisting, setUnblacklisting] = useState(null);
     const [selectedServices, setSelectedServices] = useState([]);
@@ -136,6 +137,27 @@ export default function ScheduleServices({ providers, events, locations, clients
         }
     };
 
+    const handleProviderUnhide = (providerId) => {
+  const providerToRestore = allProviders.find(
+    (provider) =>
+      String(provider.id) === String(providerId)
+  );
+
+  if (!providerToRestore) return;
+
+  setFilteredProviders((prev) => {
+
+    const alreadyExists = prev.some(
+      (provider) =>
+        String(provider.id) === String(providerId)
+    );
+
+    if (alreadyExists) return prev;
+
+    return [...prev, providerToRestore];
+  });
+};
+
     useEffect(() => {
         const savedEmail = localStorage.getItem("rememberedEmail");
 
@@ -147,6 +169,12 @@ export default function ScheduleServices({ providers, events, locations, clients
             }));
         }
     }, []);
+
+    useEffect( () => {
+        if(providers.length > 0) {
+            setAllProviders(providers)
+        }
+    }, [providers])
 
     useEffect(() => {
         function handleClickOutside(event) {
@@ -257,7 +285,8 @@ export default function ScheduleServices({ providers, events, locations, clients
         handleMonthChange,
         getSelectedServiceNames,
         resetBooking,
-        setFormData
+        setFormData,
+        setFilteredProviders
     } = useBooking({ providers, events, locations, clients, categories, searchCategory });
 
     // Custom handler for provider selection that automatically moves to next step
@@ -2189,6 +2218,8 @@ export default function ScheduleServices({ providers, events, locations, clients
                                     categories={categories}
                                     compactMode
                                     setHoveredProvider={setHoveredProvider}
+                                    allProviders={allProviders}
+                                    onProviderUnhide={handleProviderUnhide}
                                 />
 
                             ) : (

@@ -21,11 +21,59 @@ export default function ProvidersSection({
   onClose,
   compactMode = false, // 👈 New prop for column display
   hoveredProvider,
-  setHoveredProvider
+  setHoveredProvider,
+  allProviders = [],
+  onProviderUnhide
 }) {
   const [blacklistingProvider, setBlacklistingProvider] = useState(null);
   const [activeProvider, setActiveProvider] = useState(null);
   const [hiddenProviders, setHiddenProviders] = useState([]);
+  const [showHiddenProviders, setShowHiddenProviders] = useState(false);
+
+  const handleUnhide = async (providerId) => {
+    if (!userEmail) return;
+
+    try {
+      const res = await fetch(
+        `/api/blacklist?email=${encodeURIComponent(
+          userEmail
+        )}&providerId=${providerId}`,
+        {
+          method: "DELETE",
+        }
+      );
+
+      const result = await res.json();
+
+      if (result.success) {
+
+  const updatedHidden =
+    hiddenProviders.filter(
+      (id) =>
+        String(id) !== String(providerId)
+    );
+
+  setHiddenProviders(updatedHidden);
+
+  localStorage.setItem(
+    `hiddenProviders_${userEmail}`,
+    JSON.stringify(updatedHidden)
+  );
+
+  if (onProviderUnhide) {
+    onProviderUnhide(providerId);
+  }
+
+  setShowHiddenProviders(false);
+} else {
+        alert("Failed to unhide provider");
+      }
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+
   const cleanName = (name = "") =>
     name
       // remove leading 03a) or 03a), with optional comma/space
@@ -82,9 +130,20 @@ export default function ProvidersSection({
   }, [filteredProviders, locations, clientLocation, searchWithin]);
 
   const visibleProviders = filteredProviders.filter((provider) => {
-    if (!userEmail) return true; // new users see all
-    return !hiddenProviders.includes(provider.id);
+    if (!userEmail) return true;
+
+    return !hiddenProviders.some(
+      (id) => String(id) === String(provider.id)
+    );
   });
+
+  const hiddenProviderList = allProviders.filter(
+    (provider) =>
+      hiddenProviders.some(
+        (id) => String(id) === String(provider.id)
+      )
+  );
+
   const handleBlacklist = async (providerId) => {
     if (!userEmail) return; // safety
 
@@ -199,37 +258,192 @@ export default function ProvidersSection({
             </div>
           </div>
         )}
-        <div className="space-y-2">
+        <div className="space-y-3">
+
+          {userEmail && hiddenProviders.length > 0 && (
+            <button
+              onClick={() =>
+                setShowHiddenProviders(!showHiddenProviders)
+              }
+              className="
+        w-full
+        bg-white
+        border
+        border-gray-200
+        rounded-xl
+        px-4
+        py-3
+        flex
+        justify-between
+        items-center
+      "
+            >
+              <span>Hidden Providers</span>
+
+              <span className="
+        bg-indigo-100
+        text-indigo-700
+        text-xs
+        px-2
+        py-1
+        rounded-full
+      ">
+                {hiddenProviders.length}
+              </span>
+            </button>
+          )}
+
           {loadingProviders && (
             <div className="text-center py-4 text-xs text-gray-500">
-              Loading…
+              Loading...
             </div>
           )}
 
-          {!loadingProviders &&
-            visibleProviders.map((provider) => (
-              <ProviderCard
-                key={provider.id}
-                provider={provider}
-                isSelected={selectedProvider === provider.id}
-                selectedProvider={selectedProvider}
-                onSelect={onProviderSelect}
-                onBlacklist={handleBlacklist}
-                isBlacklisting={blacklistingProvider === provider.id}
-                userEmail={userEmail}
-                categories={categories}
-                compact
-                onInfoClick={setActiveProvider}
-                onHover={(provider) => {
-                  setHoveredProvider(provider || null);
-                }} />
-            ))}
+          {showHiddenProviders ? (
 
-          {!loadingProviders && visibleProviders.length === 0 && (
-            <div className="text-center py-4 text-sm text-gray-500">
-              No providers found
+            <div className="space-y-3">
+
+              <button
+                onClick={() => setShowHiddenProviders(false)}
+                className="text-sm text-indigo-600 font-medium"
+              >
+                ← Back To Providers
+              </button>
+
+              {hiddenProviderList.map((provider) => (
+
+                <div
+                  key={provider.id}
+                  className="
+    bg-white
+    border
+    border-gray-200
+    rounded-2xl
+    shadow-sm
+    hover:shadow-md
+    transition-all
+    p-4
+    flex
+    items-center
+    justify-between
+  "
+                >
+                  <div className="flex items-center gap-2">
+
+                    <img
+                      src={
+                        provider.picture_path
+                          ? process.env.NEXT_PUBLIC_BASE_URL_IMAGE +
+                          provider.picture_path
+                          : "/images/placeholder.jpg"
+                      }
+                      alt={provider.name}
+                      className="
+      w-14
+      h-14
+      rounded-xl
+      object-cover
+      border
+      border-gray-200
+      shadow-sm
+    "
+                    />
+
+                    <div>
+                      <div className="font-semibold text-gray-900">
+                        {cleanName(provider.name)}
+                      </div>
+
+                      {provider.nearestLocation && (
+                        <div className="text-xs text-gray-500 mt-1">
+                          {provider.nearestLocation.title}
+                        </div>
+                      )}
+
+                      {provider.distance != null && (
+                        <div className="text-xs text-[#328de7] mt-1 font-medium">
+                          {provider.distance.toFixed(1)} mi away
+                        </div>
+                      )}
+                    </div>
+
+                  </div>
+
+                  <button
+                    onClick={() => handleUnhide(provider.id)}
+                    className="
+    inline-flex
+    items-center
+    gap-1
+    px-2
+    py-2
+    rounded-xl
+    bg-gradient-to-r
+    from-[#328de7]
+    to-blue-600
+    text-white
+    text-sm
+    font-semibold
+    shadow-sm
+    hover:shadow-md
+    transition-all
+  "
+                  >
+                    <svg
+                      className="w-4 h-4"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M5 13l4 4L19 7"
+                      />
+                    </svg>
+
+                    Show Again
+                  </button>
+                </div>
+
+              ))}
+
             </div>
+
+          ) : (
+
+            <>
+              {!loadingProviders &&
+                visibleProviders.map((provider) => (
+                  <ProviderCard
+                    key={provider.id}
+                    provider={provider}
+                    isSelected={selectedProvider === provider.id}
+                    selectedProvider={selectedProvider}
+                    onSelect={onProviderSelect}
+                    onBlacklist={handleBlacklist}
+                    isBlacklisting={blacklistingProvider === provider.id}
+                    userEmail={userEmail}
+                    categories={categories}
+                    compact
+                    onInfoClick={setActiveProvider}
+                    onHover={(provider) => {
+                      setHoveredProvider(provider || null);
+                    }}
+                  />
+                ))}
+
+              {!loadingProviders &&
+                visibleProviders.length === 0 && (
+                  <div className="text-center py-4 text-sm text-gray-500">
+                    No providers found
+                  </div>
+                )}
+            </>
+
           )}
+
         </div>
       </>
     );
@@ -382,6 +596,41 @@ export default function ProvidersSection({
             {/* RIGHT SIDE → Home button + Search Radius */}
             <div className="flex items-center gap-4">
 
+              {userEmail && (
+                <button
+                  onClick={onManageHidden}
+                  className="
+                    inline-flex items-center gap-2
+                    px-4 py-2
+                    bg-white
+                    border border-gray-200
+                    rounded-xl
+                    text-gray-700
+                    text-sm font-medium
+                    hover:bg-gray-50
+                    hover:border-indigo-300
+                    transition-all
+                  "
+                >
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M5 13l4 4L19 7"
+                    />
+                  </svg>
+
+                  Hidden Providers
+                </button>
+              )}
+
+
               {/* HOME BUTTON (now left of search radius) */}
               <button
                 onClick={() => {
@@ -419,23 +668,25 @@ export default function ProvidersSection({
 
           {/* PROVIDER GRID */}
           {!loadingProviders && visibleProviders.length > 0 && (
-            <div className="grid gap-4">
-              {visibleProviders.map((provider) => (
-                <ProviderCard
-                  key={provider.id}
-                  provider={provider}
-                  isSelected={selectedProvider === provider.id}
-                  selectedProvider={selectedProvider}
-                  onSelect={onProviderSelect}
-                  onBlacklist={handleBlacklist}
-                  isBlacklisting={blacklistingProvider === provider.id}
-                  userEmail={userEmail}
-                  categories={categories}
-                  onInfoClick={setActiveProvider}
-                  onHover={setHoveredProvider}
-                />
-              ))}
-            </div>
+            <>
+              <div className="grid gap-4">
+                {visibleProviders.map((provider) => (
+                  <ProviderCard
+                    key={provider.id}
+                    provider={provider}
+                    isSelected={selectedProvider === provider.id}
+                    selectedProvider={selectedProvider}
+                    onSelect={onProviderSelect}
+                    onBlacklist={handleBlacklist}
+                    isBlacklisting={blacklistingProvider === provider.id}
+                    userEmail={userEmail}
+                    categories={categories}
+                    onInfoClick={setActiveProvider}
+                    onHover={setHoveredProvider}
+                  />
+                ))}
+              </div>
+            </>
           )}
 
           {/* NO PROVIDERS */}
@@ -476,7 +727,8 @@ function ProviderCard({
   categories = [],
   compact = false, // 👈 New prop for compact display
   onInfoClick,
-  onHover
+  onHover,
+  onManageHidden
 }) {
   const [isHovered, setIsHovered] = useState(false);
   const [showDescription, setShowDescription] = useState(false);
@@ -535,7 +787,7 @@ function ProviderCard({
   if (compact) {
     return (
       <div
-        className={`p-3 rounded-xl border-2 cursor-pointer transition-all duration-300
+        className={`relative p-3 rounded-xl border-2 cursor-pointer transition-all duration-300
   ${isSelected ? "border-indigo-500 bg-indigo-50" : "border-gray-200 hover:border-indigo-300"}
 ${isExpanded
             ? "flex flex-col items-center text-center"
@@ -557,6 +809,34 @@ ${isExpanded
           else onSelect(provider.id);
         }}
       >
+
+        {userEmail && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onBlacklist(provider.id);
+            }}
+            className="
+      absolute
+      top-5
+      right-5
+      h-8
+      px-3
+      rounded-lg
+      bg-red-50
+      border
+      border-red-200
+      text-red-600
+      text-xs
+      font-medium
+      hover:bg-red-100
+      transition
+      z-10
+    "
+          >
+            Hide
+          </button>
+        )}
         <div
           className={`w-full ${isExpanded
             ? "flex flex-col items-center text-center"
@@ -574,6 +854,7 @@ ${isExpanded ? "w-full h-40 mb-3" : "w-16 h-16"}
 `}
           />
           {/* )} */}
+
 
           <div className={`${isExpanded ? "w-full text-center" : "flex-1 min-w-0"}`}>
 
