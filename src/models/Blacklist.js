@@ -1,14 +1,32 @@
-/* import mongoose from "mongoose";
+import mongoose, { Schema } from "mongoose";
 
-// 🧹 Avoid model overwrite errors in dev (Hot Reload)
-if (mongoose.models.Blacklist) {
-  delete mongoose.models.Blacklist;
-}
-
-// 🧩 Define schema
-const BlacklistSchema = new mongoose.Schema(
+const HiddenProviderSchema = new Schema(
   {
-    // Unique client identifier
+    providerId: {
+      type: String,
+      required: true,
+    },
+
+    zip: {
+      type: String,
+      default: "",
+    },
+
+    state: {
+      type: String,
+      default: "",
+    },
+
+    city: {
+      type: String,
+      default: "",
+    },
+  },
+  { _id: false }
+);
+
+const BlacklistSchema = new Schema(
+  {
     email: {
       type: String,
       required: true,
@@ -16,27 +34,10 @@ const BlacklistSchema = new mongoose.Schema(
       trim: true,
     },
 
-    // Array of provider IDs that client has hidden
-    providerIds: {
-      type: [String],
+    hiddenProviders: {
+      type: [HiddenProviderSchema],
       default: [],
     },
-  },
-  { timestamps: true }
-);
-
-// ✅ Export model
-export default mongoose.model("Blacklist", BlacklistSchema);
- */
-
-
-
-import mongoose, { Schema } from "mongoose";
-
-const BlacklistSchema = new Schema(
-  {
-    email: { type: String, required: true, unique: true },
-    providerIds: [{ type: String, required: true }],
   },
   { timestamps: true }
 );

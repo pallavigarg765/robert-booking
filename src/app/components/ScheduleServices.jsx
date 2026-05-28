@@ -2220,6 +2220,7 @@ export default function ScheduleServices({ providers, events, locations, clients
                                     setHoveredProvider={setHoveredProvider}
                                     allProviders={allProviders}
                                     onProviderUnhide={handleProviderUnhide}
+                                    userAddress={address}
                                 />
 
                             ) : (

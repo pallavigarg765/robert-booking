@@ -404,7 +404,7 @@ export function useBooking({ providers, events, locations, clients, categories, 
     }
   };
 
-  async function handleBlacklist(providerId) {
+  async function handleBlacklist(providerId, locationData) {
     if (!userEmail) {
       alert("Please enter your email before Hiding a provider.");
       return;
@@ -414,7 +414,7 @@ export function useBooking({ providers, events, locations, clients, categories, 
       const res = await fetch("/api/blacklist", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: userEmail, providerId }),
+        body: JSON.stringify({ email: userEmail, providerId, location: locationData, }),
       });
 
       const result = await res.json();

@@ -23,7 +23,8 @@ export default function ProvidersSection({
   hoveredProvider,
   setHoveredProvider,
   allProviders = [],
-  onProviderUnhide
+  onProviderUnhide,
+  userAddress
 }) {
   const [blacklistingProvider, setBlacklistingProvider] = useState(null);
   const [activeProvider, setActiveProvider] = useState(null);
@@ -44,9 +45,11 @@ export default function ProvidersSection({
 // const hiddenStorageKey = `hiddenProviders_${userEmail}_${serviceLocationKey}`;
 
 
-const serviceLocationKey = clientLocation
-  ? `${clientLocation.lat}_${clientLocation.lng}`
-  : "default";
+const serviceLocationKey = userAddress?.zip
+  ? `${userAddress.zip}`
+  : userAddress?.state
+    ? `${userAddress.state}`
+    : "default";
 
 const hiddenStorageKey = `hiddenProviders_${userEmail}_${serviceLocationKey}`;
 
@@ -57,7 +60,7 @@ const hiddenStorageKey = `hiddenProviders_${userEmail}_${serviceLocationKey}`;
       const res = await fetch(
         `/api/blacklist?email=${encodeURIComponent(
           userEmail
-        )}&providerId=${providerId}`,
+        )}&providerId=${providerId}&zip=${userAddress?.zip || ""}`,
         {
           method: "DELETE",
         }
@@ -68,10 +71,14 @@ const hiddenStorageKey = `hiddenProviders_${userEmail}_${serviceLocationKey}`;
       if (result.success) {
 
         const updatedHidden =
-          hiddenProviders.filter(
-            (id) =>
-              String(id) !== String(providerId)
-          );
+  hiddenProviders.filter(
+    (item) =>
+      !(
+        String(item.providerId) ===
+          String(providerId) &&
+        item.zip === userAddress?.zip
+      )
+  );
 
         setHiddenProviders(updatedHidden);
 
@@ -127,13 +134,28 @@ useEffect(() => {
 
   const stored = localStorage.getItem(hiddenStorageKey);
 
-  if (stored) {
-    setHiddenProviders(JSON.parse(stored));
-  } else {
-    // IMPORTANT:
-    // reset hidden providers for new location
-    setHiddenProviders([]);
-  }
+if (stored) {
+  const parsed = JSON.parse(stored);
+
+  // migrate old array format
+  const normalized = parsed.map((item) => {
+    if (
+      typeof item === "string" ||
+      typeof item === "number"
+    ) {
+      return {
+        providerId: String(item),
+        zip: userAddress?.zip || "",
+      };
+    }
+
+    return item;
+  });
+
+  setHiddenProviders(normalized);
+} else {
+  setHiddenProviders([]);
+}
 }, [userEmail, hiddenStorageKey]);
 
 const filteredProviders = useMemo(() => {
@@ -155,19 +177,25 @@ const filteredProviders = useMemo(() => {
   }, [filteredProviders, locations, clientLocation, searchWithin]);
 
   const visibleProviders = filteredProviders.filter((provider) => {
-    if (!userEmail) return true;
+  if (!userEmail) return true;
 
-    return !hiddenProviders.some(
-      (id) => String(id) === String(provider.id)
-    );
-  });
+  return !hiddenProviders.some(
+    (item) =>
+      String(item.providerId) ===
+        String(provider.id) &&
+      item.zip === userAddress?.zip
+  );
+});
 
   const hiddenProviderList = allProviders.filter(
-    (provider) =>
-      hiddenProviders.some(
-        (id) => String(id) === String(provider.id)
-      )
-  );
+  (provider) =>
+    hiddenProviders.some(
+      (item) =>
+        String(item.providerId) ===
+          String(provider.id) &&
+        item.zip === userAddress?.zip
+    )
+);
 
   const handleBlacklist = async (providerId) => {
     if (!userEmail) return; // safety
@@ -175,7 +203,17 @@ const filteredProviders = useMemo(() => {
     setBlacklistingProvider(providerId);
 
     try {
-      const updatedHidden = [...hiddenProviders, providerId];
+      const hiddenItem = {
+  providerId: String(providerId),
+  zip: userAddress?.zip || "",
+  state: userAddress?.state || "",
+  city: userAddress?.city || "",
+};
+
+const updatedHidden = [
+  ...hiddenProviders,
+  hiddenItem,
+];
       setHiddenProviders(updatedHidden);
 
     localStorage.setItem(
@@ -183,7 +221,11 @@ const filteredProviders = useMemo(() => {
   JSON.stringify(updatedHidden)
 );
 
-      await onBlacklist(providerId);
+      await onBlacklist(providerId, {
+  zip: userAddress?.zip,
+  state: userAddress?.state,
+  city: userAddress?.city,
+});
     } finally {
       setBlacklistingProvider(null);
     }
