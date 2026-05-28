@@ -30,6 +30,26 @@ export default function ProvidersSection({
   const [hiddenProviders, setHiddenProviders] = useState([]);
   const [showHiddenProviders, setShowHiddenProviders] = useState(false);
 
+//   const locationKey =
+//     clientLocation
+//       ? `${clientLocation.lat}_${clientLocation.lng}`
+//       : "default";
+
+//   const hiddenStorageKey = `hiddenProviders_${userEmail}_${locationKey}`;
+
+//   const serviceLocationKey = clientLocation
+//   ? `${clientLocation.lat}_${clientLocation.lng}`
+//   : "default";
+
+// const hiddenStorageKey = `hiddenProviders_${userEmail}_${serviceLocationKey}`;
+
+
+const serviceLocationKey = clientLocation
+  ? `${clientLocation.lat}_${clientLocation.lng}`
+  : "default";
+
+const hiddenStorageKey = `hiddenProviders_${userEmail}_${serviceLocationKey}`;
+
   const handleUnhide = async (providerId) => {
     if (!userEmail) return;
 
@@ -47,25 +67,25 @@ export default function ProvidersSection({
 
       if (result.success) {
 
-  const updatedHidden =
-    hiddenProviders.filter(
-      (id) =>
-        String(id) !== String(providerId)
-    );
+        const updatedHidden =
+          hiddenProviders.filter(
+            (id) =>
+              String(id) !== String(providerId)
+          );
 
-  setHiddenProviders(updatedHidden);
+        setHiddenProviders(updatedHidden);
 
-  localStorage.setItem(
-    `hiddenProviders_${userEmail}`,
-    JSON.stringify(updatedHidden)
-  );
+      localStorage.setItem(
+  hiddenStorageKey,
+  JSON.stringify(updatedHidden)
+);
 
-  if (onProviderUnhide) {
-    onProviderUnhide(providerId);
-  }
+        if (onProviderUnhide) {
+          onProviderUnhide(providerId);
+        }
 
-  setShowHiddenProviders(false);
-} else {
+        setShowHiddenProviders(false);
+      } else {
         alert("Failed to unhide provider");
       }
     } catch (error) {
@@ -102,16 +122,21 @@ export default function ProvidersSection({
     });
   };
 
-  useEffect(() => {
-    if (!userEmail) return;
+useEffect(() => {
+  if (!userEmail) return;
 
-    const stored = localStorage.getItem(`hiddenProviders_${userEmail}`);
-    if (stored) {
-      setHiddenProviders(JSON.parse(stored));
-    }
-  }, [userEmail]);
+  const stored = localStorage.getItem(hiddenStorageKey);
 
-  const filteredProviders = useMemo(() => {
+  if (stored) {
+    setHiddenProviders(JSON.parse(stored));
+  } else {
+    // IMPORTANT:
+    // reset hidden providers for new location
+    setHiddenProviders([]);
+  }
+}, [userEmail, hiddenStorageKey]);
+
+const filteredProviders = useMemo(() => {
     return providers.filter((provider) => {
       const providerCategories = getProviderCategories(provider);
       return providerCategories.length > 0;
@@ -153,10 +178,10 @@ export default function ProvidersSection({
       const updatedHidden = [...hiddenProviders, providerId];
       setHiddenProviders(updatedHidden);
 
-      localStorage.setItem(
-        `hiddenProviders_${userEmail}`,
-        JSON.stringify(updatedHidden)
-      );
+    localStorage.setItem(
+  hiddenStorageKey,
+  JSON.stringify(updatedHidden)
+);
 
       await onBlacklist(providerId);
     } finally {
@@ -810,7 +835,7 @@ ${isExpanded
         }}
       >
 
-        {userEmail && (
+        {/* {userEmail && (
           <button
             onClick={(e) => {
               e.stopPropagation();
@@ -836,7 +861,7 @@ ${isExpanded
           >
             Hide
           </button>
-        )}
+        )} */}
         <div
           className={`w-full ${isExpanded
             ? "flex flex-col items-center text-center"
@@ -897,11 +922,38 @@ ${isExpanded ? "w-full h-40 mb-3" : "w-16 h-16"}
             {/* EXTRA DETAILS ONLY WHEN NOT HOVERED */}
             {/* {!isHovered && ( */}
             <>
-              {provider.distance != null && true && (
-                <p className={`text-xs text-green-600 mt-0.5`}>
-                  {provider.distance.toFixed(1)} mi away
-                </p>
-              )}
+              <div
+                className={`flex items-center gap-3 mt-1 flex-wrap
+    ${isExpanded ? "justify-center" : "justify-start"}
+  `}
+              >
+
+                {provider.distance != null && (
+                  <p className="text-xs text-green-600">
+                    {provider.distance.toFixed(1)} mi away
+                  </p>
+                )}
+
+                {userEmail && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onBlacklist(provider.id);
+                    }}
+                    className="
+        text-[11px]
+        text-gray-400
+        hover:text-red-500
+        transition-colors
+        underline-offset-2
+        hover:underline
+      "
+                  >
+                    Hide
+                  </button>
+                )}
+
+              </div>
 
               {showDescription && provider.description && (
                 <div
