@@ -74,7 +74,7 @@ export default function ScheduleServices({ providers, events, locations, clients
         phonenumber: "",
         rememberMe: true,
     });
-
+    const [showHiddenProviders, setShowHiddenProviders] = useState(false);
     const [activeField, setActiveField] = useState(null);
     const [phoneError, setPhoneError] = useState("");
     const stateDropdownRef = useRef(null);
@@ -138,25 +138,25 @@ export default function ScheduleServices({ providers, events, locations, clients
     };
 
     const handleProviderUnhide = (providerId) => {
-  const providerToRestore = allProviders.find(
-    (provider) =>
-      String(provider.id) === String(providerId)
-  );
+        const providerToRestore = allProviders.find(
+            (provider) =>
+                String(provider.id) === String(providerId)
+        );
 
-  if (!providerToRestore) return;
+        if (!providerToRestore) return;
 
-  setFilteredProviders((prev) => {
+        setFilteredProviders((prev) => {
 
-    const alreadyExists = prev.some(
-      (provider) =>
-        String(provider.id) === String(providerId)
-    );
+            const alreadyExists = prev.some(
+                (provider) =>
+                    String(provider.id) === String(providerId)
+            );
 
-    if (alreadyExists) return prev;
+            if (alreadyExists) return prev;
 
-    return [...prev, providerToRestore];
-  });
-};
+            return [...prev, providerToRestore];
+        });
+    };
 
     useEffect(() => {
         const savedEmail = localStorage.getItem("rememberedEmail");
@@ -170,8 +170,8 @@ export default function ScheduleServices({ providers, events, locations, clients
         }
     }, []);
 
-    useEffect( () => {
-        if(providers.length > 0) {
+    useEffect(() => {
+        if (providers.length > 0) {
             setAllProviders(providers)
         }
     }, [providers])
@@ -604,6 +604,12 @@ export default function ScheduleServices({ providers, events, locations, clients
             window.removeEventListener('reset-booking-form', handleResetBookingForm);
         };
     }, []);
+
+    useEffect(() => {
+        if (!clientLocation || !otpVerified || !hasSearched) return;
+
+        getLatLngFromAddress();
+    }, [searchWithin]);
 
     // Phone utility functions
     const formatPhoneNumber = (value) => {
@@ -2176,10 +2182,38 @@ export default function ScheduleServices({ providers, events, locations, clients
                     {/* STEP 1 – PROVIDER */}
                     {/* STEP – PROVIDER */}
                     <div className="bg-white rounded-2xl shadow-lg flex flex-col h-[650px]">
-                        <div className="px-4 py-3 bg-indigo-50">
-                            <h3 className="text-lg font-bold">Service Provider</h3>
-                        </div>
+                        <div className="px-4 py-3 bg-indigo-50 flex items-center justify-between">
+<h3 className="text-lg font-bold">
+    {showHiddenProviders
+        ? "Hidden Service Providers"
+        : "Service Providers"}
+</h3>
+                            {otpVerified && (
+                                <label className="flex items-center gap-2 text-sm font-medium cursor-pointer">
+                                    <span>Hidden</span>
 
+                                    <button
+                                        type="button"
+                                        onClick={() =>
+                                            setShowHiddenProviders((prev) => !prev)
+                                        }
+                                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${showHiddenProviders
+                                            ? "bg-green-600"
+                                            : "bg-gray-300"
+                                            }`}
+                                    >
+                                        <span
+                                            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${showHiddenProviders
+                                                ? "translate-x-6"
+                                                : "translate-x-1"
+                                                }`}
+                                        />
+                                    </button>
+
+                                    {/* <span>Visible</span> */}
+                                </label>
+                            )}
+                        </div>
                         <div className="flex-1 overflow-y-auto p-4">
                             {!otpVerified ? (
 
@@ -2221,6 +2255,7 @@ export default function ScheduleServices({ providers, events, locations, clients
                                     allProviders={allProviders}
                                     onProviderUnhide={handleProviderUnhide}
                                     userAddress={address}
+                                    showHiddenProviders={showHiddenProviders}
                                 />
 
                             ) : (

@@ -19,39 +19,42 @@ export default function ProvidersSection({
   categories = [],
   onManageHidden,
   onClose,
-  compactMode = false, // 👈 New prop for column display
+  compactMode = false,
   hoveredProvider,
   setHoveredProvider,
   allProviders = [],
   onProviderUnhide,
-  userAddress
+  userAddress,
+  provider,
+  showHiddenProviders = false,
+
 }) {
   const [blacklistingProvider, setBlacklistingProvider] = useState(null);
   const [activeProvider, setActiveProvider] = useState(null);
   const [hiddenProviders, setHiddenProviders] = useState([]);
-  const [showHiddenProviders, setShowHiddenProviders] = useState(false);
+  // const [showHiddenProviders, setShowHiddenProviders] = useState(false);
 
-//   const locationKey =
-//     clientLocation
-//       ? `${clientLocation.lat}_${clientLocation.lng}`
-//       : "default";
+  //   const locationKey =
+  //     clientLocation
+  //       ? `${clientLocation.lat}_${clientLocation.lng}`
+  //       : "default";
 
-//   const hiddenStorageKey = `hiddenProviders_${userEmail}_${locationKey}`;
+  //   const hiddenStorageKey = `hiddenProviders_${userEmail}_${locationKey}`;
 
-//   const serviceLocationKey = clientLocation
-//   ? `${clientLocation.lat}_${clientLocation.lng}`
-//   : "default";
+  //   const serviceLocationKey = clientLocation
+  //   ? `${clientLocation.lat}_${clientLocation.lng}`
+  //   : "default";
 
-// const hiddenStorageKey = `hiddenProviders_${userEmail}_${serviceLocationKey}`;
+  // const hiddenStorageKey = `hiddenProviders_${userEmail}_${serviceLocationKey}`;
 
 
-const serviceLocationKey = userAddress?.zip
-  ? `${userAddress.zip}`
-  : userAddress?.state
-    ? `${userAddress.state}`
-    : "default";
+  const serviceLocationKey = userAddress?.zip
+    ? `${userAddress.zip}`
+    : userAddress?.state
+      ? `${userAddress.state}`
+      : "default";
 
-const hiddenStorageKey = `hiddenProviders_${userEmail}_${serviceLocationKey}`;
+  const hiddenStorageKey = `hiddenProviders_${userEmail}_${serviceLocationKey}`;
 
   const handleUnhide = async (providerId) => {
     if (!userEmail) return;
@@ -71,21 +74,21 @@ const hiddenStorageKey = `hiddenProviders_${userEmail}_${serviceLocationKey}`;
       if (result.success) {
 
         const updatedHidden =
-  hiddenProviders.filter(
-    (item) =>
-      !(
-        String(item.providerId) ===
-          String(providerId) &&
-        item.zip === userAddress?.zip
-      )
-  );
+          hiddenProviders.filter(
+            (item) =>
+              !(
+                String(item.providerId) ===
+                String(providerId) &&
+                item.zip === userAddress?.zip
+              )
+          );
 
         setHiddenProviders(updatedHidden);
 
-      localStorage.setItem(
-  hiddenStorageKey,
-  JSON.stringify(updatedHidden)
-);
+        localStorage.setItem(
+          hiddenStorageKey,
+          JSON.stringify(updatedHidden)
+        );
 
         if (onProviderUnhide) {
           onProviderUnhide(providerId);
@@ -109,6 +112,19 @@ const hiddenStorageKey = `hiddenProviders_${userEmail}_${serviceLocationKey}`;
       .replace(/\s*,?\s*(DTD|Salon)(\s*Schedule)?/gi, "")
       .trim();
 
+
+  const getLocationDisplay = (provider) => {
+    if (!provider?.nearestLocation) return "";
+
+    if (provider.nearestLocation.title) {
+      const parts = provider.nearestLocation.title.split(",");
+      return parts.slice(-2).join(",").trim();
+    }
+
+    return provider.nearestLocation.city || "";
+  };
+
+
   const getProviderCategories = (provider) => {
     if (!categories?.length || !provider?.services?.length) return [];
 
@@ -129,36 +145,36 @@ const hiddenStorageKey = `hiddenProviders_${userEmail}_${serviceLocationKey}`;
     });
   };
 
-useEffect(() => {
-  if (!userEmail) return;
+  useEffect(() => {
+    if (!userEmail) return;
 
-  const stored = localStorage.getItem(hiddenStorageKey);
+    const stored = localStorage.getItem(hiddenStorageKey);
 
-if (stored) {
-  const parsed = JSON.parse(stored);
+    if (stored) {
+      const parsed = JSON.parse(stored);
 
-  // migrate old array format
-  const normalized = parsed.map((item) => {
-    if (
-      typeof item === "string" ||
-      typeof item === "number"
-    ) {
-      return {
-        providerId: String(item),
-        zip: userAddress?.zip || "",
-      };
+      // migrate old array format
+      const normalized = parsed.map((item) => {
+        if (
+          typeof item === "string" ||
+          typeof item === "number"
+        ) {
+          return {
+            providerId: String(item),
+            zip: userAddress?.zip || "",
+          };
+        }
+
+        return item;
+      });
+
+      setHiddenProviders(normalized);
+    } else {
+      setHiddenProviders([]);
     }
+  }, [userEmail, hiddenStorageKey]);
 
-    return item;
-  });
-
-  setHiddenProviders(normalized);
-} else {
-  setHiddenProviders([]);
-}
-}, [userEmail, hiddenStorageKey]);
-
-const filteredProviders = useMemo(() => {
+  const filteredProviders = useMemo(() => {
     return providers.filter((provider) => {
       const providerCategories = getProviderCategories(provider);
       return providerCategories.length > 0;
@@ -177,25 +193,25 @@ const filteredProviders = useMemo(() => {
   }, [filteredProviders, locations, clientLocation, searchWithin]);
 
   const visibleProviders = filteredProviders.filter((provider) => {
-  if (!userEmail) return true;
+    if (!userEmail) return true;
 
-  return !hiddenProviders.some(
-    (item) =>
-      String(item.providerId) ===
-        String(provider.id) &&
-      item.zip === userAddress?.zip
-  );
-});
-
-  const hiddenProviderList = allProviders.filter(
-  (provider) =>
-    hiddenProviders.some(
+    return !hiddenProviders.some(
       (item) =>
-        String(item.providerId) ===
-          String(provider.id) &&
+        String(item.providerId) === String(provider.id) &&
         item.zip === userAddress?.zip
-    )
-);
+    );
+  });
+
+  const hiddenProviderList = providers.filter((provider) => {
+    const isHidden = hiddenProviders.some(
+      (item) =>
+        String(item.providerId) === String(provider.id) &&
+        item.zip === userAddress?.zip
+    );
+
+    return isHidden;
+  });
+
 
   const handleBlacklist = async (providerId) => {
     if (!userEmail) return; // safety
@@ -204,28 +220,28 @@ const filteredProviders = useMemo(() => {
 
     try {
       const hiddenItem = {
-  providerId: String(providerId),
-  zip: userAddress?.zip || "",
-  state: userAddress?.state || "",
-  city: userAddress?.city || "",
-};
+        providerId: String(providerId),
+        zip: userAddress?.zip || "",
+        state: userAddress?.state || "",
+        city: userAddress?.city || "",
+      };
 
-const updatedHidden = [
-  ...hiddenProviders,
-  hiddenItem,
-];
+      const updatedHidden = [
+        ...hiddenProviders,
+        hiddenItem,
+      ];
       setHiddenProviders(updatedHidden);
 
-    localStorage.setItem(
-  hiddenStorageKey,
-  JSON.stringify(updatedHidden)
-);
+      localStorage.setItem(
+        hiddenStorageKey,
+        JSON.stringify(updatedHidden)
+      );
 
       await onBlacklist(providerId, {
-  zip: userAddress?.zip,
-  state: userAddress?.state,
-  city: userAddress?.city,
-});
+        zip: userAddress?.zip,
+        state: userAddress?.state,
+        city: userAddress?.city,
+      });
     } finally {
       setBlacklistingProvider(null);
     }
@@ -327,7 +343,7 @@ const updatedHidden = [
         )}
         <div className="space-y-3">
 
-          {userEmail && hiddenProviders.length > 0 && (
+          {/* {userEmail && hiddenProviders.length > 0 && (
             <button
               onClick={() =>
                 setShowHiddenProviders(!showHiddenProviders)
@@ -355,10 +371,10 @@ const updatedHidden = [
         py-1
         rounded-full
       ">
-                {hiddenProviders.length}
+                {hiddenProviderList.length}
               </span>
             </button>
-          )}
+          )} */}
 
           {loadingProviders && (
             <div className="text-center py-4 text-xs text-gray-500">
@@ -366,150 +382,50 @@ const updatedHidden = [
             </div>
           )}
 
-          {showHiddenProviders ? (
+       <div className="space-y-3">
 
-            <div className="space-y-3">
+  {!loadingProviders &&
+    (showHiddenProviders
+      ? hiddenProviderList
+      : visibleProviders
+    )
+      .filter(
+        (provider) =>
+          provider.distance != null &&
+          Number(provider.distance) <= Number(searchWithin)
+      )
+      .map((provider) => (
+        <ProviderCard
+          key={provider.id}
+          provider={provider}
+          isSelected={selectedProvider === provider.id}
+          selectedProvider={selectedProvider}
+          onSelect={onProviderSelect}
+          onBlacklist={handleBlacklist}
+          isBlacklisting={blacklistingProvider === provider.id}
+          userEmail={userEmail}
+          categories={categories}
+          compact
+          onInfoClick={setActiveProvider}
+          onHover={(provider) => {
+            setHoveredProvider(provider || null);
+          }}
+          isHiddenView={showHiddenProviders}
+          onUnhide={handleUnhide}
+        />
+      ))}
 
-              <button
-                onClick={() => setShowHiddenProviders(false)}
-                className="text-sm text-indigo-600 font-medium"
-              >
-                ← Back To Providers
-              </button>
-
-              {hiddenProviderList.map((provider) => (
-
-                <div
-                  key={provider.id}
-                  className="
-    bg-white
-    border
-    border-gray-200
-    rounded-2xl
-    shadow-sm
-    hover:shadow-md
-    transition-all
-    p-4
-    flex
-    items-center
-    justify-between
-  "
-                >
-                  <div className="flex items-center gap-2">
-
-                    <img
-                      src={
-                        provider.picture_path
-                          ? process.env.NEXT_PUBLIC_BASE_URL_IMAGE +
-                          provider.picture_path
-                          : "/images/placeholder.jpg"
-                      }
-                      alt={provider.name}
-                      className="
-      w-14
-      h-14
-      rounded-xl
-      object-cover
-      border
-      border-gray-200
-      shadow-sm
-    "
-                    />
-
-                    <div>
-                      <div className="font-semibold text-gray-900">
-                        {cleanName(provider.name)}
-                      </div>
-
-                      {provider.nearestLocation && (
-                        <div className="text-xs text-gray-500 mt-1">
-                          {provider.nearestLocation.title}
-                        </div>
-                      )}
-
-                      {provider.distance != null && (
-                        <div className="text-xs text-[#328de7] mt-1 font-medium">
-                          {provider.distance.toFixed(1)} mi away
-                        </div>
-                      )}
-                    </div>
-
-                  </div>
-
-                  <button
-                    onClick={() => handleUnhide(provider.id)}
-                    className="
-    inline-flex
-    items-center
-    gap-1
-    px-2
-    py-2
-    rounded-xl
-    bg-gradient-to-r
-    from-[#328de7]
-    to-blue-600
-    text-white
-    text-sm
-    font-semibold
-    shadow-sm
-    hover:shadow-md
-    transition-all
-  "
-                  >
-                    <svg
-                      className="w-4 h-4"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M5 13l4 4L19 7"
-                      />
-                    </svg>
-
-                    Show Again
-                  </button>
-                </div>
-
-              ))}
-
-            </div>
-
-          ) : (
-
-            <>
-              {!loadingProviders &&
-                visibleProviders.map((provider) => (
-                  <ProviderCard
-                    key={provider.id}
-                    provider={provider}
-                    isSelected={selectedProvider === provider.id}
-                    selectedProvider={selectedProvider}
-                    onSelect={onProviderSelect}
-                    onBlacklist={handleBlacklist}
-                    isBlacklisting={blacklistingProvider === provider.id}
-                    userEmail={userEmail}
-                    categories={categories}
-                    compact
-                    onInfoClick={setActiveProvider}
-                    onHover={(provider) => {
-                      setHoveredProvider(provider || null);
-                    }}
-                  />
-                ))}
-
-              {!loadingProviders &&
-                visibleProviders.length === 0 && (
-                  <div className="text-center py-4 text-sm text-gray-500">
-                    No providers found
-                  </div>
-                )}
-            </>
-
-          )}
+  {!loadingProviders &&
+    (showHiddenProviders
+      ? hiddenProviderList.length
+      : visibleProviders.length) === 0 && (
+      <div className="text-center py-6 text-sm text-gray-500">
+        {showHiddenProviders
+          ? "No hidden providers"
+          : "No providers found"}
+      </div>
+    )}
+</div>
 
         </div>
       </>
@@ -795,11 +711,16 @@ function ProviderCard({
   compact = false, // 👈 New prop for compact display
   onInfoClick,
   onHover,
-  onManageHidden
+  onManageHidden,
+    isHiddenView = false,
+  onUnhide,
+
 }) {
   const [isHovered, setIsHovered] = useState(false);
   const [showDescription, setShowDescription] = useState(false);
   const hasAnySelection = Boolean(selectedProvider);
+
+
 
   const isExpanded =
     isSelected || (!hasAnySelection && isHovered);
@@ -977,23 +898,28 @@ ${isExpanded ? "w-full h-40 mb-3" : "w-16 h-16"}
                 )}
 
                 {userEmail && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onBlacklist(provider.id);
-                    }}
-                    className="
-        text-[11px]
-        text-gray-400
-        hover:text-red-500
-        transition-colors
-        underline-offset-2
-        hover:underline
-      "
-                  >
-                    Hide
-                  </button>
-                )}
+  isHiddenView ? (
+    <button
+      onClick={(e) => {
+        e.stopPropagation();
+        onUnhide(provider.id);
+      }}
+      className="text-[11px] text-indigo-600 hover:text-indigo-800"
+    >
+      Unhide
+    </button>
+  ) : (
+    <button
+      onClick={(e) => {
+        e.stopPropagation();
+        onBlacklist(provider.id);
+      }}
+      className="text-[11px] text-gray-400 hover:text-red-500"
+    >
+      Hide
+    </button>
+  )
+)}
 
               </div>
 
@@ -1018,6 +944,8 @@ ${isExpanded ? "w-full h-40 mb-3" : "w-16 h-16"}
       </div>
     );
   }
+
+
 
   // Full mode for regular display
   return (
@@ -1050,7 +978,9 @@ ${isExpanded ? "w-full h-40 mb-3" : "w-16 h-16"}
             {cleanName(provider.name)}
           </h3>
 
-          {provider.nearestLocation(
+
+
+          {provider.nearestLocation && (
             <p className="text-xs text-gray-500 mt-1">
               {getLocationDisplay()}
             </p>

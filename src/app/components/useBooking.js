@@ -422,7 +422,7 @@ export function useBooking({ providers, events, locations, clients, categories, 
       if (result.success) {
         // instantly remove blacklisted provider
         // setFilteredProviders((prev) => prev.filter((p) => p.id !== providerId));
-        alert("Provider has been Hidden successfully!");
+        // alert("Provider has been Hidden successfully!");
       } else {
         alert(result.message || "Failed to Hiding provider.");
       }
