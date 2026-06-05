@@ -382,50 +382,50 @@ export default function ProvidersSection({
             </div>
           )}
 
-       <div className="space-y-3">
+          <div className="space-y-3">
 
-  {!loadingProviders &&
-    (showHiddenProviders
-      ? hiddenProviderList
-      : visibleProviders
-    )
-      .filter(
-        (provider) =>
-          provider.distance != null &&
-          Number(provider.distance) <= Number(searchWithin)
-      )
-      .map((provider) => (
-        <ProviderCard
-          key={provider.id}
-          provider={provider}
-          isSelected={selectedProvider === provider.id}
-          selectedProvider={selectedProvider}
-          onSelect={onProviderSelect}
-          onBlacklist={handleBlacklist}
-          isBlacklisting={blacklistingProvider === provider.id}
-          userEmail={userEmail}
-          categories={categories}
-          compact
-          onInfoClick={setActiveProvider}
-          onHover={(provider) => {
-            setHoveredProvider(provider || null);
-          }}
-          isHiddenView={showHiddenProviders}
-          onUnhide={handleUnhide}
-        />
-      ))}
+            {!loadingProviders &&
+              (showHiddenProviders
+                ? hiddenProviderList
+                : visibleProviders
+              )
+                .filter(
+                  (provider) =>
+                    provider.distance != null &&
+                    Number(provider.distance) <= Number(searchWithin)
+                )
+                .map((provider) => (
+                  <ProviderCard
+                    key={provider.id}
+                    provider={provider}
+                    isSelected={selectedProvider === provider.id}
+                    selectedProvider={selectedProvider}
+                    onSelect={onProviderSelect}
+                    onBlacklist={handleBlacklist}
+                    isBlacklisting={blacklistingProvider === provider.id}
+                    userEmail={userEmail}
+                    categories={categories}
+                    compact
+                    onInfoClick={setActiveProvider}
+                    onHover={(provider) => {
+                      setHoveredProvider(provider || null);
+                    }}
+                    isHiddenView={showHiddenProviders}
+                    onUnhide={handleUnhide}
+                  />
+                ))}
 
-  {!loadingProviders &&
-    (showHiddenProviders
-      ? hiddenProviderList.length
-      : visibleProviders.length) === 0 && (
-      <div className="text-center py-6 text-sm text-gray-500">
-        {showHiddenProviders
-          ? "No hidden providers"
-          : "No providers found"}
-      </div>
-    )}
-</div>
+            {!loadingProviders &&
+              (showHiddenProviders
+                ? hiddenProviderList.length
+                : visibleProviders.length) === 0 && (
+                <div className="text-center py-6 text-sm text-gray-500">
+                  {showHiddenProviders
+                    ? "No hidden providers"
+                    : "No providers found"}
+                </div>
+              )}
+          </div>
 
         </div>
       </>
@@ -712,7 +712,7 @@ function ProviderCard({
   onInfoClick,
   onHover,
   onManageHidden,
-    isHiddenView = false,
+  isHiddenView = false,
   onUnhide,
 
 }) {
@@ -720,12 +720,9 @@ function ProviderCard({
   const [showDescription, setShowDescription] = useState(false);
   const hasAnySelection = Boolean(selectedProvider);
 
-
-
-  const isExpanded =
-    isSelected || (!hasAnySelection && isHovered);
-  // ---- GET PROVIDER CATEGORIES ----
+  const isExpanded = isSelected;
   const getProviderCategories = () => {
+
     if (!categories?.length || !provider?.services?.length) return [];
 
     const providerServiceIds = provider.services
@@ -775,26 +772,42 @@ function ProviderCard({
   if (compact) {
     return (
       <div
-        className={`relative p-3 rounded-xl border-2 cursor-pointer transition-all duration-300
-  ${isSelected ? "border-indigo-500 bg-indigo-50" : "border-gray-200 hover:border-indigo-300"}
-${isExpanded
-            ? "flex flex-col items-center text-center"
-            : "flex items-start gap-3"}`}
+        tabIndex={0}
+        role="button"
+        aria-pressed={isSelected}
+        aria-label={`Provider ${cleanName(provider.name)}`}
+        className={`provider-card relative p-3 rounded-xl border-2 cursor-pointer transition-all duration-300
+    focus:outline-none
+    focus:ring-2
+    focus:ring-indigo-500
+    ${isSelected
+            ? "border-indigo-500 bg-indigo-50"
+            : isHovered
+              ? "border-indigo-300 bg-indigo-50"
+              : "border-gray-200"
+          }
+  `}
         onMouseEnter={() => {
-          if (hasAnySelection) return; // 🚫 stop hover if someone selected
           setIsHovered(true);
-          onHover(provider);
+          onHover?.(provider);
         }}
-
         onMouseLeave={() => {
-          if (hasAnySelection) return; // 🚫 stop hover if someone selected
           setIsHovered(false);
-          onHover(null);
+          onHover?.(null);
         }}
-        onClick={() => {
+        onDoubleClick={() => {
           if (isBlacklisting) return;
-          if (isSelected) onSelect(null);
-          else onSelect(provider.id);
+
+          onSelect(isSelected ? null : provider.id);
+        }}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+
+            if (isBlacklisting) return;
+
+            onSelect(isSelected ? null : provider.id);
+          }
         }}
       >
 
@@ -828,7 +841,8 @@ ${isExpanded
         <div
           className={`w-full ${isExpanded
             ? "flex flex-col items-center text-center"
-            : "flex items-start gap-3"}`}
+            : "flex items-start gap-3"
+            }`}
         >
           {/* {(!selectedProvider || isSelected) && ( */}
           <img
@@ -838,8 +852,10 @@ ${isExpanded
                 : "/images/placeholder.jpg"
             }
             className={`object-cover rounded-xl transition-all duration-300
-${isExpanded ? "w-full h-40 mb-3" : "w-16 h-16"}
-`}
+  ${isSelected
+                ? "w-full h-40 mb-3"
+                : "w-16 h-16"
+              }`}
           />
           {/* )} */}
 
@@ -898,28 +914,28 @@ ${isExpanded ? "w-full h-40 mb-3" : "w-16 h-16"}
                 )}
 
                 {userEmail && (
-  isHiddenView ? (
-    <button
-      onClick={(e) => {
-        e.stopPropagation();
-        onUnhide(provider.id);
-      }}
-      className="text-[11px] text-indigo-600 hover:text-indigo-800"
-    >
-      Unhide
-    </button>
-  ) : (
-    <button
-      onClick={(e) => {
-        e.stopPropagation();
-        onBlacklist(provider.id);
-      }}
-      className="text-[11px] text-gray-400 hover:text-red-500"
-    >
-      Hide
-    </button>
-  )
-)}
+                  isHiddenView ? (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onUnhide(provider.id);
+                      }}
+                      className="text-[11px] text-indigo-600 hover:text-indigo-800"
+                    >
+                      Unhide
+                    </button>
+                  ) : (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onBlacklist(provider.id);
+                      }}
+                      className="text-[11px] text-gray-400 hover:text-red-500"
+                    >
+                      Hide
+                    </button>
+                  )
+                )}
 
               </div>
 
@@ -1032,6 +1048,8 @@ ${isExpanded ? "w-full h-40 mb-3" : "w-16 h-16"}
             )} */}
 
             <button
+              // tabIndex={-1}
+
               type="button"
               onClick={(e) => {
                 e.stopPropagation();

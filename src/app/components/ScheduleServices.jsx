@@ -70,10 +70,12 @@ export default function ScheduleServices({ providers, events, locations, clients
     const [showStateDropdown, setShowStateDropdown] = useState(false);
     const dropdownRef = useRef(null);
     const [loginData, setLoginData] = useState({
+        name: "",
         email: "",
         phonenumber: "",
         rememberMe: true,
     });
+    const [showOtpField, setShowOtpField] = useState(false);
     const [showHiddenProviders, setShowHiddenProviders] = useState(false);
     const [activeField, setActiveField] = useState(null);
     const [phoneError, setPhoneError] = useState("");
@@ -81,7 +83,7 @@ export default function ScheduleServices({ providers, events, locations, clients
     const addressRefs = useRef([]);
     const continueBtnRef = useRef(null);
     const [highlightIndex, setHighlightIndex] = useState(-1);
-
+    const [showNoProvidersModal, setShowNoProvidersModal] = useState(false);
     const cancelBtnRef = useRef(null);
     const router = useRouter();
 
@@ -286,7 +288,9 @@ export default function ScheduleServices({ providers, events, locations, clients
         getSelectedServiceNames,
         resetBooking,
         setFormData,
-        setFilteredProviders
+        setFilteredProviders,
+        providerLimit,
+        setProviderLimit
     } = useBooking({ providers, events, locations, clients, categories, searchCategory });
 
     // Custom handler for provider selection that automatically moves to next step
@@ -347,6 +351,7 @@ export default function ScheduleServices({ providers, events, locations, clients
                     "Content-Type": "application/json",
                 },
                 body: JSON.stringify({
+                    name: loginData.name,
                     email: loginData.email,
                     phonenumber: loginData.phonenumber,
                     fullAddress: formData.fullAddress,
@@ -772,7 +777,7 @@ export default function ScheduleServices({ providers, events, locations, clients
                     return;
                 }
 
-                setUserFlow("otp-verification");
+                setShowOtpField(true);
             }
 
             // ❌ Email does not exist → Register
@@ -952,7 +957,7 @@ export default function ScheduleServices({ providers, events, locations, clients
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    fullname: formData.name,
+                    fullname: loginData.name,
                     email: loginData.email,
                     phonenumber: loginData.phonenumber,
                 }),
@@ -983,8 +988,8 @@ export default function ScheduleServices({ providers, events, locations, clients
             }
 
             // 3️⃣ Move to OTP verification screen
+            // setShowOtpField(true);
             setUserFlow("otp-verification");
-
         } catch (error) {
             console.error(error);
             setOtpError("Registration failed");
@@ -1217,6 +1222,7 @@ export default function ScheduleServices({ providers, events, locations, clients
         setUserFlow("entry");
         setOtp("");
         setOtpError("");
+        setShowOtpField(false);
 
         const rememberedEmail = localStorage.getItem("rememberedEmail");
 
@@ -1279,6 +1285,7 @@ export default function ScheduleServices({ providers, events, locations, clients
         };
 
         const isFormValid =
+            loginData.name?.trim() &&
             loginData.email &&
             loginData.phonenumber &&
             !emailError &&
@@ -1505,11 +1512,31 @@ export default function ScheduleServices({ providers, events, locations, clients
 
                                     <div>
                                         <h2 className="text-xl font-semibold text-gray-800">
-                                            Enter your details
+                                            Client Account:
+
                                         </h2>
                                         <p className="text-sm text-gray-500">
                                             We’ll check your account and send a verification code
                                         </p>
+                                    </div>
+
+                                    <div>
+                                        <label className="text-sm text-gray-600">
+                                            Client Name
+                                        </label>
+
+                                        <input
+                                            type="text"
+                                            disabled={showOtpField}
+                                            value={loginData.name || ""}
+                                            onChange={(e) =>
+                                                setLoginData(prev => ({
+                                                    ...prev,
+                                                    name: e.target.value,
+                                                }))
+                                            }
+                                            className="w-full mt-2 px-4 py-3 rounded-xl border focus:ring-2 focus:ring-indigo-500 outline-none"
+                                        />
                                     </div>
 
                                     {/* EMAIL */}
@@ -1517,6 +1544,8 @@ export default function ScheduleServices({ providers, events, locations, clients
                                         <label className="text-sm text-gray-600">Email</label>
                                         <input
                                             type="email"
+                                            disabled={showOtpField}
+
                                             value={loginData.email}
                                             onChange={(e) => {
                                                 const value = e.target.value;
@@ -1565,6 +1594,8 @@ export default function ScheduleServices({ providers, events, locations, clients
                                         <label className="text-sm text-gray-600">Phone</label>
                                         <input
                                             type="tel"
+                                            disabled={showOtpField}
+
                                             value={formatPhoneDisplay(loginData.phonenumber)}
                                             onChange={(e) => {
                                                 const digits = e.target.value.replace(/\D/g, "").slice(0, 10);
@@ -1592,17 +1623,58 @@ export default function ScheduleServices({ providers, events, locations, clients
                                         )}
                                     </div>
 
+
+                                    {showOtpField && (
+                                        <div>
+                                            <label className="text-sm text-gray-600">
+                                                Security Code
+                                            </label>
+
+                                            <input
+                                                type="text"
+                                                maxLength={6}
+                                                value={otp}
+                                                onChange={(e) =>
+                                                    setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))
+                                                }
+                                                className="w-full mt-2 px-4 py-3 rounded-xl border focus:ring-2 focus:ring-indigo-500 outline-none"
+                                            />
+
+                                            <p className="text-sm text-gray-500 mt-2">
+                                                A security code is texted each time you log in.
+                                                Enter <strong>4-digit code</strong> here.
+                                            </p>
+
+                                            {otpError && (
+                                                <p className="text-xs text-red-500 mt-1">{otpError}</p>
+                                            )}
+                                        </div>
+                                    )}
+
                                     {otpError && <p className="text-sm text-red-500">{otpError}</p>}
 
                                     <button
-                                        type="submit"
-                                        disabled={!isFormValid || otpLoading}
-                                        className={`w-full py-3 rounded-xl font-medium transition 
-    ${isFormValid
+                                        type={showOtpField ? "button" : "submit"}
+                                        onClick={showOtpField ? handleVerifyOTP : undefined}
+                                        disabled={
+                                            showOtpField
+                                                ? otp.length !== 6
+                                                : !isFormValid || otpLoading
+                                        }
+                                        className={`w-full py-3 rounded-xl font-medium transition ${showOtpField
+                                            ? otp.length === 6
+                                                ? "bg-indigo-600 text-white"
+                                                : "bg-gray-400 text-gray-200 cursor-not-allowed"
+                                            : isFormValid
                                                 ? "bg-indigo-600 hover:bg-indigo-700 text-white"
-                                                : "bg-gray-400 text-gray-200 cursor-not-allowed"}`}
+                                                : "bg-gray-400 text-gray-200 cursor-not-allowed"
+                                            }`}
                                     >
-                                        {otpLoading ? "Checking..." : "Continue"}
+                                        {showOtpField
+                                            ? "Verify Code"
+                                            : otpLoading
+                                                ? "Checking..."
+                                                : "Continue"}
                                     </button>
                                 </form>
                             )}
@@ -2105,6 +2177,14 @@ export default function ScheduleServices({ providers, events, locations, clients
 
                                     {/* USER INFO */}
                                     <div className="bg-gray-50 border rounded-xl p-4 space-y-2">
+
+                                        <div className="font-semibold text-gray-800 mb-2">
+                                            Client Account:
+                                        </div>
+                                        <div className="text-sm text-gray-600">
+                                            <span className="font-medium text-gray-800">Name:</span> {loginData.name}
+                                        </div>
+
                                         <div className="text-sm text-gray-600">
                                             <span className="font-medium text-gray-800">Email:</span> {userEmail}
                                         </div>
@@ -2154,25 +2234,6 @@ export default function ScheduleServices({ providers, events, locations, clients
                                         </p>
                                     </div>
 
-                                    {/* ACTIONS */}
-                                    {/* <div className="flex gap-3">
-                    <button
-                      onClick={handleFullReset}
-                      className="flex-1 border border-gray-300 py-2 rounded-xl text-sm hover:bg-gray-50"
-                    >
-                      Reset
-                    </button>
-
-                    <button
-                      onClick={() => {
-                        setUserFlow("edit-address");
-                      }}
-                      className="flex-1 bg-indigo-600 text-white py-2 rounded-xl text-sm hover:bg-indigo-700"
-                    >
-                      Edit Location
-                    </button>
-                  </div> */}
-
                                 </div>
                             )}
 
@@ -2180,39 +2241,61 @@ export default function ScheduleServices({ providers, events, locations, clients
                     </div>
 
                     {/* STEP 1 – PROVIDER */}
-                    {/* STEP – PROVIDER */}
                     <div className="bg-white rounded-2xl shadow-lg flex flex-col h-[650px]">
                         <div className="px-4 py-3 bg-indigo-50 flex items-center justify-between">
-<h3 className="text-lg font-bold">
-    {showHiddenProviders
-        ? "Hidden Service Providers"
-        : "Service Providers"}
-</h3>
-                            {otpVerified && (
-                                <label className="flex items-center gap-2 text-sm font-medium cursor-pointer">
-                                    <span>Hidden</span>
+                            <h3 className="text-lg font-bold">
+                                {showHiddenProviders
+                                    ? "Hidden Providers"
+                                    : "Service Providers"}
+                            </h3>
 
-                                    <button
-                                        type="button"
-                                        onClick={() =>
-                                            setShowHiddenProviders((prev) => !prev)
-                                        }
-                                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${showHiddenProviders
-                                            ? "bg-green-600"
-                                            : "bg-gray-300"
-                                            }`}
-                                    >
-                                        <span
-                                            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${showHiddenProviders
-                                                ? "translate-x-6"
-                                                : "translate-x-1"
+                            <div className="flex items-center gap-3">
+                                {!showHiddenProviders && (
+                                    <div className="flex items-center gap-1">
+                                        <span className="text-xs text-gray-600">
+                                            Show
+                                        </span>
+
+                                        <select
+                                            value={providerLimit}
+                                            onChange={(e) =>
+                                                setProviderLimit(Number(e.target.value))
+                                            }
+                                            className="border rounded px-2 py-1 text-sm bg-white"
+                                        >
+                                            {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
+                                                <option key={num} value={num}>
+                                                    {num}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                )}
+
+                                {otpVerified && (
+                                    <label className="flex items-center gap-2 text-sm font-medium cursor-pointer">
+                                        <span>Hidden</span>
+
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                setShowHiddenProviders(prev => !prev)
+                                            }
+                                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${showHiddenProviders
+                                                ? "bg-green-600"
+                                                : "bg-gray-300"
                                                 }`}
-                                        />
-                                    </button>
-
-                                    {/* <span>Visible</span> */}
-                                </label>
-                            )}
+                                        >
+                                            <span
+                                                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${showHiddenProviders
+                                                    ? "translate-x-6"
+                                                    : "translate-x-1"
+                                                    }`}
+                                            />
+                                        </button>
+                                    </label>
+                                )}
+                            </div>
                         </div>
                         <div className="flex-1 overflow-y-auto p-4">
                             {!otpVerified ? (
@@ -2258,39 +2341,17 @@ export default function ScheduleServices({ providers, events, locations, clients
                                     showHiddenProviders={showHiddenProviders}
                                 />
 
-                            ) : (
+                            )
+                                : (
 
-                                <NoProvidersSection />
-
-                            )}
+                                    <StepLocked
+                                        title="No Providers Found"
+                                        message="Try another address or increase your search radius."
+                                    />
+                                )
+                            }
                         </div>
                     </div>
-
-                    {/* STEP 2 – CATEGORY */}
-                    {/* <div className="bg-white rounded-2xl shadow-lg flex flex-col h-[650px]">
-            <div className="px-4 py-3 bg-purple-50">
-              <h3 className="text-lg font-bold">Services</h3>
-            </div>
-            <div className="flex-1 overflow-y-auto p-4">
-              {selectedProvider ? (
-                <ServiceCategorySection
-                  selectedProvider={selectedProvider}
-                  providers={providers}
-                  events={events}
-                  categories={categories}
-                  selectedCategory={selectedCategory}
-                  onCategorySelect={setSelectedCategory}
-                  loading={loadingServices}
-                  onCategoriesReady={setProviderCategories}
-                />
-              ) : (
-                <StepLocked
-                  title="Select a Provider"
-                  message="Please choose a provider to view service categories"
-                />
-              )}
-            </div>
-          </div> */}
 
                     {/* STEP 2 – SERVICES */}
                     <div className="bg-white rounded-2xl shadow-lg flex flex-col h-[650px]">
@@ -2324,6 +2385,8 @@ export default function ScheduleServices({ providers, events, locations, clients
                                     selectedProvider={finalProvider}
                                     providers={providers}
                                     selectedCategory={searchCategory}
+                                    isProviderHidden={showHiddenProviders}
+
                                 />
                             </>
                             ) : (
@@ -2394,46 +2457,38 @@ export default function ScheduleServices({ providers, events, locations, clients
                             )}
                         </div>
                     </div>
-
-                    {/* STEP 5 – SUMMARY */}
-                    {/* <div className="bg-white rounded-2xl shadow-lg flex flex-col h-[650px]">
-            <div className="px-4 py-3 bg-blue-50">
-              <h3 className="text-lg font-bold">Complete Booking</h3>
-            </div>
-            <div className="flex-1 overflow-y-auto p-4">
-              {selectedTime ? (
-                <BookingSummary
-                  selectedEvent={selectedEvent}
-                  selectedProvider={selectedProvider}
-                  selectedDate={selectedDate}
-                  selectedTime={selectedTime}
-                  events={events}
-                  providers={providers}
-                  dayMap={dayMap}
-                  formData={formData}
-                  onSubmit={handleSubmitWithNotification}
-                  onChange={handleChange}
-                  getSelectedServiceNames={getSelectedServiceNames}
-                  submittingBooking={submittingBooking}
-                  selectedTreatment={selectedTreatment}
-                  currentEmail={currentEmail}
-                />
-              ) : (
-                <StepLocked
-                  title="Select Time Slot"
-                  message="Choose a date and time to complete booking"
-                />
-              )}
-            </div>
-          </div> */}
                 </div>
             </div >
         );
     };
 
+    {
+        showNoProvidersModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+                <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md">
+                    <h3 className="text-lg font-semibold text-gray-900">
+                        No Providers Found
+                    </h3>
+
+                    <p className="mt-3 text-sm text-gray-600">
+                        There are currently no service providers available within your
+                        selected search radius for this address.
+                    </p>
+
+                    <div className="mt-6 flex justify-end">
+                        <button
+                            onClick={() => setShowNoProvidersModal(false)}
+                            className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+                        >
+                            OK
+                        </button>
+                    </div>
+                </div>
+            </div>
+        )
+    }
     return (
         <div className="w-full mx-auto mt-6 mb-16 p-6 space-y-10 bg-gradient-to-br from-white via-blue-50 to-indigo-100 shadow-2xl rounded-3xl border border-gray-100 relative">
-            {/* Success Notification */}
             {showSuccess && bookingDetails && (
                 <SuccessNotification
                     bookingDetails={bookingDetails}
@@ -2441,11 +2496,8 @@ export default function ScheduleServices({ providers, events, locations, clients
                 />
             )}
 
-            {/* Background Decorative Elements */}
             <div className="absolute top-0 left-0 w-72 h-72 bg-blue-200 rounded-full -translate-x-1/2 -translate-y-1/2 opacity-20 blur-3xl"></div>
-            {/* <div className="absolute bottom-0 right-0 w-96 h-96 bg-indigo-200 rounded-full translate-x-1/3 translate-y-1/3 opacity-20 blur-3xl"></div> */}
 
-            {/* Header Section */}
             <div className="relative text-center space-y-4">
                 <div className="inline-flex items-center justify-center w-16 h-16 bg-indigo-600 rounded-2xl shadow-lg mb-4">
                     <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2487,5 +2539,8 @@ export default function ScheduleServices({ providers, events, locations, clients
                 </div>
             )}
         </div>
+
+
     );
+
 }

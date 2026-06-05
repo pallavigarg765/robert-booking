@@ -1,6 +1,6 @@
 import { Info, X } from "lucide-react";
 import { useState, useRef } from "react";
-
+import { toast } from "react-toastify";
 export default function ServiceSelectionSection({
   categories = [],
   selectedCategory,
@@ -8,6 +8,8 @@ export default function ServiceSelectionSection({
   onCheckboxChange,
   selectedProvider,
   providers,
+  isProviderHidden = false,
+
 }) {
   const [activeService, setActiveService] = useState(null);
   const [collapsed, setCollapsed] = useState({});
@@ -19,6 +21,17 @@ export default function ServiceSelectionSection({
   const provider = providers.find((item) => {
     return item.id == selectedProvider
   });
+
+  const handleServiceClick = (service) => {
+    if (isProviderHidden) {
+      toast.error(
+        "This provider is currently hidden. Please unhide/reactivate the provider before selecting services or scheduling appointments."
+      );
+      return;
+    }
+
+    onCheckboxChange(service);
+  };
 
   const toggleCategory = (catId) => {
     setCollapsed(prev => ({
@@ -114,6 +127,12 @@ export default function ServiceSelectionSection({
 
         <div className="space-y-2">
           <div>
+            {isProviderHidden && (
+              <div className="mb-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800">
+                This provider is hidden. Unhide/reactivate the provider to enable
+                service selection and scheduling.
+              </div>
+            )}
 
             {[...categories]
               .sort((a, b) => {
@@ -134,11 +153,11 @@ export default function ServiceSelectionSection({
                     : selectedServices;
 
                 return (
-    <div key={category.id} className="py-1">
-      <div
-        // key={category.id}
-      // >
-                              onMouseEnter={() => {
+                  <div key={category.id} className="py-1">
+                    <div
+                      // key={category.id}
+                      // >
+                      onMouseEnter={() => {
                         if (hoverTimeoutRef.current) {
                           clearTimeout(hoverTimeoutRef.current);
                         }
@@ -198,8 +217,15 @@ export default function ServiceSelectionSection({
                               onMouseDown={() => {
                                 isClickingRef.current = true;
                               }}
-
                               onClick={() => {
+
+                                if (isProviderHidden) {
+                                  toast.error(
+                                    "Please unhide/reactivate this provider to enable service selection and scheduling."
+                                  );
+                                  return;
+                                }
+
                                 const willSelect = !isSelected;
 
                                 onCheckboxChange({
@@ -209,7 +235,6 @@ export default function ServiceSelectionSection({
                                   }
                                 });
 
-                                // 🟢 IMPORTANT FIX
                                 setTimeout(() => {
                                   const updatedSelected = category.services.filter(s => {
                                     if (s.key === service.key) return willSelect;
@@ -217,7 +242,6 @@ export default function ServiceSelectionSection({
                                   });
 
                                   if (updatedSelected.length === 0) {
-                                    // reset state when no selection
                                     setPreHoverSelection(prev => ({
                                       ...prev,
                                       [category.id]: false
@@ -227,10 +251,15 @@ export default function ServiceSelectionSection({
                                   isClickingRef.current = false;
                                 }, 0);
                               }}
-                              className={`flex items-center gap-2 p-2 rounded-lg border cursor-pointer transition
-        ${isSelected
+                              className={`flex items-center gap-2 p-2 rounded-lg border transition
+${isProviderHidden
+                                  ? "opacity-60 cursor-not-allowed"
+                                  : "cursor-pointer"
+                                }
+${isSelected
                                   ? "border-purple-500 bg-purple-50"
-                                  : "border-gray-200 hover:border-purple-300"}`}
+                                  : "border-gray-200 hover:border-purple-300"
+                                }`}
                             >
                               <div
                                 className={`w-4 h-4 rounded border-2 flex items-center justify-center
