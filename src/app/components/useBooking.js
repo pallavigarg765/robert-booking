@@ -826,10 +826,7 @@ export function useBooking({ providers, events, locations, clients, categories, 
        STEP 3: LIMIT TO NEAREST 4
     ---------------------------------------------- */
 
-    const limitedProviders = categoryFilteredProviders.slice(
-      0,
-      providerLimit
-    );
+    const limitedProviders = categoryFilteredProviders
     /* ---------------------------------------------
        STEP 4 + 5: BLACKLIST + BOOKING PRIORITY
     ---------------------------------------------- */

@@ -7,6 +7,8 @@ import { Info, X } from "lucide-react";
 
 export default function ProvidersSection({
   providers = [],
+  providerLimit,
+
   locations,
   clientLocation,
   searchWithin,
@@ -33,6 +35,7 @@ export default function ProvidersSection({
   const [activeProvider, setActiveProvider] = useState(null);
   const [hiddenProviders, setHiddenProviders] = useState([]);
   const providerRefs = useRef([]);
+  const [expandedProvider, setExpandedProvider] = useState(null);
   // const [showHiddenProviders, setShowHiddenProviders] = useState(false);
 
   //   const locationKey =
@@ -193,15 +196,21 @@ export default function ProvidersSection({
     );
   }, [filteredProviders, locations, clientLocation, searchWithin]);
 
-  const visibleProviders = filteredProviders.filter((provider) => {
-    if (!userEmail) return true;
+ const visibleProviders = filteredProviders.filter((provider) => {
+  if (!userEmail) return true;
 
-    return !hiddenProviders.some(
-      (item) =>
-        String(item.providerId) === String(provider.id) &&
-        item.zip === userAddress?.zip
-    );
-  });
+  return !hiddenProviders.some(
+    (item) =>
+      String(item.providerId) === String(provider.id) &&
+      item.zip === userAddress?.zip
+  );
+});
+
+  const limitedVisibleProviders = visibleProviders.slice(0, providerLimit);
+
+  // const displayedProviders = showHiddenProviders
+  // ? hiddenProviderList
+  // : limitedVisibleProviders;
 
   const hiddenProviderList = providers.filter((provider) => {
     const isHidden = hiddenProviders.some(
@@ -248,13 +257,18 @@ export default function ProvidersSection({
     }
   };
 
-  const displayedProviders = showHiddenProviders
-  ? hiddenProviderList
-  : visibleProviders;
+  console.log("All Providers", providers.length);
+console.log("Visible Providers", visibleProviders.length);
+console.log("Hidden Providers", hiddenProviderList.length);
+console.log("Provider Limit", providerLimit);
 
+ const displayedProviders = showHiddenProviders
+  ? hiddenProviderList
+  : visibleProviders.slice(0, providerLimit);
   useEffect(() => {
-  providerRefs.current = [];
-}, [showHiddenProviders]);
+    providerRefs.current = [];
+  }, [showHiddenProviders]);
+console.log("Displayed Providers", displayedProviders.length);
 
 
   // Compact mode - just show provider cards without map
@@ -420,11 +434,14 @@ export default function ProvidersSection({
                     onUnhide={handleUnhide}
                     providerIndex={index}
                     totalProviders={displayedProviders.filter(
-  (provider) =>
-    provider.distance != null &&
-    Number(provider.distance) <= Number(searchWithin)
-).length}
+                      (provider) =>
+                        provider.distance != null &&
+                        Number(provider.distance) <= Number(searchWithin)
+                    ).length}
                     providerRefs={providerRefs}
+                    expandedProvider={expandedProvider}
+                    setExpandedProvider={setExpandedProvider}
+
                   />
                 ))}
 
@@ -667,27 +684,27 @@ export default function ProvidersSection({
             <>
               <div className="grid gap-4">
                 {displayedProviders.map((provider, index) => (
-                    <ProviderCard
-                      key={provider.id}
-                      provider={provider}
-                      providerIndex={index}
-                      totalProviders={displayedProviders.length}
-                      providerRefs={providerRefs}
-                      isSelected={selectedProvider === provider.id}
-                      selectedProvider={selectedProvider}
-                      onSelect={onProviderSelect}
-                      onBlacklist={handleBlacklist}
-                      isBlacklisting={blacklistingProvider === provider.id}
-                      userEmail={userEmail}
-                      categories={categories}
-                      compact
-                      onInfoClick={setActiveProvider}
-                      onHover={(provider) => {
-                        setHoveredProvider(provider || null);
-                      }}
-                      isHiddenView={showHiddenProviders}
-                      onUnhide={handleUnhide}
-                    />
+                  <ProviderCard
+                    key={provider.id}
+                    provider={provider}
+                    providerIndex={index}
+                    totalProviders={displayedProviders.length}
+                    providerRefs={providerRefs}
+                    isSelected={selectedProvider === provider.id}
+                    selectedProvider={selectedProvider}
+                    onSelect={onProviderSelect}
+                    onBlacklist={handleBlacklist}
+                    isBlacklisting={blacklistingProvider === provider.id}
+                    userEmail={userEmail}
+                    categories={categories}
+                    compact
+                    onInfoClick={setActiveProvider}
+                    onHover={(provider) => {
+                      setHoveredProvider(provider || null);
+                    }}
+                    isHiddenView={showHiddenProviders}
+                    onUnhide={handleUnhide}
+                  />
 
                 ))}
               </div>
@@ -739,13 +756,16 @@ function ProviderCard({
   providerIndex,
   totalProviders,
   providerRefs,
-
+  expandedProvider,
+  setExpandedProvider
 }) {
   const [isHovered, setIsHovered] = useState(false);
   const [showDescription, setShowDescription] = useState(false);
   const hasAnySelection = Boolean(selectedProvider);
 
-  const isExpanded = isSelected;
+  const isExpanded =
+    !isHiddenView &&
+    expandedProvider === provider.id;
   const getProviderCategories = () => {
 
     if (!categories?.length || !provider?.services?.length) return [];
@@ -823,10 +843,25 @@ function ProviderCard({
           setIsHovered(false);
           onHover?.(null);
         }}
+        onClick={() => {
+          if (isBlacklisting) return;
+
+          // Select only
+          onSelect(provider.id);
+        }}
+
+
         onDoubleClick={() => {
           if (isBlacklisting) return;
 
-          onSelect(isSelected ? null : provider.id);
+          // Select + Expand
+          onSelect(provider.id);
+
+          setExpandedProvider(
+            expandedProvider === provider.id
+              ? null
+              : provider.id
+          );
         }}
         onKeyDown={(e) => {
           if (e.key === "Tab") {
@@ -851,12 +886,30 @@ function ProviderCard({
             return;
           }
 
-          if (e.key === "Enter" || e.key === " ") {
+          if (e.key === "Enter") {
             e.preventDefault();
 
             if (isBlacklisting) return;
 
-            onSelect(isSelected ? null : provider.id);
+            // Select + Expand
+            onSelect(provider.id);
+
+            setExpandedProvider(
+              expandedProvider === provider.id
+                ? null
+                : provider.id
+            );
+
+            return;
+          }
+
+          if (e.key === " ") {
+            e.preventDefault();
+
+            if (isBlacklisting) return;
+
+            // Select only
+            onSelect(provider.id);
           }
         }}
       >
@@ -902,7 +955,7 @@ function ProviderCard({
                 : "/images/placeholder.jpg"
             }
             className={`object-cover rounded-xl transition-all duration-300
-  ${isSelected
+    ${isExpanded
                 ? "w-full h-40 mb-3"
                 : "w-16 h-16"
               }`}
@@ -1127,7 +1180,7 @@ function ProviderCard({
 
           {userEmail && (
             <button
-            tabIndex={-1}
+              tabIndex={-1}
               onClick={(e) => {
                 e.stopPropagation();
                 onBlacklist(provider.id);

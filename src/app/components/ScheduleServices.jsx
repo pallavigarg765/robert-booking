@@ -80,6 +80,8 @@ export default function ScheduleServices({ providers, events, locations, clients
     const [showHiddenProviders, setShowHiddenProviders] = useState(false);
     const [activeField, setActiveField] = useState(null);
     const [phoneError, setPhoneError] = useState("");
+    const [userName, setUserName] = useState("");
+
     const stateDropdownRef = useRef(null);
     const addressRefs = useRef([]);
     const continueBtnRef = useRef(null);
@@ -87,7 +89,7 @@ export default function ScheduleServices({ providers, events, locations, clients
     const [showNoProvidersModal, setShowNoProvidersModal] = useState(false);
     const cancelBtnRef = useRef(null);
     const router = useRouter();
-    
+
     console.log("showNoProvidersModal: ", showNoProvidersModal);
 
     const focusTrapRef = useRef(null);
@@ -488,18 +490,18 @@ export default function ScheduleServices({ providers, events, locations, clients
         filteredProviders.length === 0;
 
     useEffect(() => {
-    
-        if(shouldShowNoProviders){
+
+        if (shouldShowNoProviders) {
             setTimeout(() => {
                 setShowNoProvidersModal(true);
             }, 1500);
-        }else{
+        } else {
             setShowNoProvidersModal(false);
         }
 
-}, [
-    shouldShowNoProviders
-]);
+    }, [
+        shouldShowNoProviders
+    ]);
 
     useEffect(() => {
         if (filteredProviders.length > 0) {
@@ -862,6 +864,7 @@ export default function ScheduleServices({ providers, events, locations, clients
                     isAuthenticated: true,
                     userEmail: result.user.email,
                     userData: result.user,
+                    name: result.user.name,
                     loginData: {
                         email: loginData.email,
                         phonenumber: loginData.phonenumber
@@ -884,10 +887,11 @@ export default function ScheduleServices({ providers, events, locations, clients
                         fullAddress: result.user.fullAddress,
                         city: result.user.city || "",
                         state: result.user.state || "",
-                        zip: result.user.zip || ""
+                        zip: result.user.zip || "",
+                        name: result.user.name || "",
                     }));
                 }
-
+                setUserName(result.user.name)
                 setUserEmail(result.user.email);
                 setFormData(prev => ({
                     ...prev,
@@ -988,7 +992,7 @@ export default function ScheduleServices({ providers, events, locations, clients
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    fullname: loginData.name,
+                    fullname: formData.name,
                     email: loginData.email,
                     phonenumber: loginData.phonenumber,
                 }),
@@ -1551,7 +1555,7 @@ export default function ScheduleServices({ providers, events, locations, clients
                                         </p>
                                     </div>
 
-                                    <div>
+                                    {/* <div>
                                         <label className="text-sm text-gray-600">
                                             Client Name
                                         </label>
@@ -1568,7 +1572,7 @@ export default function ScheduleServices({ providers, events, locations, clients
                                             }
                                             className="w-full mt-2 px-4 py-3 rounded-xl border focus:ring-2 focus:ring-indigo-500 outline-none"
                                         />
-                                    </div>
+                                    </div> */}
 
                                     {/* EMAIL */}
                                     <div>
@@ -2213,7 +2217,7 @@ export default function ScheduleServices({ providers, events, locations, clients
                                             Client Account:
                                         </div>
                                         <div className="text-sm text-gray-600">
-                                            <span className="font-medium text-gray-800">Name:</span> {loginData.name}
+                                            <span className="font-medium text-gray-800">Name:</span> {userName}
                                         </div>
 
                                         <div className="text-sm text-gray-600">
@@ -2226,7 +2230,7 @@ export default function ScheduleServices({ providers, events, locations, clients
 
                                     {/* ADDRESS */}
                                     <div className="border rounded-xl p-4 space-y-2">
-                                        <div className="text-sm text-gray-500">Service Location:</div>
+                                        <div className="font-semibold text-gray-800 mb-2">Service Location:</div>
                                         <div className="text-sm text-gray-500 m-0 leading-tight">
                                             {formData.fullAddress}
                                         </div>
@@ -2355,6 +2359,7 @@ export default function ScheduleServices({ providers, events, locations, clients
 
                                 <ProvidersSection
                                     providers={filteredProviders}
+                                    providerLimit={providerLimit}
                                     locations={locations}
                                     clientLocation={clientLocation}
                                     searchWithin={searchWithin}
@@ -2520,80 +2525,80 @@ export default function ScheduleServices({ providers, events, locations, clients
     }
     return (
         <>
-        <div className="w-full mx-auto mt-6 mb-16 p-6 space-y-10 bg-gradient-to-br from-white via-blue-50 to-indigo-100 shadow-2xl rounded-3xl border border-gray-100 relative">
-            {showSuccess && bookingDetails && (
-                <SuccessNotification
-                    bookingDetails={bookingDetails}
-                    onClose={handleCloseSuccess}
-                />
-            )}
+            <div className="w-full mx-auto mt-6 mb-16 p-6 space-y-10 bg-gradient-to-br from-white via-blue-50 to-indigo-100 shadow-2xl rounded-3xl border border-gray-100 relative">
+                {showSuccess && bookingDetails && (
+                    <SuccessNotification
+                        bookingDetails={bookingDetails}
+                        onClose={handleCloseSuccess}
+                    />
+                )}
 
-            <div className="absolute top-0 left-0 w-72 h-72 bg-blue-200 rounded-full -translate-x-1/2 -translate-y-1/2 opacity-20 blur-3xl"></div>
+                <div className="absolute top-0 left-0 w-72 h-72 bg-blue-200 rounded-full -translate-x-1/2 -translate-y-1/2 opacity-20 blur-3xl"></div>
 
-            <div className="relative text-center space-y-4">
-                <div className="inline-flex items-center justify-center w-16 h-16 bg-indigo-600 rounded-2xl shadow-lg mb-4">
-                    <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
+                <div className="relative text-center space-y-4">
+                    <div className="inline-flex items-center justify-center w-16 h-16 bg-indigo-600 rounded-2xl shadow-lg mb-4">
+                        <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                    </div>
+                    <h1 className="text-5xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+                        Schedule Door-To-Door Services
+                    </h1>
+                    <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+                        Find the perfect service provider near you and schedule your appointment in just a few clicks
+                    </p>
                 </div>
-                <h1 className="text-5xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-                    Schedule Door-To-Door Services
-                </h1>
-                <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-                    Find the perfect service provider near you and schedule your appointment in just a few clicks
-                </p>
+
+                {/* Show booking form only if not in success state */}
+                {!showSuccess ? (
+                    <>
+                        {
+                            renderHorizontalFlow()
+                        }
+                    </>
+                ) : (
+                    /* Success State - Option to book another appointment */
+                    <div className="text-center py-12">
+                        <div className="max-w-md mx-auto">
+                            <button
+                                onClick={handleFullReset}
+                                className="inline-flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-lg font-semibold rounded-2xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
+                            >
+                                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                </svg>
+                                Book Another Appointment
+                            </button>
+                            <p className="text-gray-600 mt-4">
+                                Want to schedule another service? Start a new booking.
+                            </p>
+                        </div>
+                    </div>
+                )}
             </div>
 
-            {/* Show booking form only if not in success state */}
-            {!showSuccess ? (
-                <>
-                    {
-                        renderHorizontalFlow()
-                    }
-                </>
-            ) : (
-                /* Success State - Option to book another appointment */
-                <div className="text-center py-12">
-                    <div className="max-w-md mx-auto">
-                        <button
-                            onClick={handleFullReset}
-                            className="inline-flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-lg font-semibold rounded-2xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
-                        >
-                            <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                            </svg>
-                            Book Another Appointment
-                        </button>
-                        <p className="text-gray-600 mt-4">
-                            Want to schedule another service? Start a new booking.
-                        </p>
-                    </div>
-                </div>
-            )}
-        </div>
+            <NoProvidersModal
+                open={showNoProvidersModal}
+                onClose={() => setShowNoProvidersModal(false)}
+                onChangeAddress={() => {
+                    setShowNoProvidersModal(false);
+                    setUserFlow("edit-address");
+                }}
+                onIncreaseRadius={() => {
+                    setShowNoProvidersModal(false);
 
-        <NoProvidersModal
-            open={showNoProvidersModal}
-            onClose={() => setShowNoProvidersModal(false)}
-            onChangeAddress={() => {
-                setShowNoProvidersModal(false);
-                setUserFlow("edit-address");
-            }}
-            onIncreaseRadius={() => {
-                setShowNoProvidersModal(false);
+                    const newRadius = Math.min(
+                        Number(searchWithin) + 10,
+                        50
+                    );
 
-                const newRadius = Math.min(
-                    Number(searchWithin) + 10,
-                    50
-                );
+                    setSearchWithin(newRadius);
 
-                setSearchWithin(newRadius);
-
-                setTimeout(() => {
-                    getLatLngFromAddress();
-                }, 200);
-            }}
-        />
+                    setTimeout(() => {
+                        getLatLngFromAddress();
+                    }, 200);
+                }}
+            />
         </>
     );
 
