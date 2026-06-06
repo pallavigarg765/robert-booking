@@ -1,7 +1,7 @@
 "use client";
 
 import ProvidersMap from "./ProvidersMap";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import Link from "next/link";
 import { Info, X } from "lucide-react";
 
@@ -32,6 +32,7 @@ export default function ProvidersSection({
   const [blacklistingProvider, setBlacklistingProvider] = useState(null);
   const [activeProvider, setActiveProvider] = useState(null);
   const [hiddenProviders, setHiddenProviders] = useState([]);
+  const providerRefs = useRef([]);
   // const [showHiddenProviders, setShowHiddenProviders] = useState(false);
 
   //   const locationKey =
@@ -247,6 +248,14 @@ export default function ProvidersSection({
     }
   };
 
+  const displayedProviders = showHiddenProviders
+  ? hiddenProviderList
+  : visibleProviders;
+
+  useEffect(() => {
+  providerRefs.current = [];
+}, [showHiddenProviders]);
+
 
   // Compact mode - just show provider cards without map
   if (compactMode) {
@@ -385,16 +394,13 @@ export default function ProvidersSection({
           <div className="space-y-3">
 
             {!loadingProviders &&
-              (showHiddenProviders
-                ? hiddenProviderList
-                : visibleProviders
-              )
+              displayedProviders
                 .filter(
                   (provider) =>
                     provider.distance != null &&
                     Number(provider.distance) <= Number(searchWithin)
                 )
-                .map((provider) => (
+                .map((provider, index) => (
                   <ProviderCard
                     key={provider.id}
                     provider={provider}
@@ -412,6 +418,13 @@ export default function ProvidersSection({
                     }}
                     isHiddenView={showHiddenProviders}
                     onUnhide={handleUnhide}
+                    providerIndex={index}
+                    totalProviders={displayedProviders.filter(
+  (provider) =>
+    provider.distance != null &&
+    Number(provider.distance) <= Number(searchWithin)
+).length}
+                    providerRefs={providerRefs}
                   />
                 ))}
 
@@ -650,23 +663,32 @@ export default function ProvidersSection({
           )}
 
           {/* PROVIDER GRID */}
-          {!loadingProviders && visibleProviders.length > 0 && (
+          {!loadingProviders && displayedProviders.length > 0 && (
             <>
               <div className="grid gap-4">
-                {visibleProviders.map((provider) => (
-                  <ProviderCard
-                    key={provider.id}
-                    provider={provider}
-                    isSelected={selectedProvider === provider.id}
-                    selectedProvider={selectedProvider}
-                    onSelect={onProviderSelect}
-                    onBlacklist={handleBlacklist}
-                    isBlacklisting={blacklistingProvider === provider.id}
-                    userEmail={userEmail}
-                    categories={categories}
-                    onInfoClick={setActiveProvider}
-                    onHover={setHoveredProvider}
-                  />
+                {displayedProviders.map((provider, index) => (
+                    <ProviderCard
+                      key={provider.id}
+                      provider={provider}
+                      providerIndex={index}
+                      totalProviders={displayedProviders.length}
+                      providerRefs={providerRefs}
+                      isSelected={selectedProvider === provider.id}
+                      selectedProvider={selectedProvider}
+                      onSelect={onProviderSelect}
+                      onBlacklist={handleBlacklist}
+                      isBlacklisting={blacklistingProvider === provider.id}
+                      userEmail={userEmail}
+                      categories={categories}
+                      compact
+                      onInfoClick={setActiveProvider}
+                      onHover={(provider) => {
+                        setHoveredProvider(provider || null);
+                      }}
+                      isHiddenView={showHiddenProviders}
+                      onUnhide={handleUnhide}
+                    />
+
                 ))}
               </div>
             </>
@@ -714,6 +736,9 @@ function ProviderCard({
   onManageHidden,
   isHiddenView = false,
   onUnhide,
+  providerIndex,
+  totalProviders,
+  providerRefs,
 
 }) {
   const [isHovered, setIsHovered] = useState(false);
@@ -772,6 +797,9 @@ function ProviderCard({
   if (compact) {
     return (
       <div
+        ref={(el) => {
+          providerRefs.current[providerIndex] = el;
+        }}
         tabIndex={0}
         role="button"
         aria-pressed={isSelected}
@@ -801,6 +829,28 @@ function ProviderCard({
           onSelect(isSelected ? null : provider.id);
         }}
         onKeyDown={(e) => {
+          if (e.key === "Tab") {
+            e.preventDefault();
+
+            if (e.shiftKey) {
+              const prev =
+                providerIndex === 0
+                  ? totalProviders - 1
+                  : providerIndex - 1;
+
+              providerRefs.current[prev]?.focus();
+            } else {
+              const next =
+                providerIndex === totalProviders - 1
+                  ? 0
+                  : providerIndex + 1;
+
+              providerRefs.current[next]?.focus();
+            }
+
+            return;
+          }
+
           if (e.key === "Enter" || e.key === " ") {
             e.preventDefault();
 
@@ -880,6 +930,7 @@ function ProviderCard({
               </h4>
               <button
                 type="button"
+                tabIndex={-1}
                 onClick={(e) => {
                   e.stopPropagation();
                   setShowDescription((prev) => !prev);
@@ -916,6 +967,7 @@ function ProviderCard({
                 {userEmail && (
                   isHiddenView ? (
                     <button
+                      tabIndex={-1}
                       onClick={(e) => {
                         e.stopPropagation();
                         onUnhide(provider.id);
@@ -926,6 +978,7 @@ function ProviderCard({
                     </button>
                   ) : (
                     <button
+                      tabIndex={-1}
                       onClick={(e) => {
                         e.stopPropagation();
                         onBlacklist(provider.id);
@@ -1051,6 +1104,7 @@ function ProviderCard({
               // tabIndex={-1}
 
               type="button"
+              tabIndex={-1}
               onClick={(e) => {
                 e.stopPropagation();
                 setShowDescription((prev) => !prev);
@@ -1073,6 +1127,7 @@ function ProviderCard({
 
           {userEmail && (
             <button
+            tabIndex={-1}
               onClick={(e) => {
                 e.stopPropagation();
                 onBlacklist(provider.id);

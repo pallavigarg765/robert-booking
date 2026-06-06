@@ -7,6 +7,7 @@ import { useBooking } from "./useBooking";
 import ServiceCategorySection from "./ServiceCategorySection";
 import ServiceSelectionSection from "./ServiceSelectionSection";
 import AvailabilitySection from "./AvailabilitySection";
+import NoProvidersModal from "./NoProvidersModal";
 import { Calendar, Clock, CheckCircle, ChevronRight, User, Scissors, CalendarDays, Clock4, FileText } from "lucide-react";
 import { useRouter } from "next/navigation";
 const dayMap = {
@@ -86,6 +87,8 @@ export default function ScheduleServices({ providers, events, locations, clients
     const [showNoProvidersModal, setShowNoProvidersModal] = useState(false);
     const cancelBtnRef = useRef(null);
     const router = useRouter();
+    
+    console.log("showNoProvidersModal: ", showNoProvidersModal);
 
     const focusTrapRef = useRef(null);
     const createBtnRef = useRef(null);
@@ -475,6 +478,34 @@ export default function ScheduleServices({ providers, events, locations, clients
             setActiveStep(3);
         }
     }, [selectedServices, activeStep]);
+
+    const shouldShowNoProviders =
+        otpVerified &&
+        hasSearched &&
+        clientLocation &&
+        !isSearchingProviders &&
+        !loadingProviders &&
+        filteredProviders.length === 0;
+
+    useEffect(() => {
+    
+        if(shouldShowNoProviders){
+            setTimeout(() => {
+                setShowNoProvidersModal(true);
+            }, 1500);
+        }else{
+            setShowNoProvidersModal(false);
+        }
+
+}, [
+    shouldShowNoProviders
+]);
+
+    useEffect(() => {
+        if (filteredProviders.length > 0) {
+            setShowNoProvidersModal(false);
+        }
+    }, [filteredProviders]);
 
     useEffect(() => {
         if (!addressReady) return;
@@ -2488,6 +2519,7 @@ export default function ScheduleServices({ providers, events, locations, clients
         )
     }
     return (
+        <>
         <div className="w-full mx-auto mt-6 mb-16 p-6 space-y-10 bg-gradient-to-br from-white via-blue-50 to-indigo-100 shadow-2xl rounded-3xl border border-gray-100 relative">
             {showSuccess && bookingDetails && (
                 <SuccessNotification
@@ -2540,7 +2572,29 @@ export default function ScheduleServices({ providers, events, locations, clients
             )}
         </div>
 
+        <NoProvidersModal
+            open={showNoProvidersModal}
+            onClose={() => setShowNoProvidersModal(false)}
+            onChangeAddress={() => {
+                setShowNoProvidersModal(false);
+                setUserFlow("edit-address");
+            }}
+            onIncreaseRadius={() => {
+                setShowNoProvidersModal(false);
 
+                const newRadius = Math.min(
+                    Number(searchWithin) + 10,
+                    50
+                );
+
+                setSearchWithin(newRadius);
+
+                setTimeout(() => {
+                    getLatLngFromAddress();
+                }, 200);
+            }}
+        />
+        </>
     );
 
 }
