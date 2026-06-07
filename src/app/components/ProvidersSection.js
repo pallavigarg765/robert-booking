@@ -51,7 +51,11 @@ export default function ProvidersSection({
 
   // const hiddenStorageKey = `hiddenProviders_${userEmail}_${serviceLocationKey}`;
 
-
+useEffect(() => {
+  if (!selectedProvider) {
+    setHoveredProvider(null);
+  }
+}, [selectedProvider]);
   const serviceLocationKey = userAddress?.zip
     ? `${userAddress.zip}`
     : userAddress?.state
@@ -76,16 +80,13 @@ export default function ProvidersSection({
       const result = await res.json();
 
       if (result.success) {
-
-        const updatedHidden =
-          hiddenProviders.filter(
-            (item) =>
-              !(
-                String(item.providerId) ===
-                String(providerId) &&
-                item.zip === userAddress?.zip
-              )
-          );
+        const updatedHidden = hiddenProviders.filter(
+          (item) =>
+            !(
+              String(item.providerId) === String(providerId) &&
+              item.zip === userAddress?.zip
+            )
+        );
 
         setHiddenProviders(updatedHidden);
 
@@ -94,19 +95,20 @@ export default function ProvidersSection({
           JSON.stringify(updatedHidden)
         );
 
+        // Clear selected provider
+        onProviderSelect?.(null);
+setHoveredProvider?.(null);
+
         if (onProviderUnhide) {
           onProviderUnhide(providerId);
         }
 
         setShowHiddenProviders(false);
-      } else {
-        alert("Failed to unhide provider");
       }
     } catch (error) {
       console.error(error);
     }
   };
-
 
   const cleanName = (name = "") =>
     name
@@ -196,15 +198,15 @@ export default function ProvidersSection({
     );
   }, [filteredProviders, locations, clientLocation, searchWithin]);
 
- const visibleProviders = filteredProviders.filter((provider) => {
-  if (!userEmail) return true;
+  const visibleProviders = filteredProviders.filter((provider) => {
+    if (!userEmail) return true;
 
-  return !hiddenProviders.some(
-    (item) =>
-      String(item.providerId) === String(provider.id) &&
-      item.zip === userAddress?.zip
-  );
-});
+    return !hiddenProviders.some(
+      (item) =>
+        String(item.providerId) === String(provider.id) &&
+        item.zip === userAddress?.zip
+    );
+  });
 
   const limitedVisibleProviders = visibleProviders.slice(0, providerLimit);
 
@@ -224,7 +226,7 @@ export default function ProvidersSection({
 
 
   const handleBlacklist = async (providerId) => {
-    if (!userEmail) return; // safety
+    if (!userEmail) return;
 
     setBlacklistingProvider(providerId);
 
@@ -236,16 +238,17 @@ export default function ProvidersSection({
         city: userAddress?.city || "",
       };
 
-      const updatedHidden = [
-        ...hiddenProviders,
-        hiddenItem,
-      ];
+      const updatedHidden = [...hiddenProviders, hiddenItem];
       setHiddenProviders(updatedHidden);
 
       localStorage.setItem(
         hiddenStorageKey,
         JSON.stringify(updatedHidden)
       );
+
+      // Clear selected provider
+      onProviderSelect?.(null);
+setHoveredProvider?.(null);
 
       await onBlacklist(providerId, {
         zip: userAddress?.zip,
@@ -258,17 +261,17 @@ export default function ProvidersSection({
   };
 
   console.log("All Providers", providers.length);
-console.log("Visible Providers", visibleProviders.length);
-console.log("Hidden Providers", hiddenProviderList.length);
-console.log("Provider Limit", providerLimit);
+  console.log("Visible Providers", visibleProviders.length);
+  console.log("Hidden Providers", hiddenProviderList.length);
+  console.log("Provider Limit", providerLimit);
 
- const displayedProviders = showHiddenProviders
-  ? hiddenProviderList
-  : visibleProviders.slice(0, providerLimit);
+  const displayedProviders = showHiddenProviders
+    ? hiddenProviderList
+    : visibleProviders.slice(0, providerLimit);
   useEffect(() => {
     providerRefs.current = [];
   }, [showHiddenProviders]);
-console.log("Displayed Providers", displayedProviders.length);
+  console.log("Displayed Providers", displayedProviders.length);
 
 
   // Compact mode - just show provider cards without map
