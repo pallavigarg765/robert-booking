@@ -1188,13 +1188,13 @@ export default function ScheduleServices({ providers, events, locations, clients
 
     const hoverProviderObj = hoveredProvider;
 
-    const finalProvider = (!selectedProvider && hoverProviderObj) ? hoverProviderObj.id : selectedProvider;
+    const finalProvider = hoverProviderObj?.id || selectedProvider;
 
     const selectedProviderObj = providers.find(
-        (p) => p.id === finalProvider
+        (p) => String(p.id) === String(finalProvider)
     );
-    const activeProvider = selectedProviderObj;
 
+    const activeProvider = selectedProviderObj;
     const formatPhoneDisplay = (value) => {
         const digits = value.replace(/\D/g, "").slice(0, 10);
 
@@ -2359,25 +2359,25 @@ export default function ScheduleServices({ providers, events, locations, clients
 
                             ) : filteredProviders.length > 0 ? (
 
-                               <ProvidersSection
-    providers={filteredProviders}
-    providerLimit={providerLimit}
-    locations={locations}
-    clientLocation={clientLocation}
-    searchWithin={searchWithin}
-    selectedProvider={selectedProvider}
-    userEmail={userEmail}
-    onProviderSelect={handleProviderSelect}
-    onBlacklist={handleBlacklist}
-    events={events}
-    categories={categories}
-    compactMode
-    setHoveredProvider={setHoveredProvider}
-    allProviders={allProviders}
-    onProviderUnhide={handleProviderUnhide}
-    userAddress={address}
-    showHiddenProviders={showHiddenProviders}
-/>
+                                <ProvidersSection
+                                    providers={filteredProviders}
+                                    providerLimit={providerLimit}
+                                    locations={locations}
+                                    clientLocation={clientLocation}
+                                    searchWithin={searchWithin}
+                                    selectedProvider={selectedProvider}
+                                    userEmail={userEmail}
+                                    onProviderSelect={handleProviderSelect}
+                                    onBlacklist={handleBlacklist}
+                                    events={events}
+                                    categories={categories}
+                                    compactMode
+                                    setHoveredProvider={setHoveredProvider}
+                                    allProviders={allProviders}
+                                    onProviderUnhide={handleProviderUnhide}
+                                    userAddress={address}
+                                    showHiddenProviders={showHiddenProviders}
+                                />
 
                             )
                                 : (

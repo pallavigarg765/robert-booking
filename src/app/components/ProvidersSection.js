@@ -51,11 +51,11 @@ export default function ProvidersSection({
 
   // const hiddenStorageKey = `hiddenProviders_${userEmail}_${serviceLocationKey}`;
 
-useEffect(() => {
-  if (!selectedProvider) {
-    setHoveredProvider(null);
-  }
-}, [selectedProvider]);
+  useEffect(() => {
+    if (!selectedProvider) {
+      setHoveredProvider(null);
+    }
+  }, [selectedProvider]);
   const serviceLocationKey = userAddress?.zip
     ? `${userAddress.zip}`
     : userAddress?.state
@@ -97,7 +97,7 @@ useEffect(() => {
 
         // Clear selected provider
         onProviderSelect?.(null);
-setHoveredProvider?.(null);
+        setHoveredProvider?.(null);
 
         if (onProviderUnhide) {
           onProviderUnhide(providerId);
@@ -248,7 +248,7 @@ setHoveredProvider?.(null);
 
       // Clear selected provider
       onProviderSelect?.(null);
-setHoveredProvider?.(null);
+      setHoveredProvider?.(null);
 
       await onBlacklist(providerId, {
         zip: userAddress?.zip,
@@ -828,16 +828,16 @@ function ProviderCard({
         aria-pressed={isSelected}
         aria-label={`Provider ${cleanName(provider.name)}`}
         className={`provider-card relative p-3 rounded-xl border-2 cursor-pointer transition-all duration-300
-    focus:outline-none
-    focus:ring-2
-    focus:ring-indigo-500
-    ${isSelected
+  focus:outline-none
+  focus:ring-2
+  focus:ring-indigo-500
+  ${isSelected
             ? "border-indigo-500 bg-indigo-50"
             : isHovered
-              ? "border-indigo-300 bg-indigo-50"
-              : "border-gray-200"
+              ? "border-indigo-500 bg-white"
+              : "border-gray-200 bg-white"
           }
-  `}
+`}
         onMouseEnter={() => {
           setIsHovered(true);
           onHover?.(provider);
@@ -851,6 +851,11 @@ function ProviderCard({
 
           // Select only
           onSelect(provider.id);
+          setExpandedProvider(
+            expandedProvider === provider.id
+              ? null
+              : provider.id
+          );
         }}
 
 
