@@ -36,26 +36,7 @@ export default function ProvidersSection({
   const [hiddenProviders, setHiddenProviders] = useState([]);
   const providerRefs = useRef([]);
   const [expandedProvider, setExpandedProvider] = useState(null);
-  // const [showHiddenProviders, setShowHiddenProviders] = useState(false);
 
-  //   const locationKey =
-  //     clientLocation
-  //       ? `${clientLocation.lat}_${clientLocation.lng}`
-  //       : "default";
-
-  //   const hiddenStorageKey = `hiddenProviders_${userEmail}_${locationKey}`;
-
-  //   const serviceLocationKey = clientLocation
-  //   ? `${clientLocation.lat}_${clientLocation.lng}`
-  //   : "default";
-
-  // const hiddenStorageKey = `hiddenProviders_${userEmail}_${serviceLocationKey}`;
-
-  useEffect(() => {
-    if (!selectedProvider) {
-      setHoveredProvider(null);
-    }
-  }, [selectedProvider]);
   const serviceLocationKey = userAddress?.zip
     ? `${userAddress.zip}`
     : userAddress?.state
@@ -260,18 +241,12 @@ export default function ProvidersSection({
     }
   };
 
-  console.log("All Providers", providers.length);
-  console.log("Visible Providers", visibleProviders.length);
-  console.log("Hidden Providers", hiddenProviderList.length);
-  console.log("Provider Limit", providerLimit);
-
   const displayedProviders = showHiddenProviders
     ? hiddenProviderList
     : visibleProviders.slice(0, providerLimit);
   useEffect(() => {
     providerRefs.current = [];
   }, [showHiddenProviders]);
-  console.log("Displayed Providers", displayedProviders.length);
 
 
   // Compact mode - just show provider cards without map
@@ -409,6 +384,15 @@ export default function ProvidersSection({
           )}
 
           <div className="space-y-3">
+
+            {!loadingProviders &&
+              (showHiddenProviders
+                && displayedProviders.length) > 0 && (
+                <div className="mb-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800">
+                  This provider is hidden. Unhide/reactivate the provider to enable
+                  service selection and scheduling.
+                </div>
+              )}
 
             {!loadingProviders &&
               displayedProviders
@@ -682,6 +666,15 @@ export default function ProvidersSection({
             <div className="text-center py-12">Finding providers…</div>
           )}
 
+          {!loadingProviders &&
+            (showHiddenProviders
+              && displayedProviders.length) > 0 && (
+              <div className="mb-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800">
+                This provider is hidden. Unhide/reactivate the provider to enable
+                service selection and scheduling.
+              </div>
+            )}
+
           {/* PROVIDER GRID */}
           {!loadingProviders && displayedProviders.length > 0 && (
             <>
@@ -829,18 +822,28 @@ function ProviderCard({
         aria-label={`Provider ${cleanName(provider.name)}`}
         className={`provider-card relative p-3 rounded-xl border-2 cursor-pointer transition-all duration-300
   focus:outline-none
-  focus:ring-2
-  focus:ring-indigo-500
-  ${isSelected
-            ? "border-indigo-500 bg-indigo-50"
-            : isHovered
-              ? "border-indigo-500 bg-white"
-              : "border-gray-200 bg-white"
-          }
+  ${
+    isSelected
+      ? "border-indigo-500 bg-indigo-50 ring-1 ring-indigo-500"
+      : isHovered
+      ? "border-indigo-500 bg-white ring-1 ring-indigo-500"
+      : "border-gray-200 bg-white"
+  }
 `}
         onMouseEnter={() => {
           setIsHovered(true);
           onHover?.(provider);
+
+          // If another provider is selected, collapse it
+          if (
+            selectedProvider &&
+            selectedProvider !== provider.id
+          ) {
+            onSelect(null);
+            setExpandedProvider(null);
+
+            document.activeElement?.blur();
+          }
         }}
         onMouseLeave={() => {
           setIsHovered(false);
@@ -849,13 +852,16 @@ function ProviderCard({
         onClick={() => {
           if (isBlacklisting) return;
 
-          // Select only
-          onSelect(provider.id);
-          setExpandedProvider(
-            expandedProvider === provider.id
-              ? null
-              : provider.id
-          );
+          const isCurrent =
+            selectedProvider === provider.id;
+
+          if (isCurrent) {
+            onSelect(null);
+            setExpandedProvider(null);
+          } else {
+            onSelect(provider.id);
+            setExpandedProvider(provider.id);
+          }
         }}
 
 
@@ -863,13 +869,16 @@ function ProviderCard({
           if (isBlacklisting) return;
 
           // Select + Expand
-          onSelect(provider.id);
+          const isCurrent =
+            selectedProvider === provider.id;
 
-          setExpandedProvider(
-            expandedProvider === provider.id
-              ? null
-              : provider.id
-          );
+          if (isCurrent) {
+            onSelect(null);
+            setExpandedProvider(null);
+          } else {
+            onSelect(provider.id);
+            setExpandedProvider(provider.id);
+          }
         }}
         onKeyDown={(e) => {
           if (e.key === "Tab") {
@@ -900,13 +909,16 @@ function ProviderCard({
             if (isBlacklisting) return;
 
             // Select + Expand
-            onSelect(provider.id);
+            const isCurrent =
+              selectedProvider === provider.id;
 
-            setExpandedProvider(
-              expandedProvider === provider.id
-                ? null
-                : provider.id
-            );
+            if (isCurrent) {
+              onSelect(null);
+              setExpandedProvider(null);
+            } else {
+              onSelect(provider.id);
+              setExpandedProvider(provider.id);
+            }
 
             return;
           }

@@ -215,7 +215,7 @@ export function useBooking({ providers, events, locations, clients, categories, 
   const [loadingCalendar, setLoadingCalendar] = useState(false);
   const [slots, setSlots] = useState([]);
   const [clientLocation, setClientLocation] = useState(null);
-  const [searchWithin, setSearchWithin] = useState(20);
+  const [searchWithin, setSearchWithin] = useState(50);
   const [selectedClient, setSelectedClient] = useState("");
   const [query, setQuery] = useState("");
   const [suggestions, setSuggestions] = useState([]);
@@ -251,20 +251,28 @@ export function useBooking({ providers, events, locations, clients, categories, 
   const [services, setServices] = useState({});
 
   const providerMatchesSearchCategory = (provider) => {
-    if (!searchCategory || searchCategory === "ALL") return true;
 
-    const category = categories?.find(
-      c => c.id.toString() === searchCategory.toString()
+    if (
+        !searchCategory ||
+        searchCategory === "ALL"
+    ) {
+        return true;
+    }
+
+    const category = categories.find(
+        c => String(c.id) === String(searchCategory)
     );
 
-    if (!category) return true;
-
-    const categoryEvents = category.events.map(Number);
+    if (!category)
+        return true;
 
     return provider.services?.some(serviceId =>
-      categoryEvents.includes(Number(serviceId))
+        category.events
+            .map(Number)
+            .includes(Number(serviceId))
     );
-  };
+
+};
 
   // Initialize dynamic services state based on events
   useEffect(() => {

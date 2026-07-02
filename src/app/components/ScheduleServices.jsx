@@ -8,6 +8,7 @@ import ServiceCategorySection from "./ServiceCategorySection";
 import ServiceSelectionSection from "./ServiceSelectionSection";
 import AvailabilitySection from "./AvailabilitySection";
 import NoProvidersModal from "./NoProvidersModal";
+import SearchCategorySection from "./SearchCategorySection";
 import { Calendar, Clock, CheckCircle, ChevronRight, User, Scissors, CalendarDays, Clock4, FileText } from "lucide-react";
 import { useRouter } from "next/navigation";
 const dayMap = {
@@ -89,8 +90,6 @@ export default function ScheduleServices({ providers, events, locations, clients
     const [showNoProvidersModal, setShowNoProvidersModal] = useState(false);
     const cancelBtnRef = useRef(null);
     const router = useRouter();
-
-    console.log("showNoProvidersModal: ", showNoProvidersModal);
 
     const focusTrapRef = useRef(null);
     const createBtnRef = useRef(null);
@@ -2203,13 +2202,42 @@ export default function ScheduleServices({ providers, events, locations, clients
                                 <div className="space-y-6">
 
                                     {/* HEADER */}
-                                    <div>
-                                        <h2 className="text-xl font-semibold text-gray-800">
-                                            Booking Details
-                                        </h2>
-                                        <p className="text-sm text-gray-500">
-                                            You're ready to select a provider
-                                        </p>
+                                    <div className="flex items-center gap-6">
+                                        {/* LEFT SECTION - 70% */}
+                                        <div className="w-[50%]">
+                                            <h2 className="text-xl font-semibold text-gray-800">
+                                                Client Details
+                                            </h2>
+
+                                            <p className="text-sm text-gray-500 mt-1">
+                                                You're ready to select a provider
+                                            </p>
+                                        </div>
+
+                                        {/* RIGHT SECTION - 30% */}
+                                        <div className="w-[50%] space-y-1 bg-white">
+                                            <div className="flex justify-between items-center text-sm">
+                                                <span className="text-gray-600 text-[12px]">
+                                                    Search Radius:
+                                                </span>
+
+                                                <span className="font-semibold text-gray-800">
+                                                    {" " + searchWithin + " miles"}
+                                                </span>
+                                            </div>
+
+                                            <input
+                                                type="range"
+                                                min={5}
+                                                max={50}
+                                                step={5}
+                                                value={searchWithin}
+                                                onChange={(e) => setSearchWithin(Number(e.target.value))}
+                                                className="w-full accent-indigo-600"
+                                            />
+
+
+                                        </div>
                                     </div>
 
                                     {/* USER INFO */}
@@ -2218,14 +2246,14 @@ export default function ScheduleServices({ providers, events, locations, clients
                                         <div className="font-semibold text-gray-800 mb-2">
                                             Client Account:
                                         </div>
-                                        <div className="text-sm text-gray-600">
+                                        <div className="text-sm text-gray-600 mb-0">
                                             <span className="font-medium text-gray-800">Name:</span> {userName}
                                         </div>
 
-                                        <div className="text-sm text-gray-600">
+                                        <div className="text-sm text-gray-600 mb-0">
                                             <span className="font-medium text-gray-800">Email:</span> {userEmail}
                                         </div>
-                                        <div className="text-sm text-gray-600">
+                                        <div className="text-sm text-gray-600 mb-0">
                                             <span className="font-medium text-gray-800">Phone:</span> {formatPhoneDisplay(loginData.phonenumber)}
                                         </div>
                                     </div>
@@ -2247,29 +2275,12 @@ export default function ScheduleServices({ providers, events, locations, clients
                                         </button>
                                     </div>
 
-                                    {/* SEARCH RADIUS */}
-                                    <div className="border rounded-xl p-4 space-y-3">
-                                        <div className="flex justify-between text-sm">
-                                            <span className="text-gray-600">Search Radius</span>
-                                            <span className="font-medium text-gray-800">
-                                                {searchWithin} miles
-                                            </span>
-                                        </div>
-
-                                        <input
-                                            type="range"
-                                            min={5}
-                                            max={50}
-                                            step={5}
-                                            value={searchWithin}
-                                            onChange={(e) => setSearchWithin(Number(e.target.value))}
-                                            className="w-full accent-indigo-600"
-                                        />
-
-                                        <p className="text-xs text-gray-400">
-                                            Adjust how far you want to search for providers
-                                        </p>
-                                    </div>
+                                    <SearchCategorySection
+                                        providers={providers}
+                                        categories={categories}
+                                        value={searchCategory}
+                                        onChange={setSearchCategory}
+                                    />
 
                                 </div>
                             )}

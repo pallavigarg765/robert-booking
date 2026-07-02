@@ -127,12 +127,6 @@ export default function ServiceSelectionSection({
 
         <div className="space-y-2">
           <div>
-            {isProviderHidden && (
-              <div className="mb-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800">
-                This provider is hidden. Unhide/reactivate the provider to enable
-                service selection and scheduling.
-              </div>
-            )}
 
             {[...categories]
               .sort((a, b) => {
