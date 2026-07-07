@@ -1558,11 +1558,11 @@ export default function ScheduleServices({ providers, events, locations, clients
 
                                     <div>
                                         <h2 className="text-xl font-semibold text-gray-800">
-                                            Client Account:
+                                            Login:
 
                                         </h2>
                                         <p className="text-sm text-gray-500">
-                                            We’ll check your account and send a verification code
+                                            To login or open a new account, enter your email and phone number
                                         </p>
                                     </div>
 
@@ -1587,7 +1587,9 @@ export default function ScheduleServices({ providers, events, locations, clients
 
                                     {/* EMAIL */}
                                     <div>
-                                        <label className="text-sm text-gray-600">Email</label>
+                                        <label className="text-sm text-gray-600">
+                                            Email <span className="text-gray-400">(e.g., john@example.com)</span>
+                                        </label>
                                         <input
                                             type="email"
                                             disabled={showOtpField}
@@ -1632,12 +1634,14 @@ export default function ScheduleServices({ providers, events, locations, clients
                                             htmlFor="rememberMe"
                                             className="text-sm text-gray-600 cursor-pointer"
                                         >
-                                            Remember email for next log in
+                                            Remember login on this device for next time
                                         </label>
                                     </div>
                                     {/* PHONE */}
                                     <div>
-                                        <label className="text-sm text-gray-600">Phone</label>
+                                        <label className="text-sm text-gray-600">
+                                            Phone <span className="text-gray-400">(e.g., +91 98765 43210)</span>
+                                        </label>
                                         <input
                                             type="tel"
                                             disabled={showOtpField}
@@ -1673,7 +1677,7 @@ export default function ScheduleServices({ providers, events, locations, clients
                                     {showOtpField && (
                                         <div>
                                             <label className="text-sm text-gray-600">
-                                                Security Code
+                                                Security Code <span className="text-gray-400">(Enter 4-digit code)</span>
                                             </label>
 
                                             <input
@@ -1687,8 +1691,8 @@ export default function ScheduleServices({ providers, events, locations, clients
                                             />
 
                                             <p className="text-sm text-gray-500 mt-2">
-                                                A security code is texted each time you log in.
-                                                Enter <strong>4-digit code</strong> here.
+                                                A security code is texted to ypur phone each time you log in.
+                                                Enter it here.
                                             </p>
 
                                             {otpError && (
