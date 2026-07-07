@@ -91,6 +91,8 @@ export default function ScheduleServices({ providers, events, locations, clients
     const cancelBtnRef = useRef(null);
     const router = useRouter();
 
+    console.log("blacklistedProviders: ", blacklistedProviders);
+
     const focusTrapRef = useRef(null);
     const createBtnRef = useRef(null);
     const backBtnRef = useRef(null);
@@ -264,6 +266,7 @@ export default function ScheduleServices({ providers, events, locations, clients
         isSearchedAddress,
         limitedLocations,
         filteredProviders,
+        visibleProviders,
         userEmail,
         formData,
         address,
@@ -294,7 +297,8 @@ export default function ScheduleServices({ providers, events, locations, clients
         setFormData,
         setFilteredProviders,
         providerLimit,
-        setProviderLimit
+        setProviderLimit,
+        providersWithDistance
     } = useBooking({ providers, events, locations, clients, categories, searchCategory });
 
     // Custom handler for provider selection that automatically moves to next step
@@ -923,7 +927,7 @@ export default function ScheduleServices({ providers, events, locations, clients
             const data = await response.json();
             console.log("Blacklist API response:", data);
             if (data.success) {
-                setBlacklistedProviders(data.blockedProviderIds || []);
+                setBlacklistedProviders(data.hiddenProviders || []);
             } else {
                 console.error("Blacklist API error:", data.message);
             }
@@ -939,6 +943,12 @@ export default function ScheduleServices({ providers, events, locations, clients
         setCurrentView('blacklisted');
         loadBlacklistedProviders(userEmail);
     };
+
+    useEffect(() => {
+        if(userEmail){
+            loadBlacklistedProviders(userEmail);
+        }
+    }, [userEmail]);
 
     // Function to show normal providers
     const showProviders = () => {
@@ -2276,8 +2286,9 @@ export default function ScheduleServices({ providers, events, locations, clients
                                     </div>
 
                                     <SearchCategorySection
-                                        providers={providers}
-                                        categories={categories}
+                                        providers={filteredProviders}
+                                        blacklistedProviders={blacklistedProviders}
+                                        categories={availableCategories}
                                         value={searchCategory}
                                         onChange={setSearchCategory}
                                     />
@@ -2388,6 +2399,8 @@ export default function ScheduleServices({ providers, events, locations, clients
                                     onProviderUnhide={handleProviderUnhide}
                                     userAddress={address}
                                     showHiddenProviders={showHiddenProviders}
+                                    providersWithDistance={providersWithDistance}
+                                    setBlacklistedProviders={setBlacklistedProviders}
                                 />
 
                             )

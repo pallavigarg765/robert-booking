@@ -222,6 +222,7 @@ export function useBooking({ providers, events, locations, clients, categories, 
   const [isSearchedAddress, setIsSearchedAddress] = useState(false);
   const [limitedLocations, setLimitedLocations] = useState([]);
   const [filteredProviders, setFilteredProviders] = useState([]);
+  const [visibleProviders, setVisibleProviders] = useState([]);
   const [userEmail, setUserEmail] = useState("");
   const [providerLimit, setProviderLimit] = useState(4);
   // New loading states
@@ -230,6 +231,7 @@ export function useBooking({ providers, events, locations, clients, categories, 
   const [loadingTimeSlots, setLoadingTimeSlots] = useState(false);
   const [submittingBooking, setSubmittingBooking] = useState(false);
   const [loadingAddress, setLoadingAddress] = useState(false);
+  const [providersWithDistanceState, setProvidersWithDistanceState] = useState([]);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -253,26 +255,26 @@ export function useBooking({ providers, events, locations, clients, categories, 
   const providerMatchesSearchCategory = (provider) => {
 
     if (
-        !searchCategory ||
-        searchCategory === "ALL"
+      !searchCategory ||
+      searchCategory === "ALL"
     ) {
-        return true;
+      return true;
     }
 
     const category = categories.find(
-        c => String(c.id) === String(searchCategory)
+      c => String(c.id) === String(searchCategory)
     );
 
     if (!category)
-        return true;
+      return true;
 
     return provider.services?.some(serviceId =>
-        category.events
-            .map(Number)
-            .includes(Number(serviceId))
+      category.events
+        .map(Number)
+        .includes(Number(serviceId))
     );
 
-};
+  };
 
   // Initialize dynamic services state based on events
   useEffect(() => {
@@ -823,25 +825,21 @@ export function useBooking({ providers, events, locations, clients, categories, 
       providersWithDistance.length
     );
 
-    const categoryFilteredProviders = providersWithDistance.filter(providerMatchesSearchCategory);
-
-    console.log(
-      "Providers after category filtering:",
-      categoryFilteredProviders.length
-    );
-
-    /* ---------------------------------------------
-       STEP 3: LIMIT TO NEAREST 4
-    ---------------------------------------------- */
-
-    const limitedProviders = categoryFilteredProviders
+    setProvidersWithDistanceState(providersWithDistance);
+    const limitedProviders = providersWithDistance;
     /* ---------------------------------------------
        STEP 4 + 5: BLACKLIST + BOOKING PRIORITY
     ---------------------------------------------- */
 
     async function filterProviders() {
       if (!userEmail) {
-        setFilteredProviders(limitedProviders);
+
+        setVisibleProviders(limitedProviders);
+
+        setFilteredProviders(
+          limitedProviders.filter(providerMatchesSearchCategory)
+        );
+
         setLoadingProviders(false);
         return;
       }
@@ -880,13 +878,31 @@ export function useBooking({ providers, events, locations, clients, categories, 
           if (aLast && bLast) return bLast - aLast;
           if (aLast) return -1;
           if (bLast) return 1;
+
           return a.distance - b.distance;
         });
 
-        setFilteredProviders(finalList);
+        // ⭐ Save ALL visible providers
+        setVisibleProviders(finalList);
+
+        // ⭐ Now apply category filter
+        const categoryFilteredProviders =
+          finalList.filter(providerMatchesSearchCategory);
+
+        console.log(
+          "Providers after category filtering:",
+          categoryFilteredProviders.length
+        );
+
+        // ⭐ Show only providers matching the selected category
+        setFilteredProviders(categoryFilteredProviders);
       } catch (err) {
         console.error("Provider filtering error:", err);
-        setFilteredProviders(limitedProviders);
+        setVisibleProviders(limitedProviders);
+
+        setFilteredProviders(
+          limitedProviders.filter(providerMatchesSearchCategory)
+        );
       } finally {
         setLoadingProviders(false);
       }
@@ -924,6 +940,7 @@ export function useBooking({ providers, events, locations, clients, categories, 
     isSearchedAddress,
     limitedLocations,
     filteredProviders,
+    visibleProviders,
     userEmail,
     formData,
     address,
@@ -959,6 +976,7 @@ export function useBooking({ providers, events, locations, clients, categories, 
     setFilteredProviders,
     providerLimit,
     setProviderLimit,
+    providersWithDistance: providersWithDistanceState,
 
   };
 }

@@ -29,7 +29,8 @@ export default function ProvidersSection({
   userAddress,
   provider,
   showHiddenProviders = false,
-
+  providersWithDistance = [],
+  setBlacklistedProviders
 }) {
   const [blacklistingProvider, setBlacklistingProvider] = useState(null);
   const [activeProvider, setActiveProvider] = useState(null);
@@ -70,6 +71,7 @@ export default function ProvidersSection({
         );
 
         setHiddenProviders(updatedHidden);
+        setBlacklistedProviders(updatedHidden);
 
         localStorage.setItem(
           hiddenStorageKey,
@@ -84,7 +86,7 @@ export default function ProvidersSection({
           onProviderUnhide(providerId);
         }
 
-        setShowHiddenProviders(false);
+        // setShowHiddenProviders(false);
       }
     } catch (error) {
       console.error(error);
@@ -179,6 +181,8 @@ export default function ProvidersSection({
     );
   }, [filteredProviders, locations, clientLocation, searchWithin]);
 
+  console.log("filteredProviders: ", filteredProviders);
+
   const visibleProviders = filteredProviders.filter((provider) => {
     if (!userEmail) return true;
 
@@ -195,14 +199,14 @@ export default function ProvidersSection({
   // ? hiddenProviderList
   // : limitedVisibleProviders;
 
-  const hiddenProviderList = providers.filter((provider) => {
-    const isHidden = hiddenProviders.some(
+  const hiddenProviderList = providersWithDistance.filter((provider) => {
+    if (!userEmail) return true;
+
+    return hiddenProviders.some(
       (item) =>
         String(item.providerId) === String(provider.id) &&
         item.zip === userAddress?.zip
     );
-
-    return isHidden;
   });
 
 
@@ -221,6 +225,7 @@ export default function ProvidersSection({
 
       const updatedHidden = [...hiddenProviders, hiddenItem];
       setHiddenProviders(updatedHidden);
+      setBlacklistedProviders(updatedHidden);
 
       localStorage.setItem(
         hiddenStorageKey,
@@ -244,6 +249,9 @@ export default function ProvidersSection({
   const displayedProviders = showHiddenProviders
     ? hiddenProviderList
     : visibleProviders.slice(0, providerLimit);
+
+    // console.log("displayedProviders: ", displayedProviders);
+
   useEffect(() => {
     providerRefs.current = [];
   }, [showHiddenProviders]);
