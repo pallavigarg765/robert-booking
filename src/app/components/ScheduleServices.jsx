@@ -168,11 +168,20 @@ export default function ScheduleServices({ providers, events, locations, clients
 
     useEffect(() => {
         const savedEmail = localStorage.getItem("rememberedEmail");
+        const savedPhone = localStorage.getItem("rememberedPhone");
 
         if (savedEmail) {
             setLoginData(prev => ({
                 ...prev,
                 email: savedEmail,
+                rememberMe: true,
+            }));
+        }
+
+        if (savedPhone) {
+            setLoginData(prev => ({
+                ...prev,
+                phonenumber: savedPhone,
                 rememberMe: true,
             }));
         }
@@ -220,6 +229,20 @@ export default function ScheduleServices({ providers, events, locations, clients
         setUserFlow("authenticated");
         setShowStateDropdown(false);
         setHighlightIndex(-1);
+    };
+
+    const handleCancelOTP = () => {
+        setShowOtpField(false);
+        setOtp("");
+        setOtpError("");
+        setOtpLoading(false);
+
+        // Allow editing again
+        setLoginData(prev => ({
+            ...prev,
+            email: prev.email,
+            phonenumber: prev.phonenumber,
+        }));
     };
 
     const cleanName = (name = "") =>
@@ -749,8 +772,10 @@ export default function ScheduleServices({ providers, events, locations, clients
 
         if (loginData.rememberMe) {
             localStorage.setItem("rememberedEmail", loginData.email);
+            localStorage.setItem("rememberedPhone", loginData.phonenumber);
         } else {
             localStorage.removeItem("rememberedEmail");
+            localStorage.removeItem("rememberedPhone");
         }
 
         setOtpLoading(true);
@@ -945,7 +970,7 @@ export default function ScheduleServices({ providers, events, locations, clients
     };
 
     useEffect(() => {
-        if(userEmail){
+        if (userEmail) {
             loadBlacklistedProviders(userEmail);
         }
     }, [userEmail]);
@@ -1271,10 +1296,11 @@ export default function ScheduleServices({ providers, events, locations, clients
         setSelectedProvider(null);
 
         const rememberedEmail = localStorage.getItem("rememberedEmail");
+        const rememberedPhone = localStorage.getItem("rememberedPhone");
 
         setLoginData({
             email: rememberedEmail ? rememberedEmail : "",
-            phonenumber: "",
+            phonenumber: rememberedPhone ? rememberedPhone : "",
             rememberMe: true,
         });
         // setUser(null);
@@ -1691,7 +1717,7 @@ export default function ScheduleServices({ providers, events, locations, clients
                                             />
 
                                             <p className="text-sm text-gray-500 mt-2">
-                                                A security code is texted to ypur phone each time you log in.
+                                                A security code is texted to your phone each time you log in.
                                                 Enter it here.
                                             </p>
 
@@ -1703,29 +1729,40 @@ export default function ScheduleServices({ providers, events, locations, clients
 
                                     {otpError && <p className="text-sm text-red-500">{otpError}</p>}
 
-                                    <button
-                                        type={showOtpField ? "button" : "submit"}
-                                        onClick={showOtpField ? handleVerifyOTP : undefined}
-                                        disabled={
-                                            showOtpField
-                                                ? otp.length !== 6
-                                                : !isFormValid || otpLoading
-                                        }
-                                        className={`w-full py-3 rounded-xl font-medium transition ${showOtpField
-                                            ? otp.length === 6
-                                                ? "bg-indigo-600 text-white"
-                                                : "bg-gray-400 text-gray-200 cursor-not-allowed"
-                                            : isFormValid
-                                                ? "bg-indigo-600 hover:bg-indigo-700 text-white"
-                                                : "bg-gray-400 text-gray-200 cursor-not-allowed"
-                                            }`}
-                                    >
-                                        {showOtpField
-                                            ? "Verify Code"
-                                            : otpLoading
-                                                ? "Checking..."
-                                                : "Continue"}
-                                    </button>
+                                    {showOtpField ? (
+                                        <div className="flex gap-3">
+                                            <button
+                                                type="button"
+                                                onClick={handleCancelOTP}
+                                                className="flex-1 py-3 rounded-xl border border-gray-300 bg-white text-gray-700 hover:bg-gray-100 transition"
+                                            >
+                                                Cancel
+                                            </button>
+
+                                            <button
+                                                type="button"
+                                                onClick={handleVerifyOTP}
+                                                disabled={otp.length !== 6 || otpLoading}
+                                                className={`flex-1 py-3 rounded-xl font-medium transition ${otp.length === 6 && !otpLoading
+                                                        ? "bg-indigo-600 hover:bg-indigo-700 text-white"
+                                                        : "bg-gray-400 text-gray-200 cursor-not-allowed"
+                                                    }`}
+                                            >
+                                                {otpLoading ? "Verifying..." : "Verify Code"}
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <button
+                                            type="submit"
+                                            disabled={!isFormValid || otpLoading}
+                                            className={`w-full py-3 rounded-xl font-medium transition ${isFormValid && !otpLoading
+                                                    ? "bg-indigo-600 hover:bg-indigo-700 text-white"
+                                                    : "bg-gray-400 text-gray-200 cursor-not-allowed"
+                                                }`}
+                                        >
+                                            {otpLoading ? "Checking..." : "Continue"}
+                                        </button>
+                                    )}
                                 </form>
                             )}
 
@@ -2220,7 +2257,7 @@ export default function ScheduleServices({ providers, events, locations, clients
                                         {/* LEFT SECTION - 70% */}
                                         <div className="w-[50%]">
                                             <h2 className="text-xl font-semibold text-gray-800">
-                                                Client Details
+                                                Client
                                             </h2>
 
                                             <p className="text-sm text-gray-500 mt-1">
@@ -2289,13 +2326,13 @@ export default function ScheduleServices({ providers, events, locations, clients
                                         </button>
                                     </div>
 
-                                    <SearchCategorySection
+                                    {/* <SearchCategorySection
                                         providers={filteredProviders}
                                         blacklistedProviders={blacklistedProviders}
                                         categories={availableCategories}
                                         value={searchCategory}
                                         onChange={setSearchCategory}
-                                    />
+                                    /> */}
 
                                 </div>
                             )}
@@ -2396,7 +2433,7 @@ export default function ScheduleServices({ providers, events, locations, clients
                                     onProviderSelect={handleProviderSelect}
                                     onBlacklist={handleBlacklist}
                                     events={events}
-                                    categories={categories}
+                                    categories={availableCategories}
                                     compactMode
                                     setHoveredProvider={setHoveredProvider}
                                     allProviders={allProviders}
@@ -2405,6 +2442,9 @@ export default function ScheduleServices({ providers, events, locations, clients
                                     showHiddenProviders={showHiddenProviders}
                                     providersWithDistance={providersWithDistance}
                                     setBlacklistedProviders={setBlacklistedProviders}
+                                    blacklistedProviders={blacklistedProviders}
+                                    searchCategory={searchCategory}
+                                    setSearchCategory={setSearchCategory}
                                 />
 
                             )

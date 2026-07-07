@@ -4,6 +4,7 @@ import ProvidersMap from "./ProvidersMap";
 import { useState, useEffect, useMemo, useRef } from "react";
 import Link from "next/link";
 import { Info, X } from "lucide-react";
+import SearchCategorySection from "./SearchCategorySection";
 
 export default function ProvidersSection({
   providers = [],
@@ -30,7 +31,10 @@ export default function ProvidersSection({
   provider,
   showHiddenProviders = false,
   providersWithDistance = [],
-  setBlacklistedProviders
+  setBlacklistedProviders,
+  blacklistedProviders = [],
+  searchCategory,
+  setSearchCategory,
 }) {
   const [blacklistingProvider, setBlacklistingProvider] = useState(null);
   const [activeProvider, setActiveProvider] = useState(null);
@@ -390,6 +394,14 @@ export default function ProvidersSection({
               Loading...
             </div>
           )}
+
+          <SearchCategorySection
+              providers={filteredProviders}
+              blacklistedProviders={blacklistedProviders}
+              categories={categories}
+              value={searchCategory}
+              onChange={setSearchCategory}
+          />
 
           <div className="space-y-3">
 

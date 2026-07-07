@@ -20,6 +20,7 @@ export default function AvailabilitySection({
     const [currentWeekIndex, setCurrentWeekIndex] = useState(0);
     const [currentMonth, setCurrentMonth] = useState(new Date());
     const [expandedDateKey, setExpandedDateKey] = useState(null);
+    const [timePreference, setTimePreference] = useState("");
     const [dayTimeRanges, setDayTimeRanges] = useState({});
     const dayRefs = useRef({});
     const SLOT_INTERVAL = 30;
@@ -427,6 +428,7 @@ export default function AvailabilitySection({
         if (!day.isAvailable) return;
 
         onDateSelect(day.date);
+        setTimePreference("");
 
         setExpandedDateKey((prevKey) =>
             prevKey === day.key ? null : day.key
@@ -503,10 +505,21 @@ export default function AvailabilitySection({
         return result;
     })();
 
-    const filteredSlots =
+    const filteredSlots = (
         selectedDate && isSameDay(selectedDate, today)
             ? slots.filter(slot => !isPastTimeSlot(slot, selectedDate))
-            : slots;
+            : slots
+    ).filter(slot => {
+        if (!timePreference) return true;
+
+        const hour = Number(slot.split(":")[0]);
+
+        if (timePreference === "morning") {
+            return hour < 12;
+        }
+
+        return hour >= 12;
+    });
 
 
     /* =========================
@@ -519,77 +532,77 @@ export default function AvailabilitySection({
                 <div className="flex gap-2">
 
                     {/* Previous Month */}
-                   <button
-  onClick={() => {
-    if (!selectedDate) return;
+                    <button
+                        onClick={() => {
+                            if (!selectedDate) return;
 
-    let targetMonth;
-    let newDate;
+                            let targetMonth;
+                            let newDate;
 
-    const isFirstOfMonth = selectedDate.getDate() === 1;
+                            const isFirstOfMonth = selectedDate.getDate() === 1;
 
-    if (!isFirstOfMonth) {
-      // First click → go to same month
-      targetMonth = new Date(
-        selectedDate.getFullYear(),
-        selectedDate.getMonth(),
-        1
-      );
-    } else {
-      // Second click → previous month
-      targetMonth = new Date(
-        selectedDate.getFullYear(),
-        selectedDate.getMonth() - 1,
-        1
-      );
-    }
+                            if (!isFirstOfMonth) {
+                                // First click → go to same month
+                                targetMonth = new Date(
+                                    selectedDate.getFullYear(),
+                                    selectedDate.getMonth(),
+                                    1
+                                );
+                            } else {
+                                // Second click → previous month
+                                targetMonth = new Date(
+                                    selectedDate.getFullYear(),
+                                    selectedDate.getMonth() - 1,
+                                    1
+                                );
+                            }
 
-    // Find first valid (not past + not day off) date in that month
-    const daysInMonth = new Date(
-      targetMonth.getFullYear(),
-      targetMonth.getMonth() + 1,
-      0
-    ).getDate();
+                            // Find first valid (not past + not day off) date in that month
+                            const daysInMonth = new Date(
+                                targetMonth.getFullYear(),
+                                targetMonth.getMonth() + 1,
+                                0
+                            ).getDate();
 
-    for (let d = 1; d <= daysInMonth; d++) {
-      const checkDate = new Date(
-        targetMonth.getFullYear(),
-        targetMonth.getMonth(),
-        d
-      );
+                            for (let d = 1; d <= daysInMonth; d++) {
+                                const checkDate = new Date(
+                                    targetMonth.getFullYear(),
+                                    targetMonth.getMonth(),
+                                    d
+                                );
 
-      const key = getLocalDateKey(checkDate);
-      const dayInfo = workCalandar?.[key];
+                                const key = getLocalDateKey(checkDate);
+                                const dayInfo = workCalandar?.[key];
 
-      const isDayOff =
-        !dayInfo ||
-        dayInfo.is_day_off === 1 ||
-        dayInfo.is_day_off === "1" ||
-        dayInfo.is_day_off === true;
+                                const isDayOff =
+                                    !dayInfo ||
+                                    dayInfo.is_day_off === 1 ||
+                                    dayInfo.is_day_off === "1" ||
+                                    dayInfo.is_day_off === true;
 
-      const isPast = checkDate < today;
+                                const isPast = checkDate < today;
 
-      if (!isDayOff && !isPast) {
-        newDate = checkDate;
-        break;
-      }
-    }
+                                if (!isDayOff && !isPast) {
+                                    newDate = checkDate;
+                                    break;
+                                }
+                            }
 
-    if (!newDate) return; // no valid day found
+                            if (!newDate) return; // no valid day found
 
-    setCurrentMonth(
-      new Date(
-        newDate.getFullYear(),
-        newDate.getMonth(),
-        1
-      )
-    );
+                            setCurrentMonth(
+                                new Date(
+                                    newDate.getFullYear(),
+                                    newDate.getMonth(),
+                                    1
+                                )
+                            );
 
-    onDateSelect(newDate);
-  }}
->
-  <ChevronsLeft className="w-5 h-5" />
-</button>
+                            onDateSelect(newDate);
+                        }}
+                    >
+                        <ChevronsLeft className="w-5 h-5" />
+                    </button>
                     {/* Previous Week */}
                     <button
                         onClick={() => handleWeekChange("prev")}
@@ -739,37 +752,78 @@ export default function AvailabilitySection({
                                         <div className="text-center py-2">
                                             <div className="w-6 h-6 border-2 border-orange-500 border-t-transparent rounded-full animate-spin mx-auto" />
                                         </div>
-                                    ) : filteredSlots.length > 0 ? (
-                                        <div className="grid grid-cols-2 gap-2">
-                                            {filteredSlots.map((slot, index) => {
-                                                const isValid = canFitAppointment(index, filteredSlots);
+                                    ) : (
+                                        <>
+                                            {/* Morning / Afternoon Selection */}
+                                            <div className="mb-4">
+                                                <div className="text-sm font-medium text-gray-700 mb-2">
+                                                    Preferred appointment time
+                                                </div>
 
-                                                return (
+                                                <div className="flex gap-3">
                                                     <button
-                                                        key={slot}
-                                                        disabled={!isValid}
-                                                        onClick={() => isValid && onTimeSelect(slot)}
-                                                        className={`p-2 text-xs rounded-lg ${!isValid
-                                                            ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                                                            : selectedTime === slot
-                                                                ? "bg-orange-500 text-white"
-                                                                : "bg-white border"
+                                                        type="button"
+                                                        onClick={() => setTimePreference("morning")}
+                                                        className={`flex-1 py-2 rounded-lg border transition ${timePreference === "morning"
+                                                                ? "bg-orange-500 text-white border-orange-500"
+                                                                : "bg-white border-gray-300 hover:bg-gray-50"
                                                             }`}
                                                     >
-                                                        {formatTime(slot)}
+                                                        Morning
+                                                        <div className="text-xs opacity-80">
+                                                            Before 12 PM
+                                                        </div>
                                                     </button>
-                                                );
-                                            })}
 
-                                        </div>
-                                    ) : (
-                                        <div className="flex items-center gap-2 text-xs text-gray-500">
-                                            <Clock className="w-4 h-4" />
-                                            {selectedDate && isSameDay(selectedDate, today)
-                                                ? "No upcoming slots today"
-                                                : "No slots available"}
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setTimePreference("afternoon")}
+                                                        className={`flex-1 py-2 rounded-lg border transition ${timePreference === "afternoon"
+                                                                ? "bg-orange-500 text-white border-orange-500"
+                                                                : "bg-white border-gray-300 hover:bg-gray-50"
+                                                            }`}
+                                                    >
+                                                        Afternoon
+                                                        <div className="text-xs opacity-80">
+                                                            12 PM & Later
+                                                        </div>
+                                                    </button>
+                                                </div>
+                                            </div>
 
-                                        </div>
+                                            {!timePreference ? (
+                                                <div className="text-center text-sm text-gray-500 py-4">
+                                                    Please select Morning or Afternoon.
+                                                </div>
+                                            ) : filteredSlots.length > 0 ? (
+                                                <div className="grid grid-cols-2 gap-2">
+                                                    {filteredSlots.map((slot, index) => {
+                                                        const isValid = canFitAppointment(index, filteredSlots);
+
+                                                        return (
+                                                            <button
+                                                                key={slot}
+                                                                disabled={!isValid}
+                                                                onClick={() => isValid && onTimeSelect(slot)}
+                                                                className={`p-2 text-xs rounded-lg ${!isValid
+                                                                        ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                                                                        : selectedTime === slot
+                                                                            ? "bg-orange-500 text-white"
+                                                                            : "bg-white border"
+                                                                    }`}
+                                                            >
+                                                                {formatTime(slot)}
+                                                            </button>
+                                                        );
+                                                    })}
+                                                </div>
+                                            ) : (
+                                                <div className="flex items-center gap-2 text-xs text-gray-500">
+                                                    <Clock className="w-4 h-4" />
+                                                    No {timePreference} appointments available.
+                                                </div>
+                                            )}
+                                        </>
                                     )}
                                 </div>
                             )}
