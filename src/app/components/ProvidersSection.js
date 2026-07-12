@@ -395,13 +395,16 @@ export default function ProvidersSection({
             </div>
           )}
 
-          <SearchCategorySection
-              providers={filteredProviders}
-              blacklistedProviders={blacklistedProviders}
-              categories={categories}
-              value={searchCategory}
-              onChange={setSearchCategory}
-          />
+          {!showHiddenProviders && (
+            <SearchCategorySection
+                providers={filteredProviders}
+                blacklistedProviders={blacklistedProviders}
+                categories={categories}
+                value={searchCategory}
+                onChange={setSearchCategory}
+            />
+          )}
+
 
           <div className="space-y-3">
 

@@ -59,7 +59,9 @@ export default function ScheduleServices({ providers, events, locations, clients
     const [otpVerified, setOtpVerified] = useState(false);
     const [otp, setOtp] = useState("");
     const [otpError, setOtpError] = useState("");
-    const [otpLoading, setOtpLoading] = useState(false);
+    const [loginLoading, setLoginLoading] = useState(false);
+    const [verifyLoading, setVerifyLoading] = useState(false);
+    const [resendLoading, setResendLoading] = useState(false);
     const availabilityScrollRef = useRef(null);
     const [searchCategory, setSearchCategory] = useState("ALL");
     const [providerCategories, setProviderCategories] = useState([]);
@@ -86,12 +88,16 @@ export default function ScheduleServices({ providers, events, locations, clients
     const stateDropdownRef = useRef(null);
     const addressRefs = useRef([]);
     const continueBtnRef = useRef(null);
+    const otpInputRef = useRef(null);
+    const loginScrollRef = useRef(null);
+
     const [highlightIndex, setHighlightIndex] = useState(-1);
     const [showNoProvidersModal, setShowNoProvidersModal] = useState(false);
     const cancelBtnRef = useRef(null);
     const router = useRouter();
 
-    console.log("blacklistedProviders: ", blacklistedProviders);
+    const [resendTimer, setResendTimer] = useState(30);
+    const [canResend, setCanResend] = useState(false);
 
     const focusTrapRef = useRef(null);
     const createBtnRef = useRef(null);
@@ -202,7 +208,6 @@ export default function ScheduleServices({ providers, events, locations, clients
         document.addEventListener("mousedown", handleClickOutside);
         return () => document.removeEventListener("mousedown", handleClickOutside);
     }, []);
-
 
     const handleCancelEditAddress = () => {
         handleFieldChange({
@@ -355,8 +360,11 @@ export default function ScheduleServices({ providers, events, locations, clients
         }
     };
 
+    console.log("filteredProviders in schedule services: ", filteredProviders);
+
     const triggerProviderSearch = async () => {
         try {
+            console.log("SEARCH START");
             setIsSearchingProviders(true);
             setHasSearched(false);
             setSearchCompleted(false); // ✅ NEW
@@ -366,13 +374,29 @@ export default function ScheduleServices({ providers, events, locations, clients
             await getLatLngFromAddress();
             await new Promise((r) => setTimeout(r, 0));
             setHasSearched(true);
-            setSearchCompleted(true); // ✅ ONLY AFTER EVERYTHING
+            // setSearchCompleted(true); // ✅ ONLY AFTER EVERYTHING
         } catch (err) {
             console.error(err);
         } finally {
+            console.log("SEARCH END");
             setIsSearchingProviders(false);
         }
     };
+
+    useEffect(() => {
+        if (
+            hasSearched &&
+            !loadingProviders &&
+            clientLocation
+        ) {
+            setSearchCompleted(true);
+        }
+    }, [
+        hasSearched,
+        loadingProviders,
+        clientLocation,
+        filteredProviders,
+    ]);
 
     const handleSaveAddress = async () => {
         try {
@@ -507,27 +531,35 @@ export default function ScheduleServices({ providers, events, locations, clients
         }
     }, [selectedServices, activeStep]);
 
+    
+
     const shouldShowNoProviders =
         otpVerified &&
         hasSearched &&
+        searchCompleted &&
         clientLocation &&
         !isSearchingProviders &&
         !loadingProviders &&
         filteredProviders.length === 0;
+        
 
     useEffect(() => {
+        let timeout;
 
         if (shouldShowNoProviders) {
-            setTimeout(() => {
+            timeout = setTimeout(() => {
                 setShowNoProvidersModal(true);
             }, 1500);
         } else {
             setShowNoProvidersModal(false);
         }
 
-    }, [
-        shouldShowNoProviders
-    ]);
+        return () => {
+            if (timeout) {
+                clearTimeout(timeout);
+            }
+        };
+    }, [shouldShowNoProviders]);
 
     useEffect(() => {
         if (filteredProviders.length > 0) {
@@ -537,18 +569,37 @@ export default function ScheduleServices({ providers, events, locations, clients
 
     useEffect(() => {
         if (!addressReady) return;
+        if (!address.fullAddress) return;
 
         const runSearch = async () => {
-            console.log("🚀 Address ready, triggering search...", address);
+            console.log("🚀 Address ready:", address);
 
             await triggerProviderSearch();
 
-            // reset flag (important)
             setAddressReady(false);
         };
 
         runSearch();
-    }, [addressReady]);
+
+    }, [
+        addressReady,
+        address.fullAddress,
+    ]);
+
+    useEffect(() => {
+        if (
+            otpVerified &&
+            userFlow === "authenticated" &&
+            address.fullAddress &&
+            !hasSearched
+        ) {
+            setAddressReady(true);
+        }
+    }, [
+        otpVerified,
+        userFlow,
+        address.fullAddress,
+    ]);
 
     // Custom handler for date selection
     const handleDateSelect = (date) => {
@@ -602,7 +653,6 @@ export default function ScheduleServices({ providers, events, locations, clients
                 const parsed = JSON.parse(savedAuth);
 
                 if (parsed.isAuthenticated) {
-                    console.log("✅ Restoring auth session");
 
                     // ✅ REQUIRED (you were missing this)
                     setOtpVerified(true);
@@ -624,7 +674,6 @@ export default function ScheduleServices({ providers, events, locations, clients
                     if (parsed.userData?.fullAddress) {
                         const addr = parsed.userData;
 
-                        // fill form
                         setFormData(prev => ({
                             ...prev,
                             fullAddress: addr.fullAddress || "",
@@ -633,12 +682,7 @@ export default function ScheduleServices({ providers, events, locations, clients
                             zip: addr.zip || ""
                         }));
 
-                        // 👉 IMPORTANT: decide flow
-                        setUserFlow("confirm-address");
-
-                        // 👉 trigger provider search after hydration
-                        setAddressReady(true);
-
+                        setUserFlow("authenticated");
                     } else {
                         setUserFlow("collect-address");
                     }
@@ -655,6 +699,52 @@ export default function ScheduleServices({ providers, events, locations, clients
 
         loadAuthState();
     }, []);
+
+    useEffect(() => {
+        if (
+            !otpVerified ||
+            userFlow !== "authenticated" ||
+            !formData.fullAddress
+        ) {
+            return;
+        }
+
+        handleFieldChange({
+            target: {
+                name: "fullAddress",
+                value: formData.fullAddress,
+            },
+        });
+
+        handleFieldChange({
+            target: {
+                name: "city",
+                value: formData.city,
+            },
+        });
+
+        handleFieldChange({
+            target: {
+                name: "state",
+                value: formData.state,
+            },
+        });
+
+        handleFieldChange({
+            target: {
+                name: "zip",
+                value: formData.zip,
+            },
+        });
+
+    }, [
+        otpVerified,
+        userFlow,
+        formData.fullAddress,
+        formData.city,
+        formData.state,
+        formData.zip,
+    ]);
 
     // Listen for reset events from Header and NoProvidersSection
     useEffect(() => {
@@ -778,10 +868,10 @@ export default function ScheduleServices({ providers, events, locations, clients
             localStorage.removeItem("rememberedPhone");
         }
 
-        setOtpLoading(true);
+        setLoginLoading(true);
 
         try {
-            const checkRes = await fetch("/api/auth/check-user", {
+            const checkRes = await fetch("/api/auth/login", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -822,21 +912,25 @@ export default function ScheduleServices({ providers, events, locations, clients
 
                 // ✅ Email + Phone correct → Send OTP
                 // if (checkData.loginAllowed) {
-                const otpRes = await fetch("/api/auth/send-otp", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        email: loginData.email,
-                        phonenumber: loginData.phonenumber,
-                    }),
-                });
+                // const otpRes = await fetch("/api/auth/send-otp", {
+                //     method: "POST",
+                //     headers: { "Content-Type": "application/json" },
+                //     body: JSON.stringify({
+                //         email: loginData.email,
+                //         phonenumber: loginData.phonenumber,
+                //     }),
+                // });
 
-                const otpData = await otpRes.json();
+                // const otpData = await otpRes.json();
 
-                if (!otpRes.ok || !otpData.success) {
-                    setOtpError(otpData.message || "Failed to send OTP");
-                    return;
-                }
+                // if (!otpRes.ok || !otpData.success) {
+                //     setOtpError(otpData.message || "Failed to send OTP");
+                //     return;
+                // }
+
+                setShowOtpField(true);
+                setResendTimer(30);
+                setCanResend(false);
 
                 setShowOtpField(true);
             }
@@ -850,21 +944,21 @@ export default function ScheduleServices({ providers, events, locations, clients
             console.error(error);
             setOtpError("Network error. Please try again.");
         } finally {
-            setOtpLoading(false);
+            setLoginLoading(false);
         }
     };
 
     const handleVerifyOTP = async (e) => {
         e.preventDefault();
 
-        setOtpLoading(true);
+        setVerifyLoading(true);
         setHasSearched(false);
         setOtpError("");
 
         const phoneRegex = /^[0-9]{10}$/;
         if (!phoneRegex.test(loginData.phonenumber)) {
             setOtpError("Invalid phone number format");
-            setOtpLoading(false);
+            setVerifyLoading(false);
             return;
         }
 
@@ -905,11 +999,8 @@ export default function ScheduleServices({ providers, events, locations, clients
 
                 // Auto fill last address if exists
                 if (!result.user.fullAddress) {
-                    setUserFlow("collect-address"); // new user
+                    setUserFlow("collect-address");
                 } else {
-                    setUserFlow("confirm-address"); // existing user
-
-                    // also prefill address into form
                     setFormData(prev => ({
                         ...prev,
                         fullAddress: result.user.fullAddress,
@@ -918,7 +1009,11 @@ export default function ScheduleServices({ providers, events, locations, clients
                         zip: result.user.zip || "",
                         name: result.user.name || "",
                     }));
+
+                    setUserFlow("authenticated");
+                    setAddressReady(true);
                 }
+
                 setUserName(result.user.name)
                 setUserEmail(result.user.email);
                 setFormData(prev => ({
@@ -938,7 +1033,7 @@ export default function ScheduleServices({ providers, events, locations, clients
             console.error(error);
             setOtpError("Network error. Please try again.");
         } finally {
-            setOtpLoading(false);
+            setVerifyLoading(false);
         }
     };
 
@@ -974,6 +1069,23 @@ export default function ScheduleServices({ providers, events, locations, clients
             loadBlacklistedProviders(userEmail);
         }
     }, [userEmail]);
+
+    useEffect(() => {
+        if (!showOtpField || canResend) return;
+
+        const timer = setInterval(() => {
+            setResendTimer((prev) => {
+                if (prev <= 1) {
+                    clearInterval(timer);
+                    setCanResend(true);
+                    return 0;
+                }
+                return prev - 1;
+            });
+        }, 1000);
+
+        return () => clearInterval(timer);
+    }, [showOtpField, canResend]);
 
     // Function to show normal providers
     const showProviders = () => {
@@ -1281,6 +1393,25 @@ export default function ScheduleServices({ providers, events, locations, clients
         }
     }, [selectedDate]);
 
+    useEffect(() => {
+        if (!showOtpField) return;
+
+        // Wait until React renders the OTP field
+        setTimeout(() => {
+            // Smooth scroll to bottom of login section
+            loginScrollRef.current?.scrollTo({
+                top: loginScrollRef.current.scrollHeight,
+                behavior: "smooth",
+            });
+
+            // Focus OTP input
+            otpInputRef.current?.focus();
+
+            // Optional: select existing text if any
+            otpInputRef.current?.select();
+        }, 150);
+    }, [showOtpField]);
+
     const handleLogout = () => {
         // Clear session storage
         localStorage.removeItem("userAuth");
@@ -1318,6 +1449,43 @@ export default function ScheduleServices({ providers, events, locations, clients
 
         // Optional: notify other components
         window.dispatchEvent(new Event("session-changed"));
+    };
+
+    const handleResendOTP = async () => {
+        try {
+            setResendLoading(true);
+            setOtpError("");
+
+            const response = await fetch("/api/auth/send-otp", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    email: loginData.email,
+                    phonenumber: loginData.phonenumber,
+                }),
+            });
+
+            const result = await response.json();
+
+            if (!response.ok || !result.success) {
+                setOtpError(result.message || "Failed to resend OTP");
+                return;
+            }
+
+            setOtp("");
+            setCanResend(false);
+            setResendTimer(30);
+
+            otpInputRef.current?.focus();
+
+        } catch (error) {
+            console.error(error);
+            setOtpError("Unable to resend OTP");
+        } finally {
+            setResendLoading(false);
+        }
     };
 
     useEffect(() => {
@@ -1576,7 +1744,10 @@ export default function ScheduleServices({ providers, events, locations, clients
                                 </button>
                             )}
                         </div>
-                        <div className="flex-1 overflow-y-auto p-6">
+                        <div
+                            ref={loginScrollRef}
+                            className="flex-1 overflow-y-auto p-6"
+                        >
 
                             {/* ================= STEP 1: ENTRY ================= */}
                             {!otpVerified && userFlow === "entry" && (
@@ -1641,28 +1812,7 @@ export default function ScheduleServices({ providers, events, locations, clients
                                             <p className="text-xs text-red-500 mt-1">{emailError}</p>
                                         )}
                                     </div>
-                                    {/* REMEMBER ME */}
-                                    <div className="flex items-center gap-2 mt-4">
-                                        <input
-                                            id="rememberMe"
-                                            type="checkbox"
-                                            checked={loginData.rememberMe}
-                                            onChange={(e) =>
-                                                setLoginData(prev => ({
-                                                    ...prev,
-                                                    rememberMe: e.target.checked,
-                                                }))
-                                            }
-                                            className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
-                                        />
 
-                                        <label
-                                            htmlFor="rememberMe"
-                                            className="text-sm text-gray-600 cursor-pointer"
-                                        >
-                                            Remember login on this device for next time
-                                        </label>
-                                    </div>
                                     {/* PHONE */}
                                     <div>
                                         <label className="text-sm text-gray-600">
@@ -1699,6 +1849,28 @@ export default function ScheduleServices({ providers, events, locations, clients
                                         )}
                                     </div>
 
+                                    {/* REMEMBER ME */}
+                                    <div className="flex items-center gap-2 mt-4">
+                                        <input
+                                            id="rememberMe"
+                                            type="checkbox"
+                                            checked={loginData.rememberMe}
+                                            onChange={(e) =>
+                                                setLoginData(prev => ({
+                                                    ...prev,
+                                                    rememberMe: e.target.checked,
+                                                }))
+                                            }
+                                            className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                                        />
+
+                                        <label
+                                            htmlFor="rememberMe"
+                                            className="text-sm text-gray-600 cursor-pointer"
+                                        >
+                                            Remember login on this device for next time
+                                        </label>
+                                    </div>
 
                                     {showOtpField && (
                                         <div>
@@ -1707,6 +1879,7 @@ export default function ScheduleServices({ providers, events, locations, clients
                                             </label>
 
                                             <input
+                                                ref={otpInputRef}
                                                 type="text"
                                                 maxLength={6}
                                                 value={otp}
@@ -1727,7 +1900,22 @@ export default function ScheduleServices({ providers, events, locations, clients
                                         </div>
                                     )}
 
-                                    {otpError && <p className="text-sm text-red-500">{otpError}</p>}
+                                    {showOtpField && (
+                                        <div className="flex justify-center mt-3">
+                                            <button
+                                                type="button"
+                                                onClick={handleResendOTP}
+                                                disabled={!canResend || resendLoading}
+                                                className="text-indigo-600 disabled:text-gray-400 hover:underline"
+                                            >
+                                                {resendLoading
+                                                    ? "Sending..."
+                                                    : canResend
+                                                        ? "Resend Code"
+                                                        : `Resend in ${resendTimer}s`}
+                                            </button>
+                                        </div>
+                                    )}
 
                                     {showOtpField ? (
                                         <div className="flex gap-3">
@@ -1742,25 +1930,25 @@ export default function ScheduleServices({ providers, events, locations, clients
                                             <button
                                                 type="button"
                                                 onClick={handleVerifyOTP}
-                                                disabled={otp.length !== 6 || otpLoading}
-                                                className={`flex-1 py-3 rounded-xl font-medium transition ${otp.length === 6 && !otpLoading
-                                                        ? "bg-indigo-600 hover:bg-indigo-700 text-white"
-                                                        : "bg-gray-400 text-gray-200 cursor-not-allowed"
+                                                disabled={otp.length !== 6 || verifyLoading}
+                                                className={`flex-1 py-3 rounded-xl font-medium transition ${otp.length === 6 && !loginLoading
+                                                    ? "bg-indigo-600 hover:bg-indigo-700 text-white"
+                                                    : "bg-gray-400 text-gray-200 cursor-not-allowed"
                                                     }`}
                                             >
-                                                {otpLoading ? "Verifying..." : "Verify Code"}
+                                                {verifyLoading ? "Verifying..." : "Verify Code"}
                                             </button>
                                         </div>
                                     ) : (
                                         <button
                                             type="submit"
-                                            disabled={!isFormValid || otpLoading}
-                                            className={`w-full py-3 rounded-xl font-medium transition ${isFormValid && !otpLoading
-                                                    ? "bg-indigo-600 hover:bg-indigo-700 text-white"
-                                                    : "bg-gray-400 text-gray-200 cursor-not-allowed"
+                                            disabled={!isFormValid || loginLoading}
+                                            className={`w-full py-3 rounded-xl font-medium transition ${isFormValid && !loginLoading
+                                                ? "bg-indigo-600 hover:bg-indigo-700 text-white"
+                                                : "bg-gray-400 text-gray-200 cursor-not-allowed"
                                                 }`}
                                         >
-                                            {otpLoading ? "Checking..." : "Continue"}
+                                            {loginLoading ? "Checking..." : "Continue"}
                                         </button>
                                     )}
                                 </form>
@@ -1913,7 +2101,7 @@ export default function ScheduleServices({ providers, events, locations, clients
                             )}
 
                             {/* ================= STEP 4B: EXISTING USER ================= */}
-                            {otpVerified && userFlow === "confirm-address" && (
+                            {/* {otpVerified && userFlow === "confirm-address" && (
                                 <div className="space-y-6">
 
                                     <div>
@@ -1946,7 +2134,7 @@ export default function ScheduleServices({ providers, events, locations, clients
                                         No, use different address
                                     </button>
                                 </div>
-                            )}
+                            )} */}
 
                             {/* ================= STEP 5: TEMP ADDRESS ================= */}
                             {otpVerified && userFlow === "edit-address" && (

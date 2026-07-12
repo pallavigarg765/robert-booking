@@ -517,12 +517,10 @@ export function useBooking({ providers, events, locations, clients, categories, 
     setLoadingAddress(true);
     try {
       const fullAddress = [
-        address.address1,
-        address.address2,
+        address.fullAddress,
         address.city,
-        address.zip,
         address.state,
-        address.country,
+        address.zip,
       ]
         .filter(Boolean)
         .join(", ");

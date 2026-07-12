@@ -428,7 +428,7 @@ export default function AvailabilitySection({
         if (!day.isAvailable) return;
 
         onDateSelect(day.date);
-        setTimePreference("");
+        // setTimePreference("");
 
         setExpandedDateKey((prevKey) =>
             prevKey === day.key ? null : day.key
@@ -510,15 +510,23 @@ export default function AvailabilitySection({
             ? slots.filter(slot => !isPastTimeSlot(slot, selectedDate))
             : slots
     ).filter(slot => {
-        if (!timePreference) return true;
+        if (!timePreference) return false;
 
         const hour = Number(slot.split(":")[0]);
 
-        if (timePreference === "morning") {
-            return hour < 12;
-        }
+        switch (timePreference) {
+            case "morning":
+                return hour < 12;
 
-        return hour >= 12;
+            case "afternoon":
+                return hour >= 12 && hour < 17;
+
+            case "evening":
+                return hour >= 17;
+
+            default:
+                return false;
+        }
     });
 
 
@@ -710,126 +718,153 @@ export default function AvailabilitySection({
                 </button>
             </div> */}
 
+            <div className="border rounded-xl bg-white p-4">
+                <div className="text-sm font-semibold text-gray-700 mb-3">
+                    Preferred Appointment Time
+                </div>
+
+                <div className="grid grid-cols-3 gap-3">
+
+                    <button
+                        type="button"
+                        onClick={() => {
+                            setTimePreference("morning");
+                            setExpandedDateKey(null);
+                        }}
+                        className={`py-3 rounded-lg border transition ${timePreference === "morning"
+                                ? "bg-orange-500 text-white border-orange-500"
+                                : "bg-white border-gray-300 hover:bg-gray-50"
+                            }`}
+                    >
+                        Morning
+                        <div className="text-xs opacity-80">
+                            Before 12 PM
+                        </div>
+                    </button>
+
+                    <button
+                        type="button"
+                        onClick={() => {
+                            setTimePreference("afternoon");
+                            setExpandedDateKey(null);
+                        }}
+                        className={`py-3 rounded-lg border transition ${timePreference === "afternoon"
+                                ? "bg-orange-500 text-white border-orange-500"
+                                : "bg-white border-gray-300 hover:bg-gray-50"
+                            }`}
+                    >
+                        Afternoon
+                        <div className="text-xs opacity-80">
+                            12 PM – 5 PM
+                        </div>
+                    </button>
+
+                    <button
+                        type="button"
+                        onClick={() => {
+                            setTimePreference("evening");
+                            setExpandedDateKey(null);
+                        }}
+                        className={`py-3 rounded-lg border transition ${timePreference === "evening"
+                                ? "bg-orange-500 text-white border-orange-500"
+                                : "bg-white border-gray-300 hover:bg-gray-50"
+                            }`}
+                    >
+                        Evening
+                        <div className="text-xs opacity-80">
+                            After 5 PM
+                        </div>
+                    </button>
+
+                </div>
+            </div>
+
             {/* DAYS */}
             {loadingCalendar ? (
                 <div className="text-center py-6">
                     <div className="w-8 h-8 border-3 border-green-500 border-t-transparent rounded-full animate-spin mx-auto" />
                 </div>
             ) : (
-                displayWeek.map((day) => {
-                    const expanded =
-                        expandedDateKey === day.key &&
-                        selectedDate?.toDateString() === day.date.toDateString();
+                timePreference && (
+                    displayWeek.map((day) => {
+                        const expanded =
+                            expandedDateKey === day.key &&
+                            selectedDate?.toDateString() === day.date.toDateString();
 
-                    return (
-                        <div
-                            key={day.key}
-                            ref={(el) => {
-                                if (el) dayRefs.current[day.key] = el;
-                            }}
-                            className="border rounded-xl overflow-hidden"
-                        >
-                            <button
-                                onClick={() => handleDayClick(day)}
-                                // onDoubleClick={() => handleDayClick(day)}
-                                disabled={!day.isAvailable}
-                                className={`w-full p-3 flex justify-between ${day.isAvailable ? "hover:bg-green-50" : "bg-gray-100 text-gray-400"
-                                    }`}
+                        return (
+                            <div
+                                key={day.key}
+                                ref={(el) => {
+                                    if (el) dayRefs.current[day.key] = el;
+                                }}
+                                className="border rounded-xl overflow-hidden"
                             >
-                                <div>
-                                    {/* <div> */}
-                                    <div className="font-semibold">{day.label}</div>
-                                    {/* </div> */}
-                                </div>
-                                <div className="font-semibold">
-                                    {day.isDayOff ? "OFF" : day.timeLabel}
-                                </div>
-                            </button>
+                                <button
+                                    onClick={() => handleDayClick(day)}
+                                    // onDoubleClick={() => handleDayClick(day)}
+                                    disabled={!day.isAvailable}
+                                    className={`w-full p-3 flex justify-between ${day.isAvailable ? "hover:bg-green-50" : "bg-gray-100 text-gray-400"
+                                        }`}
+                                >
+                                    <div>
+                                        {/* <div> */}
+                                        <div className="font-semibold">{day.label}</div>
+                                        {/* </div> */}
+                                    </div>
+                                    <div className="font-semibold">
+                                        {day.isDayOff ? "OFF" : day.timeLabel}
+                                    </div>
+                                </button>
 
-                            {expanded && (
-                                <div className="p-3 bg-gray-50 border-t">
-                                    {loadingTimeSlots ? (
-                                        <div className="text-center py-2">
-                                            <div className="w-6 h-6 border-2 border-orange-500 border-t-transparent rounded-full animate-spin mx-auto" />
-                                        </div>
-                                    ) : (
-                                        <>
-                                            {/* Morning / Afternoon Selection */}
-                                            <div className="mb-4">
-                                                <div className="text-sm font-medium text-gray-700 mb-2">
-                                                    Preferred appointment time
-                                                </div>
-
-                                                <div className="flex gap-3">
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => setTimePreference("morning")}
-                                                        className={`flex-1 py-2 rounded-lg border transition ${timePreference === "morning"
-                                                                ? "bg-orange-500 text-white border-orange-500"
-                                                                : "bg-white border-gray-300 hover:bg-gray-50"
-                                                            }`}
-                                                    >
-                                                        Morning
-                                                        <div className="text-xs opacity-80">
-                                                            Before 12 PM
-                                                        </div>
-                                                    </button>
-
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => setTimePreference("afternoon")}
-                                                        className={`flex-1 py-2 rounded-lg border transition ${timePreference === "afternoon"
-                                                                ? "bg-orange-500 text-white border-orange-500"
-                                                                : "bg-white border-gray-300 hover:bg-gray-50"
-                                                            }`}
-                                                    >
-                                                        Afternoon
-                                                        <div className="text-xs opacity-80">
-                                                            12 PM & Later
-                                                        </div>
-                                                    </button>
-                                                </div>
+                                {expanded && (
+                                    <div className="p-3 bg-gray-50 border-t">
+                                        {loadingTimeSlots ? (
+                                            <div className="text-center py-2">
+                                                <div className="w-6 h-6 border-2 border-orange-500 border-t-transparent rounded-full animate-spin mx-auto" />
                                             </div>
+                                        ) : (
+                                            <>
 
-                                            {!timePreference ? (
-                                                <div className="text-center text-sm text-gray-500 py-4">
-                                                    Please select Morning or Afternoon.
-                                                </div>
-                                            ) : filteredSlots.length > 0 ? (
-                                                <div className="grid grid-cols-2 gap-2">
-                                                    {filteredSlots.map((slot, index) => {
-                                                        const isValid = canFitAppointment(index, filteredSlots);
+                                                {!timePreference ? (
+                                                    <div className="text-center text-sm text-gray-500 py-4">
+                                                        Please select Morning, Afternoon, or Evening.
+                                                    </div>
+                                                ) : filteredSlots.length > 0 ? (
+                                                    <div className="grid grid-cols-2 gap-2">
+                                                        {filteredSlots.map((slot, index) => {
+                                                            const isValid = canFitAppointment(index, filteredSlots);
 
-                                                        return (
-                                                            <button
-                                                                key={slot}
-                                                                disabled={!isValid}
-                                                                onClick={() => isValid && onTimeSelect(slot)}
-                                                                className={`p-2 text-xs rounded-lg ${!isValid
+                                                            return (
+                                                                <button
+                                                                    key={slot}
+                                                                    disabled={!isValid}
+                                                                    onClick={() => isValid && onTimeSelect(slot)}
+                                                                    className={`p-2 text-xs rounded-lg ${!isValid
                                                                         ? "bg-gray-200 text-gray-400 cursor-not-allowed"
                                                                         : selectedTime === slot
                                                                             ? "bg-orange-500 text-white"
                                                                             : "bg-white border"
-                                                                    }`}
-                                                            >
-                                                                {formatTime(slot)}
-                                                            </button>
-                                                        );
-                                                    })}
-                                                </div>
-                                            ) : (
-                                                <div className="flex items-center gap-2 text-xs text-gray-500">
-                                                    <Clock className="w-4 h-4" />
-                                                    No {timePreference} appointments available.
-                                                </div>
-                                            )}
-                                        </>
-                                    )}
-                                </div>
-                            )}
-                        </div>
-                    );
-                })
+                                                                        }`}
+                                                                >
+                                                                    {formatTime(slot)}
+                                                                </button>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                ) : (
+                                                    <div className="flex items-center gap-2 text-xs text-gray-500">
+                                                        <Clock className="w-4 h-4" />
+                                                        No {timePreference.toLowerCase()} appointments available.
+                                                    </div>
+                                                )}
+                                            </>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })
+                )
             )}
         </div>
     );
