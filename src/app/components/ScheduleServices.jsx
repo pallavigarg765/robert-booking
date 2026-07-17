@@ -119,13 +119,6 @@ export default function ScheduleServices({ providers, events, locations, clients
         };
     }, []);
 
-
-    useEffect(() => {
-        if (userFlow === "phone-exists-different-email") {
-            createBtnRef.current?.focus();
-        }
-    }, [userFlow]);
-
     const handleTrapTab = (e) => {
         if (e.key !== "Tab") return;
 
@@ -210,6 +203,7 @@ export default function ScheduleServices({ providers, events, locations, clients
     }, []);
 
     const handleCancelEditAddress = () => {
+        console.log("CANCEL ADDRESS");
         handleFieldChange({
             target: { name: "fullAddress", value: formData.fullAddress }
         });
@@ -360,11 +354,9 @@ export default function ScheduleServices({ providers, events, locations, clients
         }
     };
 
-    console.log("filteredProviders in schedule services: ", filteredProviders);
-
     const triggerProviderSearch = async () => {
         try {
-            console.log("SEARCH START");
+            console.trace("SEARCH");
             setIsSearchingProviders(true);
             setHasSearched(false);
             setSearchCompleted(false); // ✅ NEW
@@ -400,6 +392,7 @@ export default function ScheduleServices({ providers, events, locations, clients
 
     const handleSaveAddress = async () => {
         try {
+            console.log("SAVE ADDRESS");
             const res = await fetch("/api/auth/save-details", {
                 method: "POST",
                 headers: {
@@ -459,6 +452,8 @@ export default function ScheduleServices({ providers, events, locations, clients
 
     const handleUseSavedAddress = async () => {
 
+        console.log("USE SAVED ADDRESS");
+
         // 🔥 sync formData → address
         handleFieldChange({
             target: { name: "fullAddress", value: formData.fullAddress }
@@ -483,6 +478,7 @@ export default function ScheduleServices({ providers, events, locations, clients
     };
 
     const handleUseTempAddress = async () => {
+        console.log("TEMP ADDRESS");
 
         // 🔥 same sync required here
         handleFieldChange({
@@ -531,7 +527,7 @@ export default function ScheduleServices({ providers, events, locations, clients
         }
     }, [selectedServices, activeStep]);
 
-    
+
 
     const shouldShowNoProviders =
         otpVerified &&
@@ -541,7 +537,7 @@ export default function ScheduleServices({ providers, events, locations, clients
         !isSearchingProviders &&
         !loadingProviders &&
         filteredProviders.length === 0;
-        
+
 
     useEffect(() => {
         let timeout;
@@ -562,6 +558,16 @@ export default function ScheduleServices({ providers, events, locations, clients
     }, [shouldShowNoProviders]);
 
     useEffect(() => {
+        if (userFlow === "phone-exists-different-email") {
+            createBtnRef.current?.focus();
+        }
+
+        // if(userFlow === "authenticated"){
+        //     handleUseSavedAddress();
+        // }
+    }, [userFlow]);
+
+    useEffect(() => {
         if (filteredProviders.length > 0) {
             setShowNoProvidersModal(false);
         }
@@ -569,22 +575,15 @@ export default function ScheduleServices({ providers, events, locations, clients
 
     useEffect(() => {
         if (!addressReady) return;
-        if (!address.fullAddress) return;
 
         const runSearch = async () => {
-            console.log("🚀 Address ready:", address);
-
             await triggerProviderSearch();
-
             setAddressReady(false);
         };
 
         runSearch();
 
-    }, [
-        addressReady,
-        address.fullAddress,
-    ]);
+    }, [addressReady, address.fullAddress]);
 
     useEffect(() => {
         if (
@@ -593,6 +592,7 @@ export default function ScheduleServices({ providers, events, locations, clients
             address.fullAddress &&
             !hasSearched
         ) {
+            console.log("AUTH EFFECT");
             setAddressReady(true);
         }
     }, [
@@ -709,6 +709,8 @@ export default function ScheduleServices({ providers, events, locations, clients
             return;
         }
 
+        console.log("here save to fields change")
+
         handleFieldChange({
             target: {
                 name: "fullAddress",
@@ -744,6 +746,45 @@ export default function ScheduleServices({ providers, events, locations, clients
         formData.city,
         formData.state,
         formData.zip,
+    ]);
+
+    useEffect(() => {
+        if (
+            !otpVerified
+        ) {
+            handleFieldChange({
+                target: {
+                    name: "fullAddress",
+                    value: "",
+                },
+            });
+
+            handleFieldChange({
+                target: {
+                    name: "city",
+                    value: "",
+                },
+            });
+
+            handleFieldChange({
+                target: {
+                    name: "state",
+                    value: "",
+                },
+            });
+
+            handleFieldChange({
+                target: {
+                    name: "zip",
+                    value: "",
+                },
+            });
+
+            setAddressReady(false);
+        }
+
+    }, [
+        otpVerified,
     ]);
 
     // Listen for reset events from Header and NoProvidersSection
@@ -1009,6 +1050,31 @@ export default function ScheduleServices({ providers, events, locations, clients
                         zip: result.user.zip || "",
                         name: result.user.name || "",
                     }));
+
+
+                    if (result?.user?.fullAddress) {
+                        handleFieldChange({
+                            target: { name: "fullAddress", value: result?.user.fullAddress }
+                        });
+                    }
+
+                    if (result?.user?.city) {
+                        handleFieldChange({
+                            target: { name: "city", value: result?.user.city }
+                        });
+                    }
+
+                    if (result?.user?.state) {
+                        handleFieldChange({
+                            target: { name: "state", value: result?.user.state }
+                        });
+                    }
+
+                    if (result?.user?.zip) {
+                        handleFieldChange({
+                            target: { name: "zip", value: result?.user.zip }
+                        });
+                    }
 
                     setUserFlow("authenticated");
                     setAddressReady(true);

@@ -738,7 +738,7 @@ export default function AvailabilitySection({
                     >
                         Morning
                         <div className="text-xs opacity-80">
-                            Before 12 PM
+                            Before 12
                         </div>
                     </button>
 
@@ -755,7 +755,7 @@ export default function AvailabilitySection({
                     >
                         Afternoon
                         <div className="text-xs opacity-80">
-                            12 PM – 5 PM
+                            12 – 5
                         </div>
                     </button>
 
@@ -772,7 +772,7 @@ export default function AvailabilitySection({
                     >
                         Evening
                         <div className="text-xs opacity-80">
-                            After 5 PM
+                            After 5
                         </div>
                     </button>
 

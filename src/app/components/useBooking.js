@@ -515,6 +515,7 @@ export function useBooking({ providers, events, locations, clients, categories, 
 
   const getLatLngFromAddress = async () => {
     setLoadingAddress(true);
+    console.log("address inside get lat lon: ", address);
     try {
       const fullAddress = [
         address.fullAddress,
@@ -695,9 +696,8 @@ export function useBooking({ providers, events, locations, clients, categories, 
   }, [selectedDate, workCalandar]);
 
   useEffect(() => {
-    // console.log("🔍 Filtering providers...");
-    // console.log("Client location:", clientLocation);
-    // console.log("Client state:", address.state);
+
+    console.log("triggered filter providers useEffect")
 
     if (!providerArray || providerArray.length === 0) {
       setFilteredProviders([]);
