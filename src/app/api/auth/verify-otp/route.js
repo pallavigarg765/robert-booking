@@ -38,22 +38,32 @@ export async function POST(request) {
     if (otp === "123456") {
       isVerified = true;
     } else {
+      
       // ✅ TWILIO VERIFY
-      const verificationCheck = await client.verify.v2
-        .services(process.env.TWILIO_VERIFY_SERVICE_SID)
-        .verificationChecks.create({
-          to: `+1${phonenumber}`,
-          code: otp,
-        });
+      // const verificationCheck = await client.verify.v2
+      //   .services(process.env.TWILIO_VERIFY_SERVICE_SID)
+      //   .verificationChecks.create({
+      //     to: `+1${phonenumber}`,
+      //     code: otp,
+      //   });
 
-      if (verificationCheck.status !== "approved") {
+      // if (verificationCheck.status !== "approved") {
+      //   return NextResponse.json(
+      //     { success: false, message: "Invalid OTP" },
+      //     { status: 400 }
+      //   );
+      // }
+
         return NextResponse.json(
-          { success: false, message: "Invalid OTP" },
-          { status: 400 }
-        );
-      }
+    {
+      success: false,
+      message: "Invalid OTP. Please enter the correct 6-digit code.",
+    },
+    { status: 400 }
+  );
 
-      isVerified = true;
+
+      // isVerified = true;
     }
 
     // ✅ Update user

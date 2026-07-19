@@ -77,7 +77,7 @@ export default function ScheduleServices({ providers, events, locations, clients
         name: "",
         email: "",
         phonenumber: "",
-        rememberMe: true,
+        rememberMe: false,
     });
     const [showOtpField, setShowOtpField] = useState(false);
     const [showHiddenProviders, setShowHiddenProviders] = useState(false);
@@ -173,7 +173,7 @@ export default function ScheduleServices({ providers, events, locations, clients
             setLoginData(prev => ({
                 ...prev,
                 email: savedEmail,
-                rememberMe: true,
+                rememberMe: false,
             }));
         }
 
@@ -181,7 +181,7 @@ export default function ScheduleServices({ providers, events, locations, clients
             setLoginData(prev => ({
                 ...prev,
                 phonenumber: savedPhone,
-                rememberMe: true,
+                rememberMe: false,
             }));
         }
     }, []);
@@ -1498,7 +1498,7 @@ export default function ScheduleServices({ providers, events, locations, clients
         setLoginData({
             email: rememberedEmail ? rememberedEmail : "",
             phonenumber: rememberedPhone ? rememberedPhone : "",
-            rememberMe: true,
+            rememberMe: false,
         });
         // setUser(null);
 
@@ -1882,7 +1882,7 @@ export default function ScheduleServices({ providers, events, locations, clients
                                     {/* PHONE */}
                                     <div>
                                         <label className="text-sm text-gray-600">
-                                            Phone <span className="text-gray-400">(e.g., +91 98765 43210)</span>
+                                            Phone <span className="text-gray-400">(e.g., 610-555-1212)</span>
                                         </label>
                                         <input
                                             type="tel"
@@ -1971,18 +1971,13 @@ export default function ScheduleServices({ providers, events, locations, clients
                                             <button
                                                 type="button"
                                                 onClick={handleResendOTP}
-                                                disabled={!canResend || resendLoading}
-                                                className="text-indigo-600 disabled:text-gray-400 hover:underline"
+                                                disabled={resendLoading}
+                                                className="text-xs text-red-600 underline hover:text-red-700 disabled:text-gray-400"
                                             >
-                                                {resendLoading
-                                                    ? "Sending..."
-                                                    : canResend
-                                                        ? "Resend Code"
-                                                        : `Resend in ${resendTimer}s`}
+                                                {resendLoading ? "Sending..." : "Resend Code"}
                                             </button>
                                         </div>
                                     )}
-
                                     {showOtpField ? (
                                         <div className="flex gap-3">
                                             <button
