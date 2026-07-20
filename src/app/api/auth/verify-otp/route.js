@@ -57,7 +57,7 @@ export async function POST(request) {
         return NextResponse.json(
     {
       success: false,
-      message: "Invalid OTP. Please enter the correct 6-digit code.",
+      message: "Invalid OTP. Please enter the correct 4-digit code.",
     },
     { status: 400 }
   );

@@ -239,6 +239,12 @@ export function useBooking({ providers, events, locations, clients, categories, 
     phone: "",
     privacy: false,
   });
+  const [tempFormData, setTempFormData] = useState({
+    fullAddress: "",
+    city: "",
+    state: "",
+    zip: "",
+  });
 
   const [address, setAddress] = useState({
     fullAddress: "",
@@ -951,7 +957,7 @@ export function useBooking({ providers, events, locations, clients, categories, 
     loadingTimeSlots,
     submittingBooking,
     loadingAddress,
-
+tempFormData,
     // Handlers
     handleChange,
     handleCheckboxChange,
@@ -972,6 +978,7 @@ export function useBooking({ providers, events, locations, clients, categories, 
     getSelectedServiceNames,
     setFormData,
     setFilteredProviders,
+    setTempFormData,
     providerLimit,
     setProviderLimit,
     providersWithDistance: providersWithDistanceState,

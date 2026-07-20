@@ -49,6 +49,8 @@ function StepLocked({ title, message }) {
 export default function ScheduleServices({ providers, events, locations, clients, categories }) {
     const [showSuccess, setShowSuccess] = useState(false);
     const [bookingDetails, setBookingDetails] = useState(null);
+    const [isFocused, setIsFocused] = useState(false);
+
     const [userFlow, setUserFlow] = useState("entry");
     const [blacklistedProviders, setBlacklistedProviders] = useState([]);
     const [allProviders, setAllProviders] = useState(providers || []);
@@ -1854,9 +1856,11 @@ export default function ScheduleServices({ providers, events, locations, clients
                                             Email <span className="text-gray-400">(e.g., john@example.com)</span>
                                         </label>
                                         <input
-                                            type="email"
-                                            disabled={showOtpField}
+                                            type="text"
 
+                                            // inputMode="email"
+                                            // autoComplete="email"
+                                            disabled={showOtpField}
                                             value={loginData.email}
                                             onChange={(e) => {
                                                 const value = e.target.value;
@@ -1872,7 +1876,19 @@ export default function ScheduleServices({ providers, events, locations, clients
                                                     setEmailError("");
                                                 }
                                             }}
-                                            className="w-full mt-2 px-4 py-3 rounded-xl border focus:ring-2 focus:ring-indigo-500 outline-none"
+                                            onClick={(e) => {
+                                                if (e.detail === 1) {
+                                                    e.target.select();
+                                                }
+                                            }}
+
+                                            onDoubleClick={(e) => {
+                                                e.preventDefault();
+                                                const input = e.target;
+                                                const clickX = e.nativeEvent.offsetX;
+                                                const caretIndex = getCaretIndexFromClick(input, clickX);
+                                                input.setSelectionRange(caretIndex, caretIndex);
+                                            }} className="w-full mt-2 px-4 py-3 rounded-xl border focus:ring-2 focus:ring-indigo-500 outline-none"
                                         />
                                         {emailError && (
                                             <p className="text-xs text-red-500 mt-1">{emailError}</p>
@@ -1885,9 +1901,8 @@ export default function ScheduleServices({ providers, events, locations, clients
                                             Phone <span className="text-gray-400">(e.g., 610-555-1212)</span>
                                         </label>
                                         <input
-                                            type="tel"
+                                            type="text"
                                             disabled={showOtpField}
-
                                             value={formatPhoneDisplay(loginData.phonenumber)}
                                             onChange={(e) => {
                                                 const digits = e.target.value.replace(/\D/g, "").slice(0, 10);
@@ -1897,7 +1912,6 @@ export default function ScheduleServices({ providers, events, locations, clients
                                                     phonenumber: digits,
                                                 }));
 
-                                                // ✅ Clear backend error when user edits phone
                                                 setOtpError("");
 
                                                 if (!digits) {
@@ -1907,6 +1921,19 @@ export default function ScheduleServices({ providers, events, locations, clients
                                                 } else {
                                                     setPhoneError("");
                                                 }
+                                            }}
+                                            onClick={(e) => {
+                                                if (e.detail === 1) {
+                                                    e.target.select();
+                                                }
+                                            }}
+
+                                            onDoubleClick={(e) => {
+                                                e.preventDefault();
+                                                const input = e.target;
+                                                const clickX = e.nativeEvent.offsetX;
+                                                const caretIndex = getCaretIndexFromClick(input, clickX);
+                                                input.setSelectionRange(caretIndex, caretIndex);
                                             }}
                                             className="w-full mt-2 px-4 py-3 rounded-xl border focus:ring-2 focus:ring-indigo-500 outline-none"
                                         />
