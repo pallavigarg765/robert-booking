@@ -468,6 +468,38 @@ export default function AvailabilitySection({
 
     const currentWeek = weeks[currentWeekIndex] || [];
 
+    const getFirstAvailableDateOfMonth = (monthDate) => {
+        const daysInMonth = new Date(
+            monthDate.getFullYear(),
+            monthDate.getMonth() + 1,
+            0
+        ).getDate();
+
+        for (let d = 1; d <= daysInMonth; d++) {
+            const date = new Date(
+                monthDate.getFullYear(),
+                monthDate.getMonth(),
+                d
+            );
+
+            const key = getLocalDateKey(date);
+            const dayInfo = workCalandar?.[key];
+
+            const isDayOff =
+                !dayInfo ||
+                dayInfo.is_day_off === 1 ||
+                dayInfo.is_day_off === "1" ||
+                dayInfo.is_day_off === true;
+
+            const isPast = date < today;
+
+            if (!isDayOff && !isPast) {
+                return date;
+            }
+        }
+
+        return null;
+    };
 
     const displayWeek = (() => {
         const baseDate = selectedDate || today;
@@ -547,9 +579,19 @@ export default function AvailabilitySection({
                             let targetMonth;
                             let newDate;
 
-                            const isFirstOfMonth = selectedDate.getDate() === 1;
+                            const firstAvailableDate = getFirstAvailableDateOfMonth(
+                                new Date(
+                                    selectedDate.getFullYear(),
+                                    selectedDate.getMonth(),
+                                    1
+                                )
+                            );
 
-                            if (!isFirstOfMonth) {
+                            const isFirstAvailableDate =
+                                firstAvailableDate &&
+                                isSameDay(selectedDate, firstAvailableDate);
+
+                            if (!isFirstAvailableDate) {
                                 // First click → go to same month
                                 targetMonth = new Date(
                                     selectedDate.getFullYear(),
@@ -732,8 +774,8 @@ export default function AvailabilitySection({
                             setExpandedDateKey(null);
                         }}
                         className={`py-3 rounded-lg border transition ${timePreference === "morning"
-                                ? "bg-orange-500 text-white border-orange-500"
-                                : "bg-white border-gray-300 hover:bg-gray-50"
+                            ? "bg-orange-500 text-white border-orange-500"
+                            : "bg-white border-gray-300 hover:bg-gray-50"
                             }`}
                     >
                         Morning
@@ -749,8 +791,8 @@ export default function AvailabilitySection({
                             setExpandedDateKey(null);
                         }}
                         className={`py-3 rounded-lg border transition ${timePreference === "afternoon"
-                                ? "bg-orange-500 text-white border-orange-500"
-                                : "bg-white border-gray-300 hover:bg-gray-50"
+                            ? "bg-orange-500 text-white border-orange-500"
+                            : "bg-white border-gray-300 hover:bg-gray-50"
                             }`}
                     >
                         Afternoon
@@ -766,8 +808,8 @@ export default function AvailabilitySection({
                             setExpandedDateKey(null);
                         }}
                         className={`py-3 rounded-lg border transition ${timePreference === "evening"
-                                ? "bg-orange-500 text-white border-orange-500"
-                                : "bg-white border-gray-300 hover:bg-gray-50"
+                            ? "bg-orange-500 text-white border-orange-500"
+                            : "bg-white border-gray-300 hover:bg-gray-50"
                             }`}
                     >
                         Evening
