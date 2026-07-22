@@ -165,7 +165,12 @@ export default function ServiceSelectionSection({
                           setHoveredCategory(null);
                         }, 300);
                       }}
-                      className="relative border border-gray-200 rounded-xl overflow-hidden shadow-sm group"
+                      className={`relative rounded-xl overflow-hidden shadow-sm group border-2 transition-all duration-200
+  ${hasSelection
+                          ? "border-indigo-500 bg-indigo-50 ring-1 ring-indigo-500"
+                          : "border-gray-200 bg-white"
+                        }
+`}
                     >
                       <div className="absolute left-0 right-0 h-3 bottom-[-12px]" />
                       {/* CATEGORY HEADER */}

@@ -542,7 +542,8 @@ export default function AvailabilitySection({
             ? slots.filter(slot => !isPastTimeSlot(slot, selectedDate))
             : slots
     ).filter(slot => {
-        if (!timePreference) return false;
+        // No preference selected → show all available slots
+        if (!timePreference) return true;
 
         const hour = Number(slot.split(":")[0]);
 
@@ -557,7 +558,7 @@ export default function AvailabilitySection({
                 return hour >= 17;
 
             default:
-                return false;
+                return true;
         }
     });
 
@@ -567,6 +568,7 @@ export default function AvailabilitySection({
        ========================= */
     return (
         <div className="space-y-3">
+            <div className="sticky top-0 z-30 bg-white border-b shadow-sm pb-3 space-y-3">
             {/* MONTH NAV */}
             <div className="flex items-center justify-between">
                 <div className="flex gap-2">
@@ -651,18 +653,18 @@ export default function AvailabilitySection({
                             onDateSelect(newDate);
                         }}
                     >
-                        <ChevronsLeft className="w-5 h-5" />
+                        <ChevronsLeft className="w-4 h-4" />
                     </button>
                     {/* Previous Week */}
                     <button
                         onClick={() => handleWeekChange("prev")}
                     >
-                        <ChevronLeft className="w-5 h-5" />
+                        <ChevronLeft className="w-4 h-4" />
                     </button>
 
                 </div>
 
-                <div className="text-sm font-bold">
+                <div className="text-xs font-semibold">
                     {currentMonth.toLocaleDateString("en-US", {
                         month: "long",
                         year: "numeric",
@@ -675,22 +677,22 @@ export default function AvailabilitySection({
                     <button
                         onClick={() => handleWeekChange("next")}
                     >
-                        <ChevronRight className="w-5 h-5" />
+                        <ChevronRight className="w-4 h-4" />
                     </button>
 
                     {/* Next Month */}
                     <button
                         onClick={() => handleMonthChange("next")}
                     >
-                        <ChevronsRight className="w-5 h-5" />
+                        <ChevronsRight className="w-4 h-4" />
                     </button>
 
                 </div>
             </div>
 
             {/* CALENDAR GRID */}
-            <div className="border rounded-xl p-3 bg-white">
-                <div className="grid grid-cols-7 text-xs text-gray-400 mb-2 text-center">
+            <div className="border rounded-xl p-2 bg-white">
+                <div className="grid grid-cols-7 text-[10px] text-gray-400 mb-1 text-center">
                     {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map(d => (
                         <div key={d}>{d}</div>
                     ))}
@@ -723,7 +725,7 @@ export default function AvailabilitySection({
                                             timeLabel: "",
                                         })
                                     }
-                                    className={`p-2 text-sm rounded-full
+                                    className={`h-6 w-6 mx-auto text-xs rounded-full transition-colors
     ${day.isPast ? "text-gray-300" : ""}
     ${!day.isAvailable ? "text-gray-400" : ""}
     ${isSelected ? "bg-orange-500 text-white" : ""}
@@ -760,26 +762,25 @@ export default function AvailabilitySection({
                 </button>
             </div> */}
 
-            <div className="border rounded-xl bg-white p-4">
-                <div className="text-sm font-semibold text-gray-700 mb-3">
+            <div className="border rounded-xl bg-white p-3">
+                <div className="text-xs font-semibold text-gray-700 mb-2">
                     Preferred Appointment Time
                 </div>
 
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-3 gap-2">
 
                     <button
                         type="button"
                         onClick={() => {
                             setTimePreference("morning");
-                            setExpandedDateKey(null);
                         }}
-                        className={`py-3 rounded-lg border transition ${timePreference === "morning"
+                        className={`py-2 text-sm font-medium text-sm font-medium rounded-lg border transition ${timePreference === "morning"
                             ? "bg-orange-500 text-white border-orange-500"
                             : "bg-white border-gray-300 hover:bg-gray-50"
                             }`}
                     >
                         Morning
-                        <div className="text-xs opacity-80">
+                        <div className="text-[10px] opacity-80">
                             Before 12
                         </div>
                     </button>
@@ -788,15 +789,14 @@ export default function AvailabilitySection({
                         type="button"
                         onClick={() => {
                             setTimePreference("afternoon");
-                            setExpandedDateKey(null);
                         }}
-                        className={`py-3 rounded-lg border transition ${timePreference === "afternoon"
+                        className={`py-2 text-sm font-medium rounded-lg border transition ${timePreference === "afternoon"
                             ? "bg-orange-500 text-white border-orange-500"
                             : "bg-white border-gray-300 hover:bg-gray-50"
                             }`}
                     >
                         Afternoon
-                        <div className="text-xs opacity-80">
+                        <div className="text-[10px] opacity-80">
                             12 – 5
                         </div>
                     </button>
@@ -805,20 +805,21 @@ export default function AvailabilitySection({
                         type="button"
                         onClick={() => {
                             setTimePreference("evening");
-                            setExpandedDateKey(null);
                         }}
-                        className={`py-3 rounded-lg border transition ${timePreference === "evening"
+                        className={`py-2 text-sm font-medium rounded-lg border transition ${timePreference === "evening"
                             ? "bg-orange-500 text-white border-orange-500"
                             : "bg-white border-gray-300 hover:bg-gray-50"
                             }`}
                     >
                         Evening
-                        <div className="text-xs opacity-80">
+                        <div className="text-[10px] opacity-80">
                             After 5
                         </div>
                     </button>
 
                 </div>
+            </div>
+
             </div>
 
             {/* DAYS */}
@@ -827,86 +828,87 @@ export default function AvailabilitySection({
                     <div className="w-8 h-8 border-3 border-green-500 border-t-transparent rounded-full animate-spin mx-auto" />
                 </div>
             ) : (
-                timePreference && (
-                    displayWeek.map((day) => {
-                        const expanded =
-                            expandedDateKey === day.key &&
-                            selectedDate?.toDateString() === day.date.toDateString();
+                displayWeek.map((day) => {
+                    const expanded =
+                        expandedDateKey === day.key &&
+                        selectedDate?.toDateString() === day.date.toDateString();
 
-                        return (
-                            <div
-                                key={day.key}
-                                ref={(el) => {
-                                    if (el) dayRefs.current[day.key] = el;
-                                }}
-                                className="border rounded-xl overflow-hidden"
+                    return (
+                        <div
+                            key={day.key}
+                            ref={(el) => {
+                                if (el) dayRefs.current[day.key] = el;
+                            }}
+                            className="border rounded-xl overflow-hidden"
+                        >
+                            <button
+                                onClick={() => handleDayClick(day)}
+                                // onDoubleClick={() => handleDayClick(day)}
+                                disabled={!day.isAvailable}
+                                className={`w-full p-3 flex justify-between ${day.isAvailable ? "hover:bg-green-50" : "bg-gray-100 text-gray-400"
+                                    }`}
                             >
-                                <button
-                                    onClick={() => handleDayClick(day)}
-                                    // onDoubleClick={() => handleDayClick(day)}
-                                    disabled={!day.isAvailable}
-                                    className={`w-full p-3 flex justify-between ${day.isAvailable ? "hover:bg-green-50" : "bg-gray-100 text-gray-400"
-                                        }`}
-                                >
-                                    <div>
-                                        {/* <div> */}
-                                        <div className="font-semibold">{day.label}</div>
-                                        {/* </div> */}
-                                    </div>
-                                    <div className="font-semibold">
-                                        {day.isDayOff ? "OFF" : day.timeLabel}
-                                    </div>
-                                </button>
+                                <div>
+                                    {/* <div> */}
+                                    <div className="font-semibold">{day.label}</div>
+                                    {/* </div> */}
+                                </div>
+                                <div className="font-semibold">
+                                    {day.isDayOff ? "OFF" : day.timeLabel}
+                                </div>
+                            </button>
 
-                                {expanded && (
-                                    <div className="p-3 bg-gray-50 border-t">
-                                        {loadingTimeSlots ? (
-                                            <div className="text-center py-2">
-                                                <div className="w-6 h-6 border-2 border-orange-500 border-t-transparent rounded-full animate-spin mx-auto" />
-                                            </div>
-                                        ) : (
-                                            <>
+                            {expanded && (
+                                <div className="p-3 bg-gray-50 border-t">
+                                    {loadingTimeSlots ? (
+                                        <div className="text-center py-2">
+                                            <div className="w-6 h-6 border-2 border-orange-500 border-t-transparent rounded-full animate-spin mx-auto" />
+                                        </div>
+                                    ) : (
+                                        <>
 
-                                                {!timePreference ? (
-                                                    <div className="text-center text-sm text-gray-500 py-4">
-                                                        Please select Morning, Afternoon, or Evening.
-                                                    </div>
-                                                ) : filteredSlots.length > 0 ? (
-                                                    <div className="grid grid-cols-2 gap-2">
-                                                        {filteredSlots.map((slot, index) => {
-                                                            const isValid = canFitAppointment(index, filteredSlots);
+                                            {!timePreference ? (
+                                                <div className="text-center text-sm text-gray-500 py-4">
+                                                    Please select Morning, Afternoon, or Evening.
+                                                </div>
+                                            ) : filteredSlots.length > 0 ? (
+                                                <div className="grid grid-cols-2 gap-2">
+                                                    {filteredSlots.map((slot) => {
+                                                        // Find this slot's index in the complete day's slots
+                                                        const originalIndex = slots.indexOf(slot);
 
-                                                            return (
-                                                                <button
-                                                                    key={slot}
-                                                                    disabled={!isValid}
-                                                                    onClick={() => isValid && onTimeSelect(slot)}
-                                                                    className={`p-2 text-xs rounded-lg ${!isValid
-                                                                        ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                                                                        : selectedTime === slot
-                                                                            ? "bg-orange-500 text-white"
-                                                                            : "bg-white border"
-                                                                        }`}
-                                                                >
-                                                                    {formatTime(slot)}
-                                                                </button>
-                                                            );
-                                                        })}
-                                                    </div>
-                                                ) : (
-                                                    <div className="flex items-center gap-2 text-xs text-gray-500">
-                                                        <Clock className="w-4 h-4" />
-                                                        No {timePreference.toLowerCase()} appointments available.
-                                                    </div>
-                                                )}
-                                            </>
-                                        )}
-                                    </div>
-                                )}
-                            </div>
-                        );
-                    })
-                )
+                                                        const isValid = canFitAppointment(originalIndex, slots);
+
+                                                        return (
+                                                            <button
+                                                                key={slot}
+                                                                disabled={!isValid}
+                                                                onClick={() => isValid && onTimeSelect(slot)}
+                                                                className={`p-2 text-xs rounded-lg ${!isValid
+                                                                    ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                                                                    : selectedTime === slot
+                                                                        ? "bg-orange-500 text-white"
+                                                                        : "bg-white border"
+                                                                    }`}
+                                                            >
+                                                                {formatTime(slot)}
+                                                            </button>
+                                                        );
+                                                    })}
+                                                </div>
+                                            ) : (
+                                                <div className="flex items-center gap-2 text-xs text-gray-500">
+                                                    <Clock className="w-4 h-4" />
+                                                    No {timePreference.toLowerCase()} appointments available.
+                                                </div>
+                                            )}
+                                        </>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    );
+                })
             )}
         </div>
     );

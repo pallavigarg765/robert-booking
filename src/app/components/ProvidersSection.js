@@ -808,6 +808,12 @@ function ProviderCard({
 
   const providerCategories = getProviderCategories();
 
+  useEffect(() => {
+    if (expandedProvider !== provider.id) {
+        setShowDescription(false);
+    }
+}, [expandedProvider, provider.id]);
+
   const cleanName = (name = "") =>
     name
       // remove leading 03a) or 03a), with optional comma/space
@@ -854,38 +860,31 @@ function ProviderCard({
   }
 `}
         onMouseEnter={() => {
-          setIsHovered(true);
-          onHover?.(provider);
+  setIsHovered(true);
 
-          // If another provider is selected, collapse it
-          if (
-            selectedProvider &&
-            selectedProvider !== provider.id
-          ) {
-            onSelect(null);
-            setExpandedProvider(null);
+  // Highlight categories/services
+  onHover?.(provider);
 
-            document.activeElement?.blur();
-          }
-        }}
+  // Select provider
+  if (selectedProvider !== provider.id) {
+    onSelect(provider.id);
+  }
+
+  // Never auto-expand on hover
+  setExpandedProvider(null);
+}}
         onMouseLeave={() => {
           setIsHovered(false);
           onHover?.(null);
         }}
         onClick={() => {
-          if (isBlacklisting) return;
+    if (isBlacklisting) return;
 
-          const isCurrent =
-            selectedProvider === provider.id;
+    onSelect(provider.id);
 
-          if (isCurrent) {
-            onSelect(null);
-            setExpandedProvider(null);
-          } else {
-            onSelect(provider.id);
-            setExpandedProvider(provider.id);
-          }
-        }}
+    // Do NOT expand anymore
+    setExpandedProvider(null);
+}}
 
 
         onDoubleClick={() => {
@@ -1028,9 +1027,23 @@ function ProviderCard({
                 type="button"
                 tabIndex={-1}
                 onClick={(e) => {
-                  e.stopPropagation();
-                  setShowDescription((prev) => !prev);
-                }}
+    e.stopPropagation();
+
+    // Select this provider
+    onSelect(provider.id);
+
+    // Expand/collapse
+    setExpandedProvider(prev =>
+        prev === provider.id ? null : provider.id
+    );
+
+    // Show description
+    setShowDescription(prev =>
+        expandedProvider === provider.id
+            ? !prev
+            : true
+    );
+}}
                 className="p-1 text-gray-400 hover:text-indigo-600"
               >
                 <Info className="w-4 h-4" />
@@ -1202,9 +1215,23 @@ function ProviderCard({
               type="button"
               tabIndex={-1}
               onClick={(e) => {
-                e.stopPropagation();
-                setShowDescription((prev) => !prev);
-              }}
+    e.stopPropagation();
+
+    // Select this provider
+    onSelect(provider.id);
+
+    // Expand/collapse
+    setExpandedProvider(prev =>
+        prev === provider.id ? null : provider.id
+    );
+
+    // Show description
+    setShowDescription(prev =>
+        expandedProvider === provider.id
+            ? !prev
+            : true
+    );
+}}
               className="p-1 text-gray-400 hover:text-indigo-600"
             >
               <Info className="w-4 h-4" />

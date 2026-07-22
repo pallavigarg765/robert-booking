@@ -98,6 +98,13 @@ export default function ScheduleServices({ providers, events, locations, clients
     const cancelBtnRef = useRef(null);
     const router = useRouter();
 
+    const [originalAddress, setOriginalAddress] = useState({
+    fullAddress: "",
+    city: "",
+    state: "",
+    zip: "",
+});
+
     const [resendTimer, setResendTimer] = useState(30);
     const [canResend, setCanResend] = useState(false);
 
@@ -204,33 +211,63 @@ export default function ScheduleServices({ providers, events, locations, clients
         return () => document.removeEventListener("mousedown", handleClickOutside);
     }, []);
 
+    const handleChangeAddress = () => {
+    setOriginalAddress({
+        fullAddress: formData.fullAddress,
+        city: formData.city,
+        state: formData.state,
+        zip: formData.zip,
+    });
+
+    // setUserFlow("collect-address");
+};
+
     const handleCancelEditAddress = () => {
-        console.log("CANCEL ADDRESS");
-        handleFieldChange({
-            target: { name: "fullAddress", value: formData.fullAddress }
-        });
+    // Restore original values
+    setFormData(prev => ({
+        ...prev,
+        fullAddress: originalAddress.fullAddress,
+        city: originalAddress.city,
+        state: originalAddress.state,
+        zip: originalAddress.zip,
+    }));
 
-        handleFieldChange({
-            target: { name: "city", value: formData.city }
-        });
+    // Sync booking address
+    handleFieldChange({
+        target: {
+            name: "fullAddress",
+            value: originalAddress.fullAddress,
+        },
+    });
 
-        handleFieldChange({
-            target: { name: "state", value: formData.state }
-        });
+    handleFieldChange({
+        target: {
+            name: "city",
+            value: originalAddress.city,
+        },
+    });
 
-        handleFieldChange({
-            target: { name: "zip", value: formData.zip }
-        });
+    handleFieldChange({
+        target: {
+            name: "state",
+            value: originalAddress.state,
+        },
+    });
 
-        setUserFlow("authenticated");
+    handleFieldChange({
+        target: {
+            name: "zip",
+            value: originalAddress.zip,
+        },
+    });
 
-        // ✅ trigger AFTER syncing
-        setAddressReady(true);
+    setUserFlow("authenticated");
+    setShowStateDropdown(false);
+    setHighlightIndex(-1);
 
-        setUserFlow("authenticated");
-        setShowStateDropdown(false);
-        setHighlightIndex(-1);
-    };
+    // Don't trigger a new provider search because nothing changed.
+    setAddressReady(false);
+};
 
     const handleCancelOTP = () => {
         setShowOtpField(false);
@@ -2583,10 +2620,24 @@ export default function ScheduleServices({ providers, events, locations, clients
                                         <div className="text-sm text-gray-600 mb-0">
                                             <span className="font-medium text-gray-800">Phone:</span> {formatPhoneDisplay(loginData.phonenumber)}
                                         </div>
+
+                                        <div className="font-semibold text-gray-800 mb-2 mt-4">Service Location:</div>
+                                        <div className="text-sm text-gray-500 m-0 leading-tight">
+                                            {formData.fullAddress}
+                                        </div>
+                                        <div className="text-sm text-gray-500 m-0 leading-tight">
+                                            {formData.city}, {formData.state}, {formData.zip}
+                                        </div>
+
+                                        <button
+                                            onClick={() => { handleChangeAddress(); setUserFlow("edit-address"); setHasSearched(false); setSelectedProvider(null); setHoveredProvider(null); }} className="mt-3 text-sm text-indigo-600 hover:underline"
+                                        >
+                                            Change address
+                                        </button>
                                     </div>
 
                                     {/* ADDRESS */}
-                                    <div className="border rounded-xl p-4 space-y-2">
+                                    {/* <div className="border rounded-xl p-4 space-y-2">
                                         <div className="font-semibold text-gray-800 mb-2">Service Location:</div>
                                         <div className="text-sm text-gray-500 m-0 leading-tight">
                                             {formData.fullAddress}
@@ -2596,11 +2647,11 @@ export default function ScheduleServices({ providers, events, locations, clients
                                         </div>
 
                                         <button
-                                            onClick={() => { setUserFlow("edit-address"); setHasSearched(false); setSelectedProvider(null); setHoveredProvider(null); }} className="mt-3 text-sm text-indigo-600 hover:underline"
+                                            onClick={() => { handleChangeAddress(); setUserFlow("edit-address"); setHasSearched(false); setSelectedProvider(null); setHoveredProvider(null); }} className="mt-3 text-sm text-indigo-600 hover:underline"
                                         >
                                             Change address
                                         </button>
-                                    </div>
+                                    </div> */}
 
                                     {/* <SearchCategorySection
                                         providers={filteredProviders}
