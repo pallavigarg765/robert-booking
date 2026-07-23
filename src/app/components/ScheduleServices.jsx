@@ -2607,21 +2607,21 @@ export default function ScheduleServices({ providers, events, locations, clients
                                     {/* USER INFO */}
                                     <div className="bg-gray-50 border rounded-xl p-4 space-y-2">
 
-                                        <div className="font-semibold text-gray-800 mb-2">
+                                        <div className="font-semibold text-gray-800 mb-0">
                                             Client Account:
                                         </div>
                                         <div className="text-sm text-gray-600 mb-0">
-                                            <span className="font-medium text-gray-800">Name:</span> {userName}
+                                            {userName}
                                         </div>
 
                                         <div className="text-sm text-gray-600 mb-0">
-                                            <span className="font-medium text-gray-800">Email:</span> {userEmail}
+                                            {userEmail}
                                         </div>
                                         <div className="text-sm text-gray-600 mb-0">
-                                            <span className="font-medium text-gray-800">Phone:</span> {formatPhoneDisplay(loginData.phonenumber)}
+                                            {formatPhoneDisplay(loginData.phonenumber)}
                                         </div>
 
-                                        <div className="font-semibold text-gray-800 mb-2 mt-4">Service Location:</div>
+                                        <div className="font-semibold text-gray-800 mb-0 mt-2">Service Location:</div>
                                         <div className="text-sm text-gray-500 m-0 leading-tight">
                                             {formData.fullAddress}
                                         </div>
@@ -2632,7 +2632,7 @@ export default function ScheduleServices({ providers, events, locations, clients
                                         <button
                                             onClick={() => { handleChangeAddress(); setUserFlow("edit-address"); setHasSearched(false); setSelectedProvider(null); setHoveredProvider(null); }} className="mt-3 text-sm text-indigo-600 hover:underline"
                                         >
-                                            Change address
+                                            Change Service Location
                                         </button>
                                     </div>
 

@@ -446,12 +446,19 @@ export default function AvailabilitySection({
             const containerRect = container.getBoundingClientRect();
             const targetRect = target.getBoundingClientRect();
 
-            const offset = 16;
+            const stickyHeader = document.getElementById("availability-sticky-header");
+
+            const stickyHeight = stickyHeader
+                ? stickyHeader.getBoundingClientRect().height
+                : 0;
+
+            const extraGap = 12;
 
             const targetY =
                 container.scrollTop +
                 (targetRect.top - containerRect.top) -
-                offset;
+                stickyHeight -
+                extraGap;
 
             container.scrollTo({
                 top: targetY,
@@ -568,180 +575,180 @@ export default function AvailabilitySection({
        ========================= */
     return (
         <div className="space-y-3">
-            <div className="sticky top-0 z-30 bg-white border-b shadow-sm pb-3 space-y-3">
-            {/* MONTH NAV */}
-            <div className="flex items-center justify-between">
-                <div className="flex gap-2">
+            <div id="availability-sticky-header" className="sticky top-0 z-30 bg-white border-b shadow-sm pb-3 space-y-3">
+                {/* MONTH NAV */}
+                <div className="flex items-center justify-between">
+                    <div className="flex gap-2">
 
-                    {/* Previous Month */}
-                    <button
-                        onClick={() => {
-                            if (!selectedDate) return;
+                        {/* Previous Month */}
+                        <button
+                            onClick={() => {
+                                if (!selectedDate) return;
 
-                            let targetMonth;
-                            let newDate;
+                                let targetMonth;
+                                let newDate;
 
-                            const firstAvailableDate = getFirstAvailableDateOfMonth(
-                                new Date(
-                                    selectedDate.getFullYear(),
-                                    selectedDate.getMonth(),
-                                    1
-                                )
-                            );
-
-                            const isFirstAvailableDate =
-                                firstAvailableDate &&
-                                isSameDay(selectedDate, firstAvailableDate);
-
-                            if (!isFirstAvailableDate) {
-                                // First click → go to same month
-                                targetMonth = new Date(
-                                    selectedDate.getFullYear(),
-                                    selectedDate.getMonth(),
-                                    1
-                                );
-                            } else {
-                                // Second click → previous month
-                                targetMonth = new Date(
-                                    selectedDate.getFullYear(),
-                                    selectedDate.getMonth() - 1,
-                                    1
-                                );
-                            }
-
-                            // Find first valid (not past + not day off) date in that month
-                            const daysInMonth = new Date(
-                                targetMonth.getFullYear(),
-                                targetMonth.getMonth() + 1,
-                                0
-                            ).getDate();
-
-                            for (let d = 1; d <= daysInMonth; d++) {
-                                const checkDate = new Date(
-                                    targetMonth.getFullYear(),
-                                    targetMonth.getMonth(),
-                                    d
+                                const firstAvailableDate = getFirstAvailableDateOfMonth(
+                                    new Date(
+                                        selectedDate.getFullYear(),
+                                        selectedDate.getMonth(),
+                                        1
+                                    )
                                 );
 
-                                const key = getLocalDateKey(checkDate);
-                                const dayInfo = workCalandar?.[key];
+                                const isFirstAvailableDate =
+                                    firstAvailableDate &&
+                                    isSameDay(selectedDate, firstAvailableDate);
 
-                                const isDayOff =
-                                    !dayInfo ||
-                                    dayInfo.is_day_off === 1 ||
-                                    dayInfo.is_day_off === "1" ||
-                                    dayInfo.is_day_off === true;
-
-                                const isPast = checkDate < today;
-
-                                if (!isDayOff && !isPast) {
-                                    newDate = checkDate;
-                                    break;
+                                if (!isFirstAvailableDate) {
+                                    // First click → go to same month
+                                    targetMonth = new Date(
+                                        selectedDate.getFullYear(),
+                                        selectedDate.getMonth(),
+                                        1
+                                    );
+                                } else {
+                                    // Second click → previous month
+                                    targetMonth = new Date(
+                                        selectedDate.getFullYear(),
+                                        selectedDate.getMonth() - 1,
+                                        1
+                                    );
                                 }
-                            }
 
-                            if (!newDate) return; // no valid day found
+                                // Find first valid (not past + not day off) date in that month
+                                const daysInMonth = new Date(
+                                    targetMonth.getFullYear(),
+                                    targetMonth.getMonth() + 1,
+                                    0
+                                ).getDate();
 
-                            setCurrentMonth(
-                                new Date(
-                                    newDate.getFullYear(),
-                                    newDate.getMonth(),
-                                    1
-                                )
-                            );
+                                for (let d = 1; d <= daysInMonth; d++) {
+                                    const checkDate = new Date(
+                                        targetMonth.getFullYear(),
+                                        targetMonth.getMonth(),
+                                        d
+                                    );
 
-                            onDateSelect(newDate);
-                        }}
-                    >
-                        <ChevronsLeft className="w-4 h-4" />
-                    </button>
-                    {/* Previous Week */}
-                    <button
-                        onClick={() => handleWeekChange("prev")}
-                    >
-                        <ChevronLeft className="w-4 h-4" />
-                    </button>
+                                    const key = getLocalDateKey(checkDate);
+                                    const dayInfo = workCalandar?.[key];
 
-                </div>
+                                    const isDayOff =
+                                        !dayInfo ||
+                                        dayInfo.is_day_off === 1 ||
+                                        dayInfo.is_day_off === "1" ||
+                                        dayInfo.is_day_off === true;
 
-                <div className="text-xs font-semibold">
-                    {currentMonth.toLocaleDateString("en-US", {
-                        month: "long",
-                        year: "numeric",
-                    })}
-                </div>
+                                    const isPast = checkDate < today;
 
-                <div className="flex gap-2">
-
-                    {/* Next Week */}
-                    <button
-                        onClick={() => handleWeekChange("next")}
-                    >
-                        <ChevronRight className="w-4 h-4" />
-                    </button>
-
-                    {/* Next Month */}
-                    <button
-                        onClick={() => handleMonthChange("next")}
-                    >
-                        <ChevronsRight className="w-4 h-4" />
-                    </button>
-
-                </div>
-            </div>
-
-            {/* CALENDAR GRID */}
-            <div className="border rounded-xl p-2 bg-white">
-                <div className="grid grid-cols-7 text-[10px] text-gray-400 mb-1 text-center">
-                    {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map(d => (
-                        <div key={d}>{d}</div>
-                    ))}
-                </div>
-
-                {buildMonthGrid(currentMonth).map((week, i) => (
-                    <div key={i} className="grid grid-cols-7 text-center mb-1">
-                        {week.map((day, j) => {
-                            if (!day) return <div key={j}></div>;
-
-                            const isSelected =
-                                selectedDate &&
-                                isSameDay(selectedDate, day.date);
-
-                            const isToday = isSameDay(day.date, today);
-                            return (
-                                <button
-                                    key={day.key}
-                                    disabled={day.isPast}
-                                    onClick={() => onDateSelect(day.date)}   // only highlight
-                                    onDoubleClick={() =>
-                                        handleDayClick({
-                                            ...day,
-                                            dayName: day.date.toLocaleDateString("en-US", { weekday: "short" }),
-                                            label: day.date.toLocaleDateString("en-US", {
-                                                weekday: "long",
-                                                month: "short",
-                                                day: "numeric",
-                                            }),
-                                            timeLabel: "",
-                                        })
+                                    if (!isDayOff && !isPast) {
+                                        newDate = checkDate;
+                                        break;
                                     }
-                                    className={`h-6 w-6 mx-auto text-xs rounded-full transition-colors
+                                }
+
+                                if (!newDate) return; // no valid day found
+
+                                setCurrentMonth(
+                                    new Date(
+                                        newDate.getFullYear(),
+                                        newDate.getMonth(),
+                                        1
+                                    )
+                                );
+
+                                onDateSelect(newDate);
+                            }}
+                        >
+                            <ChevronsLeft className="w-4 h-4" />
+                        </button>
+                        {/* Previous Week */}
+                        <button
+                            onClick={() => handleWeekChange("prev")}
+                        >
+                            <ChevronLeft className="w-4 h-4" />
+                        </button>
+
+                    </div>
+
+                    <div className="text-xs font-semibold">
+                        {currentMonth.toLocaleDateString("en-US", {
+                            month: "long",
+                            year: "numeric",
+                        })}
+                    </div>
+
+                    <div className="flex gap-2">
+
+                        {/* Next Week */}
+                        <button
+                            onClick={() => handleWeekChange("next")}
+                        >
+                            <ChevronRight className="w-4 h-4" />
+                        </button>
+
+                        {/* Next Month */}
+                        <button
+                            onClick={() => handleMonthChange("next")}
+                        >
+                            <ChevronsRight className="w-4 h-4" />
+                        </button>
+
+                    </div>
+                </div>
+
+                {/* CALENDAR GRID */}
+                <div className="border rounded-xl p-2 bg-white">
+                    <div className="grid grid-cols-7 text-[10px] font-bold text-gray-400 mb-1 text-center">
+                        {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map(d => (
+                            <div key={d}>{d}</div>
+                        ))}
+                    </div>
+
+                    {buildMonthGrid(currentMonth).map((week, i) => (
+                        <div key={i} className="grid grid-cols-7 text-center mb-1">
+                            {week.map((day, j) => {
+                                if (!day) return <div key={j}></div>;
+
+                                const isSelected =
+                                    selectedDate &&
+                                    isSameDay(selectedDate, day.date);
+
+                                const isToday = isSameDay(day.date, today);
+                                return (
+                                    <button
+                                        key={day.key}
+                                        disabled={day.isPast}
+                                        onClick={() => onDateSelect(day.date)}   // only highlight
+                                        onDoubleClick={() =>
+                                            handleDayClick({
+                                                ...day,
+                                                dayName: day.date.toLocaleDateString("en-US", { weekday: "short" }),
+                                                label: day.date.toLocaleDateString("en-US", {
+                                                    weekday: "long",
+                                                    month: "short",
+                                                    day: "numeric",
+                                                }),
+                                                timeLabel: "",
+                                            })
+                                        }
+                                        className={`h-4 w-4 font-bold mx-auto text-xs rounded-full transition-colors
     ${day.isPast ? "text-gray-300" : ""}
     ${!day.isAvailable ? "text-gray-400" : ""}
     ${isSelected ? "bg-orange-500 text-white" : ""}
  ${!isSelected && isToday ? "bg-orange-100 text-orange-600 font-semibold" : ""}
 `}
-                                >
-                                    {day.date.getDate()}
-                                </button>
-                            );
-                        })}
-                    </div>
-                ))}
-            </div>
+                                    >
+                                        {day.date.getDate()}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    ))}
+                </div>
 
-            {/* WEEK NAV */}
-            {/* <div className="flex items-center justify-between text-xs text-gray-500">
+                {/* WEEK NAV */}
+                {/* <div className="flex items-center justify-between text-xs text-gray-500">
                 <button
                     onClick={() => handleWeekChange("prev")}>
                     <ChevronLeft className="w-4 h-4" />
@@ -762,63 +769,63 @@ export default function AvailabilitySection({
                 </button>
             </div> */}
 
-            <div className="border rounded-xl bg-white p-3">
-                <div className="text-xs font-semibold text-gray-700 mb-2">
-                    Preferred Appointment Time
+                <div className="border rounded-xl bg-white p-3">
+                    <div className="text-xs font-semibold text-gray-700 mb-2">
+                        Preferred Appointment Time
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-2">
+
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setTimePreference("morning");
+                            }}
+                            className={`py-2 text-sm font-medium text-sm font-medium rounded-lg border transition ${timePreference === "morning"
+                                ? "bg-orange-500 text-white border-orange-500"
+                                : "bg-white border-gray-300 hover:bg-gray-50"
+                                }`}
+                        >
+                            Morning
+                            <div className="text-[10px] opacity-80">
+                                Before 12
+                            </div>
+                        </button>
+
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setTimePreference("afternoon");
+                            }}
+                            className={`py-2 text-sm font-medium rounded-lg border transition ${timePreference === "afternoon"
+                                ? "bg-orange-500 text-white border-orange-500"
+                                : "bg-white border-gray-300 hover:bg-gray-50"
+                                }`}
+                        >
+                            Afternoon
+                            <div className="text-[10px] opacity-80">
+                                12 – 5
+                            </div>
+                        </button>
+
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setTimePreference("evening");
+                            }}
+                            className={`py-2 text-sm font-medium rounded-lg border transition ${timePreference === "evening"
+                                ? "bg-orange-500 text-white border-orange-500"
+                                : "bg-white border-gray-300 hover:bg-gray-50"
+                                }`}
+                        >
+                            Evening
+                            <div className="text-[10px] opacity-80">
+                                After 5
+                            </div>
+                        </button>
+
+                    </div>
                 </div>
-
-                <div className="grid grid-cols-3 gap-2">
-
-                    <button
-                        type="button"
-                        onClick={() => {
-                            setTimePreference("morning");
-                        }}
-                        className={`py-2 text-sm font-medium text-sm font-medium rounded-lg border transition ${timePreference === "morning"
-                            ? "bg-orange-500 text-white border-orange-500"
-                            : "bg-white border-gray-300 hover:bg-gray-50"
-                            }`}
-                    >
-                        Morning
-                        <div className="text-[10px] opacity-80">
-                            Before 12
-                        </div>
-                    </button>
-
-                    <button
-                        type="button"
-                        onClick={() => {
-                            setTimePreference("afternoon");
-                        }}
-                        className={`py-2 text-sm font-medium rounded-lg border transition ${timePreference === "afternoon"
-                            ? "bg-orange-500 text-white border-orange-500"
-                            : "bg-white border-gray-300 hover:bg-gray-50"
-                            }`}
-                    >
-                        Afternoon
-                        <div className="text-[10px] opacity-80">
-                            12 – 5
-                        </div>
-                    </button>
-
-                    <button
-                        type="button"
-                        onClick={() => {
-                            setTimePreference("evening");
-                        }}
-                        className={`py-2 text-sm font-medium rounded-lg border transition ${timePreference === "evening"
-                            ? "bg-orange-500 text-white border-orange-500"
-                            : "bg-white border-gray-300 hover:bg-gray-50"
-                            }`}
-                    >
-                        Evening
-                        <div className="text-[10px] opacity-80">
-                            After 5
-                        </div>
-                    </button>
-
-                </div>
-            </div>
 
             </div>
 

@@ -61,6 +61,8 @@ export default function ServiceSelectionSection({
   //   );
   // }
 
+  console.log("hoveredCategory: ", hoveredCategory);
+
   return (
     <>
       {activeService && (
@@ -159,14 +161,16 @@ export default function ServiceSelectionSection({
                         setHoveredCategory(category.id);
                       }}
                       onMouseLeave={() => {
-                        if (isClickingRef.current) return;
+                        if (hoverTimeoutRef.current) {
+                          clearTimeout(hoverTimeoutRef.current);
+                        }
 
                         hoverTimeoutRef.current = setTimeout(() => {
                           setHoveredCategory(null);
-                        }, 300);
+                        }, 150);
                       }}
                       className={`relative rounded-xl overflow-hidden shadow-sm group border-2 transition-all duration-200
-  ${hasSelection
+  ${hoveredCategory === category?.id
                           ? "border-indigo-500 bg-indigo-50 ring-1 ring-indigo-500"
                           : "border-gray-200 bg-white"
                         }
