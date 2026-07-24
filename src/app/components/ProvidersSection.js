@@ -8,6 +8,7 @@ import SearchCategorySection from "./SearchCategorySection";
 
 export default function ProvidersSection({
   providers = [],
+  allEligibleProviders = [],
   providerLimit,
 
   locations,
@@ -184,8 +185,6 @@ export default function ProvidersSection({
       />
     );
   }, [filteredProviders, locations, clientLocation, searchWithin]);
-
-  console.log("filteredProviders: ", filteredProviders);
 
   const visibleProviders = filteredProviders.filter((provider) => {
     if (!userEmail) return true;
@@ -397,7 +396,7 @@ export default function ProvidersSection({
 
           {!showHiddenProviders && (
             <SearchCategorySection
-                providers={filteredProviders}
+                providers={allEligibleProviders}
                 blacklistedProviders={blacklistedProviders}
                 categories={categories}
                 value={searchCategory}

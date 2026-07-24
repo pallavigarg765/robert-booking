@@ -2751,6 +2751,7 @@ export default function ScheduleServices({ providers, events, locations, clients
 
                                 <ProvidersSection
                                     providers={filteredProviders}
+                                    allEligibleProviders={visibleProviders}
                                     providerLimit={providerLimit}
                                     locations={locations}
                                     clientLocation={clientLocation}

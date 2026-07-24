@@ -425,17 +425,19 @@ export default function AvailabilitySection({
     };
 
     const handleDayClick = (day) => {
-        if (!day.isAvailable) return;
-
+        // Always select the date
         onDateSelect(day.date);
-        // setTimePreference("");
 
-        setExpandedDateKey((prevKey) =>
-            prevKey === day.key ? null : day.key
-        );
+        // Only expand if the day is available
+        if (day.isAvailable) {
+            setExpandedDateKey((prevKey) =>
+                prevKey === day.key ? null : day.key
+            );
+        } else {
+            setExpandedDateKey(null);
+        }
 
         setViewMode("day");
-
 
         requestAnimationFrame(() => {
             const container = scrollContainerRef?.current;
@@ -446,7 +448,9 @@ export default function AvailabilitySection({
             const containerRect = container.getBoundingClientRect();
             const targetRect = target.getBoundingClientRect();
 
-            const stickyHeader = document.getElementById("availability-sticky-header");
+            const stickyHeader = document.getElementById(
+                "availability-sticky-header"
+            );
 
             const stickyHeight = stickyHeader
                 ? stickyHeader.getBoundingClientRect().height
@@ -851,7 +855,7 @@ export default function AvailabilitySection({
                             <button
                                 onClick={() => handleDayClick(day)}
                                 // onDoubleClick={() => handleDayClick(day)}
-                                disabled={!day.isAvailable}
+                                // disabled={!day.isAvailable}
                                 className={`w-full p-3 flex justify-between ${day.isAvailable ? "hover:bg-green-50" : "bg-gray-100 text-gray-400"
                                     }`}
                             >
