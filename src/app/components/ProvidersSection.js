@@ -36,6 +36,7 @@ export default function ProvidersSection({
   blacklistedProviders = [],
   searchCategory,
   setSearchCategory,
+  setSelectedProvider
 }) {
   const [blacklistingProvider, setBlacklistingProvider] = useState(null);
   const [activeProvider, setActiveProvider] = useState(null);
@@ -401,6 +402,7 @@ export default function ProvidersSection({
                 categories={categories}
                 value={searchCategory}
                 onChange={setSearchCategory}
+                setSelectedProvider={setSelectedProvider}
             />
           )}
 

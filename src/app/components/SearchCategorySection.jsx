@@ -26,6 +26,7 @@ export default function SearchCategorySection({
     categories = [],
     value = "ALL",
     onChange,
+    setSelectedProvider
 }) {
     // console.log("blacklistedProviders: ", blacklistedProviders);
     const availableCategories = useMemo(() => {
@@ -72,7 +73,15 @@ export default function SearchCategorySection({
         if (!exists) {
             onChange("ALL");
         }
+        
+        // setSelectedProvider(null);
+
     }, [availableCategories, value, onChange]);
+
+    useEffect(() => {
+        setSelectedProvider(null);
+
+    }, [value]);
 
     return (
         <div className="space-y-3">

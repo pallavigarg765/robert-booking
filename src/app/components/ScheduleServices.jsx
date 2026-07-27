@@ -2773,6 +2773,7 @@ export default function ScheduleServices({ providers, events, locations, clients
                                     blacklistedProviders={blacklistedProviders}
                                     searchCategory={searchCategory}
                                     setSearchCategory={setSearchCategory}
+                                    setSelectedProvider={setSelectedProvider}
                                 />
 
                             )
