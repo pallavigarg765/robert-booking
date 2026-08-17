@@ -81,7 +81,12 @@ export default function ScheduleServices({ providers, events, locations, clients
         phonenumber: "",
         rememberMe: false,
     });
+    const [clientType, setClientType] = useState("returning");
+    const [clientTypeConfirmed, setClientTypeConfirmed] = useState(false);
+    const [hasRememberedLogin, setHasRememberedLogin] = useState(false);
+
     const [showOtpField, setShowOtpField] = useState(false);
+    const [showNewClientAddressFields, setShowNewClientAddressFields] = useState(false);
     const [showHiddenProviders, setShowHiddenProviders] = useState(false);
     const [activeField, setActiveField] = useState(null);
     const [phoneError, setPhoneError] = useState("");
@@ -93,20 +98,31 @@ export default function ScheduleServices({ providers, events, locations, clients
     const otpInputRef = useRef(null);
     const loginScrollRef = useRef(null);
 
+    const emailRef = useRef(null);
+    const phoneRef = useRef(null);
+    const newClientNameRef = useRef(null);
+    const newClientAddressRef = useRef(null);
+    const newClientCityRef = useRef(null);
+    const newClientStateRef = useRef(null);
+    const newClientZipRef = useRef(null);
+    const continueRef = useRef(null);
+    const rememberMeRef = useRef(null);
+
     const [highlightIndex, setHighlightIndex] = useState(-1);
     const [showNoProvidersModal, setShowNoProvidersModal] = useState(false);
     const cancelBtnRef = useRef(null);
     const router = useRouter();
 
     const [originalAddress, setOriginalAddress] = useState({
-    fullAddress: "",
-    city: "",
-    state: "",
-    zip: "",
-});
+        fullAddress: "",
+        city: "",
+        state: "",
+        zip: "",
+    });
 
     const [resendTimer, setResendTimer] = useState(30);
     const [canResend, setCanResend] = useState(false);
+    const [registerLoading, setRegisterLoading] = useState(false);
 
     const focusTrapRef = useRef(null);
     const createBtnRef = useRef(null);
@@ -177,22 +193,26 @@ export default function ScheduleServices({ providers, events, locations, clients
     useEffect(() => {
         const savedEmail = localStorage.getItem("rememberedEmail");
         const savedPhone = localStorage.getItem("rememberedPhone");
+        const rememberMe =
+            localStorage.getItem("rememberMe") === "true";
 
-        if (savedEmail) {
-            setLoginData(prev => ({
-                ...prev,
-                email: savedEmail,
-                rememberMe: false,
-            }));
-        }
+        setLoginData(prev => ({
+            ...prev,
+            email: savedEmail || "",
+            phonenumber: savedPhone || "",
+            rememberMe,
+        }));
 
-        if (savedPhone) {
-            setLoginData(prev => ({
-                ...prev,
-                phonenumber: savedPhone,
-                rememberMe: false,
-            }));
-        }
+        // Returning Client is always the default.
+        setClientType("returning");
+
+        // Always show the client type choice first.
+        // Email/phone will appear only after Continue is pressed.
+        setClientTypeConfirmed(false);
+
+        setHasRememberedLogin(
+            Boolean(rememberMe && savedEmail && savedPhone)
+        );
     }, []);
 
     useEffect(() => {
@@ -212,75 +232,80 @@ export default function ScheduleServices({ providers, events, locations, clients
     }, []);
 
     const handleChangeAddress = () => {
-    setOriginalAddress({
-        fullAddress: formData.fullAddress,
-        city: formData.city,
-        state: formData.state,
-        zip: formData.zip,
-    });
+        setOriginalAddress({
+            fullAddress: formData.fullAddress,
+            city: formData.city,
+            state: formData.state,
+            zip: formData.zip,
+        });
 
-    // setUserFlow("collect-address");
-};
+        // setUserFlow("collect-address");
+    };
+
+    const handleCancelLogin = () => {
+        // Optional cleanup
+        resetBooking();
+
+        localStorage.removeItem("bookingState");
+        localStorage.removeItem("userAuth");
+
+        router.push("/");
+    };
 
     const handleCancelEditAddress = () => {
-    // Restore original values
-    setFormData(prev => ({
-        ...prev,
-        fullAddress: originalAddress.fullAddress,
-        city: originalAddress.city,
-        state: originalAddress.state,
-        zip: originalAddress.zip,
-    }));
+        // Restore original values
+        setFormData(prev => ({
+            ...prev,
+            fullAddress: originalAddress.fullAddress,
+            city: originalAddress.city,
+            state: originalAddress.state,
+            zip: originalAddress.zip,
+        }));
 
-    // Sync booking address
-    handleFieldChange({
-        target: {
-            name: "fullAddress",
-            value: originalAddress.fullAddress,
-        },
-    });
+        // Sync booking address
+        handleFieldChange({
+            target: {
+                name: "fullAddress",
+                value: originalAddress.fullAddress,
+            },
+        });
 
-    handleFieldChange({
-        target: {
-            name: "city",
-            value: originalAddress.city,
-        },
-    });
+        handleFieldChange({
+            target: {
+                name: "city",
+                value: originalAddress.city,
+            },
+        });
 
-    handleFieldChange({
-        target: {
-            name: "state",
-            value: originalAddress.state,
-        },
-    });
+        handleFieldChange({
+            target: {
+                name: "state",
+                value: originalAddress.state,
+            },
+        });
 
-    handleFieldChange({
-        target: {
-            name: "zip",
-            value: originalAddress.zip,
-        },
-    });
+        handleFieldChange({
+            target: {
+                name: "zip",
+                value: originalAddress.zip,
+            },
+        });
 
-    setUserFlow("authenticated");
-    setShowStateDropdown(false);
-    setHighlightIndex(-1);
+        setUserFlow("authenticated");
+        setShowStateDropdown(false);
+        setHighlightIndex(-1);
 
-    // Don't trigger a new provider search because nothing changed.
-    setAddressReady(false);
-};
+        // Don't trigger a new provider search because nothing changed.
+        setAddressReady(false);
+    };
 
     const handleCancelOTP = () => {
-        setShowOtpField(false);
-        setOtp("");
-        setOtpError("");
-        setOtpLoading(false);
+        resetBooking();
 
-        // Allow editing again
-        setLoginData(prev => ({
-            ...prev,
-            email: prev.email,
-            phonenumber: prev.phonenumber,
-        }));
+        localStorage.removeItem("bookingState");
+        localStorage.removeItem("userAuth");
+
+        router.push("/");
     };
 
     const cleanName = (name = "") =>
@@ -349,6 +374,7 @@ export default function ScheduleServices({ providers, events, locations, clients
         setUserEmail,
         setSelectedProvider,
         setSelectedDate,
+        providerSelectedDate,
         setSelectedTime,
         getLatLngFromAddress,
         handleNotFoundSubmit,
@@ -613,16 +639,51 @@ export default function ScheduleServices({ providers, events, locations, clients
     }, [filteredProviders]);
 
     useEffect(() => {
+        // Do nothing until we explicitly request a provider search
         if (!addressReady) return;
 
+        // IMPORTANT:
+        // Wait until useBooking has actually received the address.
+        if (!address?.fullAddress?.trim()) {
+            console.log(
+                "⏳ Waiting for booking address before searching providers..."
+            );
+            return;
+        }
+
+        let cancelled = false;
+
         const runSearch = async () => {
-            await triggerProviderSearch();
-            setAddressReady(false);
+            try {
+                console.log(
+                    "🔎 Starting provider search with address:",
+                    address.fullAddress
+                );
+
+                await triggerProviderSearch();
+
+            } catch (error) {
+                console.error(
+                    "❌ Provider search failed:",
+                    error
+                );
+            } finally {
+                if (!cancelled) {
+                    setAddressReady(false);
+                }
+            }
         };
 
         runSearch();
 
-    }, [addressReady, address.fullAddress]);
+        return () => {
+            cancelled = true;
+        };
+
+    }, [
+        addressReady,
+        address?.fullAddress,
+    ]);
 
     useEffect(() => {
         if (
@@ -645,6 +706,12 @@ export default function ScheduleServices({ providers, events, locations, clients
         setSelectedDate(date);
         setSelectedTime(""); // Reset time when date changes
         setActiveStep(4); // Move to Time step
+    };
+
+    const capitalizeWords = (value = "") => {
+        return value
+            .toLowerCase()
+            .replace(/\b[a-z]/g, (char) => char.toUpperCase());
     };
 
     // Custom handler for time selection
@@ -710,11 +777,13 @@ export default function ScheduleServices({ providers, events, locations, clients
                     }
 
                     // ✅ KEEP your existing address logic
-                    if (parsed.userData?.fullAddress) {
+                    if (parsed.userData?.fullAddress?.trim()) {
                         const addr = parsed.userData;
 
                         setFormData(prev => ({
                             ...prev,
+                            name: addr.name || parsed.name || "",
+                            email: addr.email || parsed.userEmail || "",
                             fullAddress: addr.fullAddress || "",
                             city: addr.city || "",
                             state: addr.state || "",
@@ -722,6 +791,7 @@ export default function ScheduleServices({ providers, events, locations, clients
                         }));
 
                         setUserFlow("authenticated");
+                        setAddressReady(true);
                     } else {
                         setUserFlow("collect-address");
                     }
@@ -921,112 +991,240 @@ export default function ScheduleServices({ providers, events, locations, clients
         console.log('🔙 Resetting booking form');
     };
 
+    const handleClientTypeContinue = () => {
+        setOtpError("");
+        setEmailError("");
+        setPhoneError("");
+
+        setClientTypeConfirmed(true);
+
+        // Focus the email field after React renders it.
+        setTimeout(() => {
+            focusAndSelect(emailRef.current);
+        }, 50);
+    };
+
     const handleLoginCheck = async (e) => {
         e.preventDefault();
+
+        if (clientType !== "returning") {
+            return;
+        }
+
         setOtpError("");
+        setEmailError("");
+        setPhoneError("");
 
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         const phoneRegex = /^[0-9]{10}$/;
 
-        // ✅ Validate Email
-        if (!emailRegex.test(loginData.email)) {
-            setOtpError("Please enter valid email");
+        // ============================================================
+        // Validate Email
+        // ============================================================
+        if (!emailRegex.test(loginData.email.trim())) {
+            setEmailError("Please enter valid email");
             return;
         }
 
-        // ✅ Validate Phone
+        // ============================================================
+        // Validate Phone
+        // ============================================================
         if (!phoneRegex.test(loginData.phonenumber)) {
-            setOtpError("Enter valid 10 digit phone number");
+            setPhoneError("Enter valid 10 digit phone number");
             return;
-        }
-
-        if (loginData.rememberMe) {
-            localStorage.setItem("rememberedEmail", loginData.email);
-            localStorage.setItem("rememberedPhone", loginData.phonenumber);
-        } else {
-            localStorage.removeItem("rememberedEmail");
-            localStorage.removeItem("rememberedPhone");
         }
 
         setLoginLoading(true);
 
         try {
-            const checkRes = await fetch("/api/auth/login", {
+            // ========================================================
+            // CHECK USER
+            //
+            // This API ONLY checks whether the email/phone belongs
+            // to an existing user.
+            // It does NOT perform the OTP verification.
+            // ========================================================
+            const checkRes = await fetch("/api/auth/check-user", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: {
+                    "Content-Type": "application/json",
+                },
                 body: JSON.stringify({
-                    email: loginData.email,
+                    email: loginData.email.trim(),
                     phonenumber: loginData.phonenumber,
+                    clientType: "returning",
                 }),
             });
 
             const checkData = await checkRes.json();
 
-            if (!checkData.success) {
-                setOtpError(checkData.message || "Something went wrong");
+            console.log(
+                "Returning client check-user response:",
+                checkData
+            );
+
+            // ========================================================
+            // EMAIL DOES NOT EXIST
+            //
+            // Returning Client:
+            // Account does not exist.
+            //
+            // Focus + highlight EMAIL.
+            // ========================================================
+
+            if (checkData.scenario === "email-not-found") {
+
+                setOtpError(
+                    checkData.message || "Account does not exist"
+                );
+
+                setPhoneError("");
+
+                setTimeout(() => {
+                    focusAndSelect(emailRef.current);
+                }, 50);
+
                 return;
             }
 
-            // 🎯 Scenario 4
-            if (checkData.scenario === "phone-exists-different-email") {
-                setUserFlow("phone-exists-different-email");
-                return;
-            }
+            // ========================================================
+            // WRONG PHONE
+            //
+            // Returning Client:
+            // Email exists but phone is incorrect.
+            //
+            // Focus + highlight PHONE.
+            // ========================================================
 
-            // Scenario 1 → New user
-            if (checkData.scenario === "new-user") {
-                setUserFlow("register-user");
-                return;
-            }
-
-            // Scenario 3 → Wrong phone
             if (checkData.scenario === "wrong-phone") {
-                setOtpError(checkData.message);
+
+                setOtpError(
+                    checkData.message || "Incorrect Phone Number"
+                );
+
+                setEmailError("");
+
+                setTimeout(() => {
+                    focusAndSelect(phoneRef.current);
+                }, 50);
+
                 return;
             }
 
-            // Scenario 2 → Login
-            if (checkData.scenario === "login") {
-                // send OTP (your existing code)
-                // }
+            // ========================================================
+            // EXISTING USER
+            //
+            // Email + phone are correct.
+            // Send OTP.
+            // ========================================================
 
-                // ✅ Email + Phone correct → Send OTP
-                // if (checkData.loginAllowed) {
-                // const otpRes = await fetch("/api/auth/send-otp", {
-                //     method: "POST",
-                //     headers: { "Content-Type": "application/json" },
-                //     body: JSON.stringify({
-                //         email: loginData.email,
-                //         phonenumber: loginData.phonenumber,
-                //     }),
-                // });
+            if (
+                checkData.scenario === "login" &&
+                checkData.loginAllowed
+            ) {
 
-                // const otpData = await otpRes.json();
+                // ====================================================
+                // REMEMBER ME
+                // ====================================================
 
-                // if (!otpRes.ok || !otpData.success) {
-                //     setOtpError(otpData.message || "Failed to send OTP");
-                //     return;
-                // }
+                if (loginData.rememberMe) {
 
+                    localStorage.setItem(
+                        "rememberedEmail",
+                        loginData.email.trim()
+                    );
+
+                    localStorage.setItem(
+                        "rememberedPhone",
+                        loginData.phonenumber
+                    );
+
+                    localStorage.setItem(
+                        "rememberMe",
+                        "true"
+                    );
+
+                } else {
+
+                    localStorage.removeItem("rememberedEmail");
+                    localStorage.removeItem("rememberedPhone");
+                    localStorage.removeItem("rememberMe");
+                }
+
+                // ====================================================
+                // SEND EXISTING CLIENT OTP
+                //
+                // KEEP YOUR EXISTING OTP API.
+                // ====================================================
+
+                const otpRes = await fetch(
+                    "/api/auth/send-otp",
+                    {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                        },
+                        body: JSON.stringify({
+                            email: loginData.email.trim(),
+                            phonenumber: loginData.phonenumber,
+                            clientType: "returning",
+                        }),
+                    }
+                );
+
+                const otpData = await otpRes.json();
+
+                console.log(
+                    "Returning client send-otp response:",
+                    otpData
+                );
+
+                if (!otpRes.ok || !otpData.success) {
+
+                    setOtpError(
+                        otpData.message ||
+                        "Failed to send security code"
+                    );
+
+                    return;
+                }
+
+                // ====================================================
+                // SHOW EXISTING SECURITY CODE FIELD
+                // ====================================================
+
+                setOtp("");
                 setShowOtpField(true);
                 setResendTimer(30);
                 setCanResend(false);
 
-                setShowOtpField(true);
+                return;
             }
 
-            // ❌ Email does not exist → Register
-            else {
-                setUserFlow("register-user");
-            }
+            // ========================================================
+            // UNEXPECTED RESPONSE
+            // ========================================================
+
+            setOtpError(
+                checkData.message ||
+                "Unable to verify your information. Please try again."
+            );
 
         } catch (error) {
-            console.error(error);
-            setOtpError("Network error. Please try again.");
+            console.error(
+                "Returning client check-user error:",
+                error
+            );
+
+            setOtpError(
+                "Network error. Please try again."
+            );
         } finally {
             setLoginLoading(false);
         }
     };
+
+    console.log("otpError: ", otpError)
 
     const handleVerifyOTP = async (e) => {
         e.preventDefault();
@@ -1049,7 +1247,8 @@ export default function ScheduleServices({ providers, events, locations, clients
                 body: JSON.stringify({
                     email: loginData.email,
                     phonenumber: loginData.phonenumber,
-                    otp: otp
+                    otp,
+                    clientType,
                 }),
             });
 
@@ -1062,23 +1261,103 @@ export default function ScheduleServices({ providers, events, locations, clients
                 setOtpVerified(true);
                 // setUserFlow("authenticated");
 
-                const authData = {
-                    isAuthenticated: true,
-                    userEmail: result.user.email,
-                    userData: result.user,
-                    name: result.user.name,
-                    loginData: {
-                        email: loginData.email,
-                        phonenumber: loginData.phonenumber
-                    },
-                    timestamp: new Date().toISOString()
+                const authenticatedUser = {
+                    ...result.user,
+                    name: loginData.name || result.user?.name || "",
+                    email: loginData.email || result.user?.email || "",
+                    fullAddress: formData.fullAddress || result.user?.fullAddress || "",
+                    city: formData.city || result.user?.city || "",
+                    state: formData.state || result.user?.state || "",
+                    zip: formData.zip || result.user?.zip || "",
                 };
 
-                localStorage.setItem('userAuth', JSON.stringify(authData));
+                const authData = {
+                    isAuthenticated: true,
+                    userEmail: authenticatedUser.email,
+                    userData: authenticatedUser,
+                    name: authenticatedUser.name,
+                    loginData: {
+                        name: authenticatedUser.name,
+                        email: authenticatedUser.email,
+                        phonenumber: loginData.phonenumber,
+                    },
+                    timestamp: new Date().toISOString(),
+                };
+
+                localStorage.setItem("userAuth", JSON.stringify(authData));
                 window.dispatchEvent(new Event("session-changed"));
 
                 // Auto fill last address if exists
-                if (!result.user.fullAddress) {
+                // ============================================================
+                // NEW CLIENT
+                // Address was already entered during registration.
+                // Do NOT show the collect-address screen again.
+                // ============================================================
+                if (clientType === "new") {
+
+                    // The new account has already been created by
+                    // /api/auth/verify-otp after successful OTP verification.
+
+                    setFormData(prev => ({
+                        ...prev,
+                        name: result.user.name || loginData.name || "",
+                        email: result.user.email || loginData.email || "",
+                        fullAddress: result.user.fullAddress || formData.fullAddress || "",
+                        city: result.user.city || formData.city || "",
+                        state: result.user.state || formData.state || "",
+                        zip: result.user.zip || formData.zip || "",
+                    }));
+
+                    // Sync the verified address into booking state
+                    handleFieldChange({
+                        target: {
+                            name: "fullAddress",
+                            value:
+                                result.user.fullAddress ||
+                                formData.fullAddress ||
+                                "",
+                        },
+                    });
+
+                    handleFieldChange({
+                        target: {
+                            name: "city",
+                            value:
+                                result.user.city ||
+                                formData.city ||
+                                "",
+                        },
+                    });
+
+                    handleFieldChange({
+                        target: {
+                            name: "state",
+                            value:
+                                result.user.state ||
+                                formData.state ||
+                                "",
+                        },
+                    });
+
+                    handleFieldChange({
+                        target: {
+                            name: "zip",
+                            value:
+                                result.user.zip ||
+                                formData.zip ||
+                                "",
+                        },
+                    });
+
+                    // New client is now fully authenticated.
+                    setUserFlow("authenticated");
+                    setAddressReady(true);
+                }
+                // ============================================================
+                // EXISTING / RETURNING CLIENT
+                // Keep the existing behavior.
+                // ============================================================
+                else if (!result.user.fullAddress) {
                     setUserFlow("collect-address");
                 } else {
                     setFormData(prev => ({
@@ -1090,28 +1369,39 @@ export default function ScheduleServices({ providers, events, locations, clients
                         name: result.user.name || "",
                     }));
 
-
                     if (result?.user?.fullAddress) {
                         handleFieldChange({
-                            target: { name: "fullAddress", value: result?.user.fullAddress }
+                            target: {
+                                name: "fullAddress",
+                                value: result.user.fullAddress,
+                            },
                         });
                     }
 
                     if (result?.user?.city) {
                         handleFieldChange({
-                            target: { name: "city", value: result?.user.city }
+                            target: {
+                                name: "city",
+                                value: result.user.city,
+                            },
                         });
                     }
 
                     if (result?.user?.state) {
                         handleFieldChange({
-                            target: { name: "state", value: result?.user.state }
+                            target: {
+                                name: "state",
+                                value: result.user.state,
+                            },
                         });
                     }
 
                     if (result?.user?.zip) {
                         handleFieldChange({
-                            target: { name: "zip", value: result?.user.zip }
+                            target: {
+                                name: "zip",
+                                value: result.user.zip,
+                            },
                         });
                     }
 
@@ -1132,6 +1422,12 @@ export default function ScheduleServices({ providers, events, locations, clients
 
             } else {
                 setOtpError(result.message || "Invalid or expired OTP");
+
+                // Put cursor back into the security code field
+                // and highlight the complete code.
+                setTimeout(() => {
+                    focusAndSelect(otpInputRef.current);
+                }, 50);
             }
 
         } catch (error) {
@@ -1233,55 +1529,378 @@ export default function ScheduleServices({ providers, events, locations, clients
         await getLatLngFromAddress();
     };
 
-    const handleRegisterUser = async () => {
+    const handlePrepareNewClientRegistration = async () => {
         try {
-            setOtpLoading(true);
+            setRegisterLoading(true);
             setOtpError("");
 
-            // 1️⃣ Register User
-            const response = await fetch("/api/auth/register-user", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    fullname: formData.name,
-                    email: loginData.email,
-                    phonenumber: loginData.phonenumber,
-                }),
-            });
+            // Validate address fields
+            if (!formData.name?.trim()) {
+                setOtpError("Name is required");
+                return;
+            }
 
-            const result = await response.json();
+            if (!formData.fullAddress?.trim()) {
+                setOtpError("Address is required");
+                return;
+            }
+
+            if (!formData.city?.trim()) {
+                setOtpError("City is required");
+                return;
+            }
+
+            if (!formData.state?.trim()) {
+                setOtpError("State is required");
+                return;
+            }
+
+            if (!formData.zip?.trim()) {
+                setOtpError("ZIP code is required");
+                return;
+            }
+
+            const response = await fetch(
+                "/api/auth/register-pending",
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                        fullname:
+                            formData.name.trim(),
+
+                        email:
+                            loginData.email.trim(),
+
+                        phonenumber:
+                            loginData.phonenumber,
+
+                        fullAddress:
+                            formData.fullAddress.trim(),
+
+                        city:
+                            formData.city.trim(),
+
+                        state:
+                            formData.state.trim(),
+
+                        zip:
+                            formData.zip.trim(),
+                    }),
+                }
+            );
+
+            const result =
+                await response.json();
 
             if (!response.ok || !result.success) {
-                setOtpError(result.message || "Registration failed");
+                setOtpError(
+                    result.message ||
+                    "Unable to send security code."
+                );
                 return;
             }
 
-            // 2️⃣ Send OTP after successful registration
-            const otpRes = await fetch("/api/auth/send-otp", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    email: loginData.email,
-                    phonenumber: loginData.phonenumber,
-                }),
-            });
+            // =====================================================
+            // REMEMBER ME
+            // =====================================================
 
-            const otpData = await otpRes.json();
+            if (loginData.rememberMe) {
 
-            if (!otpRes.ok || !otpData.success) {
-                setOtpError(otpData.message || "Failed to send OTP");
-                return;
+                localStorage.setItem(
+                    "rememberedNewClient",
+                    JSON.stringify({
+                        name:
+                            formData.name || "",
+
+                        email:
+                            loginData.email || "",
+
+                        phonenumber:
+                            loginData.phonenumber || "",
+
+                        fullAddress:
+                            formData.fullAddress || "",
+
+                        city:
+                            formData.city || "",
+
+                        state:
+                            formData.state || "",
+
+                        zip:
+                            formData.zip || "",
+
+                        rememberMe: true,
+                    })
+                );
+
+                localStorage.setItem(
+                    "rememberedEmail",
+                    loginData.email
+                );
+
+                localStorage.setItem(
+                    "rememberedPhone",
+                    loginData.phonenumber
+                );
+
+                localStorage.setItem(
+                    "rememberMe",
+                    "true"
+                );
+
+            } else {
+
+                localStorage.removeItem(
+                    "rememberedNewClient"
+                );
+
+                localStorage.removeItem(
+                    "rememberedEmail"
+                );
+
+                localStorage.removeItem(
+                    "rememberedPhone"
+                );
+
+                localStorage.removeItem(
+                    "rememberMe"
+                );
             }
 
-            // 3️⃣ Move to OTP verification screen
-            // setShowOtpField(true);
-            setUserFlow("otp-verification");
+            // =====================================================
+            // SHOW SECURITY CODE
+            // =====================================================
+
+            setOtp("");
+
+            setShowOtpField(true);
+
+            setResendTimer(30);
+
+            setCanResend(false);
+
         } catch (error) {
-            console.error(error);
-            setOtpError("Registration failed");
+
+            console.error(
+                "New client registration error:",
+                error
+            );
+
+            setOtpError(
+                "Unable to send security code."
+            );
+
         } finally {
-            setOtpLoading(false);
+
+            setRegisterLoading(false);
         }
+    };
+
+    const handleNewClientContinue = async () => {
+
+        // ============================================================
+        // STEP 1:
+        //
+        // New Client enters:
+        // - Email
+        // - Phone
+        //
+        // Validate format first.
+        // Then check EMAIL.
+        //
+        // Phone does NOT determine whether this is a new client.
+        // ============================================================
+
+        if (!showNewClientAddressFields) {
+
+            setOtpError("");
+            setEmailError("");
+            setPhoneError("");
+
+            const emailRegex =
+                /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+            const phoneRegex =
+                /^[0-9]{10}$/;
+
+            // ========================================================
+            // EMAIL
+            // ========================================================
+
+            if (!emailRegex.test(loginData.email.trim())) {
+
+                setEmailError(
+                    "Please enter valid email"
+                );
+
+                return;
+            }
+
+            // ========================================================
+            // PHONE
+            // ========================================================
+
+            if (!phoneRegex.test(loginData.phonenumber)) {
+
+                setPhoneError(
+                    "Enter valid 10 digit phone number"
+                );
+
+                return;
+            }
+
+            setRegisterLoading(true);
+
+            try {
+
+                // ====================================================
+                // CHECK USER
+                // ====================================================
+
+                const response = await fetch(
+                    "/api/auth/check-user",
+                    {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                        },
+                        body: JSON.stringify({
+                            email:
+                                loginData.email.trim(),
+
+                            phonenumber:
+                                loginData.phonenumber,
+
+                            clientType: "new",
+                        }),
+                    }
+                );
+
+                const result =
+                    await response.json();
+
+                console.log(
+                    "New client check-user response:",
+                    result
+                );
+
+                // ====================================================
+                // EXISTING EMAIL
+                //
+                // This is the ONLY account conflict for New Client.
+                // ====================================================
+
+                if (
+                    result.scenario ===
+                    "email-exists"
+                ) {
+
+                    setOtpError(
+                        result.message ||
+                        "Account exists: Choose another email to create your account."
+                    );
+
+                    setTimeout(() => {
+                        focusAndSelect(
+                            emailRef.current
+                        );
+                    }, 50);
+
+                    return;
+                }
+
+                // ====================================================
+                // NEW EMAIL
+                //
+                // Phone can be existing or new.
+                // Continue to address.
+                // ====================================================
+
+                if (
+                    result.success &&
+                    result.scenario === "new-user" &&
+                    result.canRegister
+                ) {
+
+                    setOtpError("");
+
+                    setShowNewClientAddressFields(
+                        true
+                    );
+
+                    // Focus first address field
+                    setTimeout(() => {
+
+                        focusAndSelect(
+                            newClientNameRef.current
+                        );
+
+                    }, 100);
+
+                    return;
+                }
+
+                // ====================================================
+                // API ERROR
+                // ====================================================
+
+                if (!response.ok || !result.success) {
+
+                    setOtpError(
+                        result.message ||
+                        "Unable to check your information. Please try again."
+                    );
+
+                    return;
+                }
+
+                // ====================================================
+                // FALLBACK
+                // ====================================================
+
+                setOtpError(
+                    result.message ||
+                    "Unable to check your information. Please try again."
+                );
+
+            } catch (error) {
+
+                console.error(
+                    "New client check-user error:",
+                    error
+                );
+
+                setOtpError(
+                    "Network error. Please try again."
+                );
+
+            } finally {
+
+                setRegisterLoading(false);
+            }
+
+            return;
+        }
+
+        // ============================================================
+        // STEP 2:
+        //
+        // Address fields are already visible.
+        //
+        // DO NOT CREATE THE ACCOUNT YET.
+        //
+        // Instead:
+        // 1. Validate address
+        // 2. Store pending registration
+        // 3. Send OTP
+        // 4. Show existing Security Code field
+        // ============================================================
+
+        await handlePrepareNewClientRegistration();
     };
     // Function to unblacklist all providers
     const handleUnblacklistAll = async () => {
@@ -1486,7 +2105,7 @@ export default function ScheduleServices({ providers, events, locations, clients
         const hasService = Object.values(services).some(Boolean);
 
         if (!hasService) {
-            setSelectedDate(null);
+            setSelectedDate(providerSelectedDate);
             setSelectedTime("");
         }
     }, [services]);
@@ -1528,28 +2147,44 @@ export default function ScheduleServices({ providers, events, locations, clients
         setOtp("");
         setOtpError("");
         setShowOtpField(false);
+        setShowNewClientAddressFields(false);
         setShowHiddenProviders(false);
         setSelectedProvider(null);
 
         const rememberedEmail = localStorage.getItem("rememberedEmail");
         const rememberedPhone = localStorage.getItem("rememberedPhone");
+        const rememberMe =
+            localStorage.getItem("rememberMe") === "true";
+
+        const hasRememberedCredentials =
+            rememberMe &&
+            !!rememberedEmail &&
+            !!rememberedPhone;
+
+        if (hasRememberedCredentials) {
+            // Remember Me is still stored.
+            // Automatically select Returning Client
+            // and keep the client-type options hidden.
+            setHasRememberedLogin(true);
+            setClientType("returning");
+        } else {
+            // No remembered login.
+            // Show Returning/New Client choices again.
+            setHasRememberedLogin(false);
+            setClientType("");
+        }
 
         setLoginData({
-            email: rememberedEmail ? rememberedEmail : "",
-            phonenumber: rememberedPhone ? rememberedPhone : "",
-            rememberMe: false,
+            email: rememberedEmail || "",
+            phonenumber: rememberedPhone || "",
+            rememberMe,
         });
-        // setUser(null);
 
         // 🧹 Clear booking state
         setSelectedDate(null);
         setSelectedTime("");
-        // setSlots([]);
-        // setWorkCalandar({});
-        // setServices({}); // VERY IMPORTANT
 
         // 🔥 Reset booking related states
-        // setTotalDuration(0);
         setHasSearched(false);
 
         // Optional: notify other components
@@ -1569,6 +2204,7 @@ export default function ScheduleServices({ providers, events, locations, clients
                 body: JSON.stringify({
                     email: loginData.email,
                     phonenumber: loginData.phonenumber,
+                    clientType: clientType,
                 }),
             });
 
@@ -1792,12 +2428,43 @@ export default function ScheduleServices({ providers, events, locations, clients
 
     // console.log("isSearchingProviders || !searchCompleted: ", isSearchingProviders, !searchCompleted)
 
-    const isFormValid =
+    const isReturningClientValid =
+        clientType === "returning" &&
         loginData.email &&
         loginData.phonenumber &&
         !emailError &&
         !phoneError &&
         loginData.phonenumber.length === 10;
+
+    const isNewClientContactValid =
+        clientType === "new" &&
+        loginData.email?.trim() &&
+        loginData.phonenumber &&
+        !emailError &&
+        !phoneError &&
+        loginData.phonenumber.length === 10;
+
+    const isNewClientAddressValid =
+        clientType === "new" &&
+        showNewClientAddressFields &&
+        loginData.name?.trim() &&
+        loginData.email?.trim() &&
+        loginData.phonenumber &&
+        formData.fullAddress?.trim() &&
+        formData.city?.trim() &&
+        formData.state?.trim() &&
+        formData.zip?.trim() &&
+        !emailError &&
+        !phoneError &&
+        loginData.phonenumber.length === 10 &&
+        formData.zip.length === 5;
+
+    const isNewClientValid = showNewClientAddressFields
+        ? isNewClientAddressValid
+        : isNewClientContactValid;
+
+    const isFormValid =
+        isReturningClientValid || isNewClientValid;
 
     const getCaretIndexFromClick = (input, clickX) => {
         const style = window.getComputedStyle(input);
@@ -1823,6 +2490,33 @@ export default function ScheduleServices({ providers, events, locations, clients
         }
 
         return input.value.length;
+    };
+
+    // Standard keyboard navigation for the New Client fields.
+    // Tab naturally moves to the next field; Enter moves to the next
+    // field as well, matching the existing login-field behavior.
+    const handleNewClientFieldKeyDown = (e, nextRef, prevRef = null) => {
+        if (e.key === "Enter") {
+            e.preventDefault();
+
+            if (nextRef?.current) {
+                focusAndSelect(nextRef.current);
+            }
+
+            return;
+        }
+
+        if (e.key === "Tab") {
+            e.preventDefault();
+
+            if (e.shiftKey) {
+                if (prevRef?.current) {
+                    focusAndSelect(prevRef.current);
+                }
+            } else if (nextRef?.current) {
+                focusAndSelect(nextRef.current);
+            }
+        }
     };
 
     // Main horizontal flow content - FIXED VERSION
@@ -1856,17 +2550,117 @@ export default function ScheduleServices({ providers, events, locations, clients
 
                             {/* ================= STEP 1: ENTRY ================= */}
                             {!otpVerified && userFlow === "entry" && (
-                                <form onSubmit={handleLoginCheck} className="space-y-6">
+                                <form
+                                    onSubmit={(e) => {
+                                        e.preventDefault();
+
+                                        if (!clientTypeConfirmed) {
+                                            handleClientTypeContinue();
+                                            return;
+                                        }
+
+                                        if (clientType === "new") {
+                                            handleNewClientContinue(e);
+                                        } else {
+                                            handleLoginCheck(e);
+                                        }
+                                    }}
+                                    className="space-y-3"
+                                >
 
                                     <div>
                                         <h2 className="text-xl font-semibold text-gray-800">
-                                            Login:
-
+                                            Welcome to Door-to-Door Nails
                                         </h2>
-                                        <p className="text-sm text-gray-500">
-                                            To login or open a new account, enter your email and phone number
-                                        </p>
                                     </div>
+
+                                    {/* CLIENT TYPE */}
+                                    {/* CLIENT TYPE SELECTION */}
+                                    {!showOtpField && !clientTypeConfirmed && (
+                                        <div className="space-y-3">
+
+                                            <p className="text-sm font-medium text-gray-700">
+                                                Please indicate if you are a:
+                                            </p>
+
+                                            {/* RETURNING CLIENT */}
+                                            <label
+                                                className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer ${clientType === "returning"
+                                                    ? "border-indigo-500 bg-indigo-50"
+                                                    : "border-gray-200"
+                                                    }`}
+                                            >
+                                                <input
+                                                    type="radio"
+                                                    name="clientType"
+                                                    value="returning"
+                                                    checked={clientType === "returning"}
+                                                    onChange={() => {
+                                                        setClientType("returning");
+                                                        setShowNewClientAddressFields(false);
+                                                        setOtpError("");
+                                                        setEmailError("");
+                                                        setPhoneError("");
+                                                    }}
+                                                    className="w-4 h-4 text-indigo-600"
+                                                />
+
+                                                <span className="text-sm text-gray-700">
+                                                    Returning Client
+                                                </span>
+                                            </label>
+
+                                            {/* NEW CLIENT */}
+                                            <label
+                                                className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer ${clientType === "new"
+                                                    ? "border-indigo-500 bg-indigo-50"
+                                                    : "border-gray-200"
+                                                    }`}
+                                            >
+                                                <input
+                                                    type="radio"
+                                                    name="clientType"
+                                                    value="new"
+                                                    checked={clientType === "new"}
+                                                    onChange={() => {
+                                                        setClientType("new");
+                                                        setShowNewClientAddressFields(false);
+                                                        setOtpError("");
+                                                        setEmailError("");
+                                                        setPhoneError("");
+                                                    }}
+                                                    className="w-4 h-4 text-indigo-600"
+                                                />
+
+                                                <span className="text-sm text-gray-700">
+                                                    New Client
+                                                </span>
+                                            </label>
+
+                                            {/* CONTINUE + CANCEL */}
+                                            <div className="flex gap-3 pt-1">
+
+                                                <button
+                                                    type="button"
+                                                    onClick={handleClientTypeContinue}
+                                                    className="flex-1 py-3 rounded-xl font-medium bg-indigo-600 hover:bg-indigo-700 text-white transition"
+                                                >
+                                                    Continue
+                                                </button>
+
+                                                <button
+                                                    type="button"
+                                                    onClick={handleCancelLogin}
+                                                    className="flex-1 py-3 rounded-xl border border-gray-300 bg-white text-gray-700 hover:bg-gray-100 transition"
+                                                >
+                                                    Cancel
+                                                </button>
+
+                                            </div>
+
+                                        </div>
+                                    )}
+
 
                                     {/* <div>
                                         <label className="text-sm text-gray-600">
@@ -1887,120 +2681,557 @@ export default function ScheduleServices({ providers, events, locations, clients
                                         />
                                     </div> */}
 
-                                    {/* EMAIL */}
-                                    <div>
-                                        <label className="text-sm text-gray-600">
-                                            Email <span className="text-gray-400">(e.g., john@example.com)</span>
-                                        </label>
-                                        <input
-                                            type="text"
+                                    {clientTypeConfirmed && (<>
+                                        {/* EMAIL */}
+                                        <div>
+                                            <label className="text-sm text-gray-600">
+                                                Email <span className="text-gray-400">(e.g., john@example.com)</span>
+                                            </label>
+                                            <input
+                                                ref={emailRef}
+                                                type="text"
 
-                                            // inputMode="email"
-                                            // autoComplete="email"
-                                            disabled={showOtpField}
-                                            value={loginData.email}
-                                            onChange={(e) => {
-                                                const value = e.target.value;
-                                                setLoginData(prev => ({ ...prev, email: value }));
+                                                // inputMode="email"
+                                                // autoComplete="email"
+                                                disabled={showOtpField}
+                                                value={loginData.email}
+                                                onChange={(e) => {
+                                                    const value = e.target.value;
 
-                                                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                                                    setLoginData(prev => ({
+                                                        ...prev,
+                                                        email: value,
+                                                    }));
 
-                                                if (!value) {
-                                                    setEmailError("Email is required");
-                                                } else if (!emailRegex.test(value)) {
-                                                    setEmailError("Please enter valid email");
-                                                } else {
-                                                    setEmailError("");
+                                                    setOtpError("");
+
+                                                    if (emailError) {
+                                                        setEmailError("");
+                                                    }
+                                                }}
+                                                onBlur={(e) => {
+                                                    const value = e.target.value.trim();
+                                                    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+                                                    if (!value) {
+                                                        setEmailError("Email is required");
+                                                    } else if (!emailRegex.test(value)) {
+                                                        setEmailError("Please enter valid email");
+                                                    } else {
+                                                        setEmailError("");
+                                                    }
+                                                }}
+                                                onClick={(e) => {
+                                                    if (e.detail === 1) {
+                                                        e.target.select();
+                                                    }
+                                                }}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === "Enter") {
+                                                        e.preventDefault();
+                                                        phoneRef.current?.focus();
+                                                    }
+                                                }}
+
+                                                onDoubleClick={(e) => {
+                                                    e.preventDefault();
+                                                    const input = e.target;
+                                                    const clickX = e.nativeEvent.offsetX;
+                                                    const caretIndex = getCaretIndexFromClick(input, clickX);
+                                                    input.setSelectionRange(caretIndex, caretIndex);
+                                                }} className="w-full mt-2 px-4 py-3 rounded-xl border focus:ring-2 focus:ring-indigo-500 outline-none"
+                                            />
+                                            {emailError && (
+                                                <p className="text-xs text-red-500 mt-1">{emailError}</p>
+                                            )}
+                                        </div>
+
+                                        {/* PHONE */}
+                                        <div>
+                                            <label className="text-sm text-gray-600">
+                                                Phone <span className="text-gray-400">(e.g., 610-555-1212)</span>
+                                            </label>
+                                            <input
+                                                ref={phoneRef}
+                                                type="text"
+                                                disabled={showOtpField}
+                                                value={formatPhoneDisplay(loginData.phonenumber)}
+                                                onChange={(e) => {
+                                                    const formatted = formatPhoneDisplay(e.target.value);
+                                                    const digits = formatted.replace(/\D/g, "");
+
+                                                    setLoginData(prev => ({
+                                                        ...prev,
+                                                        phonenumber: digits,
+                                                    }));
+
+                                                    setOtpError("");
+
+                                                    if (phoneError) {
+                                                        setPhoneError("");
+                                                    }
+                                                }}
+                                                onBlur={() => {
+                                                    const digits = loginData.phonenumber;
+
+                                                    if (!digits) {
+                                                        setPhoneError("Phone number is required");
+                                                    } else if (digits.length !== 10) {
+                                                        setPhoneError("Please enter 10 digit number");
+                                                    } else {
+                                                        setPhoneError("");
+                                                    }
+                                                }}
+                                                onClick={(e) => {
+                                                    if (e.detail === 1) {
+                                                        e.target.select();
+                                                    }
+                                                }}
+
+                                                onDoubleClick={(e) => {
+                                                    e.preventDefault();
+                                                    const input = e.target;
+                                                    const clickX = e.nativeEvent.offsetX;
+                                                    const caretIndex = getCaretIndexFromClick(input, clickX);
+                                                    input.setSelectionRange(caretIndex, caretIndex);
+                                                }}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === "Enter") {
+                                                        e.preventDefault();
+
+                                                        if (clientType === "new") {
+                                                            focusAndSelect(newClientNameRef.current);
+                                                        } else {
+                                                            focusAndSelect(rememberMeRef.current);
+                                                        }
+                                                    } else if (e.key === "Tab") {
+                                                        e.preventDefault();
+
+                                                        if (e.shiftKey) {
+                                                            focusAndSelect(emailRef.current);
+                                                        } else if (clientType === "new") {
+                                                            focusAndSelect(newClientNameRef.current);
+                                                        } else {
+                                                            focusAndSelect(rememberMeRef.current);
+                                                        }
+                                                    }
+                                                }}
+                                                className="w-full mt-2 px-4 py-3 rounded-xl border focus:ring-2 focus:ring-indigo-500 outline-none"
+                                            />
+                                            {phoneError && (
+                                                <p className="text-xs text-red-500 mt-1">{phoneError}</p>
+                                            )}
+                                        </div>
+
+                                        {/* REMEMBER ME */}
+                                        <div className="flex items-center gap-2 mt-4">
+                                            <input
+                                                ref={rememberMeRef}
+                                                id="rememberMe"
+                                                type="checkbox"
+                                                checked={loginData.rememberMe}
+                                                onChange={(e) =>
+                                                    setLoginData(prev => ({
+                                                        ...prev,
+                                                        rememberMe: e.target.checked,
+                                                    }))
                                                 }
-                                            }}
-                                            onClick={(e) => {
-                                                if (e.detail === 1) {
-                                                    e.target.select();
-                                                }
-                                            }}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === "Enter") {
+                                                        e.preventDefault();
 
-                                            onDoubleClick={(e) => {
-                                                e.preventDefault();
-                                                const input = e.target;
-                                                const clickX = e.nativeEvent.offsetX;
-                                                const caretIndex = getCaretIndexFromClick(input, clickX);
-                                                input.setSelectionRange(caretIndex, caretIndex);
-                                            }} className="w-full mt-2 px-4 py-3 rounded-xl border focus:ring-2 focus:ring-indigo-500 outline-none"
-                                        />
-                                        {emailError && (
-                                            <p className="text-xs text-red-500 mt-1">{emailError}</p>
-                                        )}
-                                    </div>
+                                                        if (showOtpField) {
+                                                            otpInputRef.current?.focus();
+                                                        } else {
+                                                            continueBtnRef.current?.focus();
+                                                        }
+                                                    } else if (e.key === "Tab") {
+                                                        e.preventDefault();
 
-                                    {/* PHONE */}
-                                    <div>
-                                        <label className="text-sm text-gray-600">
-                                            Phone <span className="text-gray-400">(e.g., 610-555-1212)</span>
-                                        </label>
-                                        <input
-                                            type="text"
-                                            disabled={showOtpField}
-                                            value={formatPhoneDisplay(loginData.phonenumber)}
-                                            onChange={(e) => {
-                                                const digits = e.target.value.replace(/\D/g, "").slice(0, 10);
+                                                        if (e.shiftKey) {
+                                                            if (clientType === "new") {
+                                                                focusAndSelect(newClientZipRef.current);
+                                                            } else {
+                                                                focusAndSelect(phoneRef.current);
+                                                            }
+                                                        } else if (showOtpField) {
+                                                            otpInputRef.current?.focus();
+                                                        } else {
+                                                            continueBtnRef.current?.focus();
+                                                        }
+                                                    }
+                                                }}
+                                                className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                                            />
 
-                                                setLoginData(prev => ({
-                                                    ...prev,
-                                                    phonenumber: digits,
-                                                }));
+                                            <label
+                                                htmlFor="rememberMe"
+                                                className="text-sm text-gray-600 cursor-pointer"
+                                            >
+                                                To Remember email and phone number
+                                            </label>
+                                        </div>
 
-                                                setOtpError("");
+                                    </>
+                                    )}
 
-                                                if (!digits) {
-                                                    setPhoneError("Phone number is required");
-                                                } else if (digits.length !== 10) {
-                                                    setPhoneError("Please enter 10 digit number");
-                                                } else {
-                                                    setPhoneError("");
-                                                }
-                                            }}
-                                            onClick={(e) => {
-                                                if (e.detail === 1) {
-                                                    e.target.select();
-                                                }
-                                            }}
+                                    {clientType === "new" && showNewClientAddressFields && (
+                                        <>
+                                            {/* FULL NAME */}
+                                            <div>
+                                                <label className="text-sm text-gray-600">
+                                                    Full Name
+                                                </label>
 
-                                            onDoubleClick={(e) => {
-                                                e.preventDefault();
-                                                const input = e.target;
-                                                const clickX = e.nativeEvent.offsetX;
-                                                const caretIndex = getCaretIndexFromClick(input, clickX);
-                                                input.setSelectionRange(caretIndex, caretIndex);
-                                            }}
-                                            className="w-full mt-2 px-4 py-3 rounded-xl border focus:ring-2 focus:ring-indigo-500 outline-none"
-                                        />
-                                        {phoneError && (
-                                            <p className="text-xs text-red-500 mt-1">{phoneError}</p>
-                                        )}
-                                    </div>
+                                                <input
+                                                    ref={newClientNameRef}
+                                                    type="text"
+                                                    value={loginData.name || ""}
+                                                    maxLength={50}
+                                                    onChange={(e) => {
+                                                        const value = capitalizeWords(
+                                                            e.target.value
+                                                                .replace(/[^a-zA-Z\s'-]/g, "")
+                                                                .slice(0, 50)
+                                                        );
 
-                                    {/* REMEMBER ME */}
-                                    <div className="flex items-center gap-2 mt-4">
-                                        <input
-                                            id="rememberMe"
-                                            type="checkbox"
-                                            checked={loginData.rememberMe}
-                                            onChange={(e) =>
-                                                setLoginData(prev => ({
-                                                    ...prev,
-                                                    rememberMe: e.target.checked,
-                                                }))
-                                            }
-                                            className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
-                                        />
+                                                        setLoginData(prev => ({
+                                                            ...prev,
+                                                            name: value,
+                                                        }));
 
-                                        <label
-                                            htmlFor="rememberMe"
-                                            className="text-sm text-gray-600 cursor-pointer"
-                                        >
-                                            Remember login on this device for next time
-                                        </label>
-                                    </div>
+                                                        setFormData(prev => ({
+                                                            ...prev,
+                                                            name: value,
+                                                        }));
+
+                                                        setOtpError("");
+                                                    }}
+                                                    onClick={(e) => {
+                                                        if (e.detail === 1) {
+                                                            e.target.select();
+                                                        }
+                                                    }}
+                                                    onDoubleClick={(e) => {
+                                                        e.preventDefault();
+                                                        const input = e.target;
+                                                        const clickX = e.nativeEvent.offsetX;
+                                                        const caretIndex = getCaretIndexFromClick(input, clickX);
+                                                        input.setSelectionRange(caretIndex, caretIndex);
+                                                    }}
+                                                    onKeyDown={(e) =>
+                                                        handleNewClientFieldKeyDown(
+                                                            e,
+                                                            newClientAddressRef,
+                                                            phoneRef
+                                                        )
+                                                    }
+                                                    placeholder="Enter your full name"
+                                                    className="w-full mt-2 px-4 py-3 rounded-xl border focus:ring-2 focus:ring-indigo-500 outline-none"
+                                                />
+                                            </div>
+
+                                            {/* ADDRESS */}
+                                            <div>
+                                                <label className="text-sm text-gray-600">
+                                                    Address
+                                                </label>
+
+                                                <input
+                                                    ref={newClientAddressRef}
+                                                    type="text"
+                                                    value={formData.fullAddress || ""}
+                                                    maxLength={50}
+                                                    onChange={(e) => {
+                                                        const value = capitalizeWords(
+                                                            e.target.value.slice(0, 50)
+                                                        );
+
+                                                        setFormData(prev => ({
+                                                            ...prev,
+                                                            fullAddress: value,
+                                                        }));
+
+                                                        setOtpError("");
+                                                    }}
+                                                    onClick={(e) => {
+                                                        if (e.detail === 1) {
+                                                            e.target.select();
+                                                        }
+                                                    }}
+                                                    onDoubleClick={(e) => {
+                                                        e.preventDefault();
+                                                        const input = e.target;
+                                                        const clickX = e.nativeEvent.offsetX;
+                                                        const caretIndex = getCaretIndexFromClick(input, clickX);
+                                                        input.setSelectionRange(caretIndex, caretIndex);
+                                                    }}
+                                                    onKeyDown={(e) =>
+                                                        handleNewClientFieldKeyDown(
+                                                            e,
+                                                            newClientCityRef,
+                                                            newClientNameRef
+                                                        )
+                                                    }
+                                                    placeholder="Street address"
+                                                    className="w-full mt-2 px-4 py-3 rounded-xl border focus:ring-2 focus:ring-indigo-500 outline-none"
+                                                />
+                                            </div>
+
+                                            {/* CITY */}
+                                            <div>
+                                                <label className="text-sm text-gray-600">
+                                                    City
+                                                </label>
+
+                                                <input
+                                                    ref={newClientCityRef}
+                                                    type="text"
+                                                    value={formData.city || ""}
+                                                    maxLength={50}
+                                                    onChange={(e) => {
+                                                        const value = capitalizeWords(
+                                                            e.target.value
+                                                                .replace(/[^a-zA-Z\s'-]/g, "")
+                                                                .slice(0, 50)
+                                                        );
+
+                                                        setFormData(prev => ({
+                                                            ...prev,
+                                                            city: value,
+                                                        }));
+
+                                                        setOtpError("");
+                                                    }}
+                                                    onClick={(e) => {
+                                                        if (e.detail === 1) {
+                                                            e.target.select();
+                                                        }
+                                                    }}
+                                                    onDoubleClick={(e) => {
+                                                        e.preventDefault();
+                                                        const input = e.target;
+                                                        const clickX = e.nativeEvent.offsetX;
+                                                        const caretIndex = getCaretIndexFromClick(input, clickX);
+                                                        input.setSelectionRange(caretIndex, caretIndex);
+                                                    }}
+                                                    onKeyDown={(e) =>
+                                                        handleNewClientFieldKeyDown(
+                                                            e,
+                                                            newClientStateRef,
+                                                            newClientAddressRef
+                                                        )
+                                                    }
+                                                    placeholder="City"
+                                                    className="w-full mt-2 px-4 py-3 rounded-xl border focus:ring-2 focus:ring-indigo-500 outline-none"
+                                                />
+                                            </div>
+
+                                            {/* STATE */}
+                                            <div className="relative" ref={stateDropdownRef}>
+                                                <label className="text-sm text-gray-600">
+                                                    State
+                                                </label>
+
+                                                <input
+                                                    ref={newClientStateRef}
+                                                    type="text"
+                                                    value={formData.state || ""}
+                                                    maxLength={2}
+                                                    onChange={(e) => {
+                                                        const value = e.target.value
+                                                            .replace(/[^a-zA-Z]/g, "")
+                                                            .toUpperCase()
+                                                            .slice(0, 2);
+
+                                                        setFormData(prev => ({
+                                                            ...prev,
+                                                            state: value,
+                                                        }));
+
+                                                        setShowStateDropdown(true);
+                                                        setHighlightIndex(-1);
+                                                    }}
+                                                    onClick={(e) => {
+                                                        if (e.detail === 1) {
+                                                            e.target.select();
+                                                        }
+                                                    }}
+                                                    onDoubleClick={(e) => {
+                                                        e.preventDefault();
+                                                        const input = e.target;
+                                                        const clickX = e.nativeEvent.offsetX;
+                                                        const caretIndex = getCaretIndexFromClick(input, clickX);
+                                                        input.setSelectionRange(caretIndex, caretIndex);
+                                                    }}
+                                                    onKeyDown={(e) => {
+                                                        // Keep the same state-dropdown keyboard behavior
+                                                        // used by the existing Collect Address field.
+                                                        if (e.key === "ArrowDown") {
+                                                            e.preventDefault();
+                                                            setShowStateDropdown(true);
+                                                            setHighlightIndex(prev => {
+                                                                const maxIndex = filteredStates.length - 1;
+                                                                if (maxIndex < 0) return -1;
+                                                                return prev < maxIndex ? prev + 1 : 0;
+                                                            });
+                                                            return;
+                                                        }
+
+                                                        if (e.key === "ArrowUp") {
+                                                            e.preventDefault();
+                                                            setShowStateDropdown(true);
+                                                            setHighlightIndex(prev => {
+                                                                const maxIndex = filteredStates.length - 1;
+                                                                if (maxIndex < 0) return -1;
+                                                                return prev > 0 ? prev - 1 : maxIndex;
+                                                            });
+                                                            return;
+                                                        }
+
+                                                        if (e.key === "Escape") {
+                                                            e.preventDefault();
+                                                            setShowStateDropdown(false);
+                                                            setHighlightIndex(-1);
+                                                            return;
+                                                        }
+
+                                                        if (e.key === "Enter") {
+                                                            e.preventDefault();
+
+                                                            if (showStateDropdown && highlightIndex >= 0) {
+                                                                const selected = filteredStates[highlightIndex];
+
+                                                                if (selected) {
+                                                                    setFormData(prev => ({
+                                                                        ...prev,
+                                                                        state: selected.slice(0, 2).toUpperCase(),
+                                                                    }));
+                                                                }
+                                                            }
+
+                                                            setShowStateDropdown(false);
+                                                            setHighlightIndex(-1);
+
+                                                            setTimeout(() => {
+                                                                focusAndSelect(newClientZipRef.current);
+                                                            }, 0);
+                                                            return;
+                                                        }
+
+                                                        if (e.key === "Tab") {
+                                                            e.preventDefault();
+                                                            setShowStateDropdown(false);
+                                                            setHighlightIndex(-1);
+
+                                                            if (e.shiftKey) {
+                                                                focusAndSelect(newClientCityRef.current);
+                                                            } else {
+                                                                focusAndSelect(newClientZipRef.current);
+                                                            }
+                                                            return;
+                                                        }
+                                                    }}
+                                                    placeholder="Enter or Select State"
+                                                    className="w-full mt-2 px-4 py-3 rounded-xl border focus:ring-2 focus:ring-indigo-500 outline-none"
+                                                />
+
+                                                {showStateDropdown && (
+                                                    <div className="absolute left-0 mt-1 w-full bg-white border rounded-xl shadow-lg z-50 max-h-48 overflow-y-auto">
+                                                        {filteredStates.map((state, i) => (
+                                                            <div
+                                                                key={state}
+                                                                onClick={() => {
+                                                                    setFormData(prev => ({
+                                                                        ...prev,
+                                                                        state: state.slice(0, 2).toUpperCase(),
+                                                                    }));
+                                                                    setShowStateDropdown(false);
+                                                                    setHighlightIndex(-1);
+                                                                    setTimeout(() => {
+                                                                        focusAndSelect(newClientZipRef.current);
+                                                                    }, 0);
+                                                                }}
+                                                                className={`px-4 py-2 cursor-pointer ${i === highlightIndex
+                                                                    ? "bg-indigo-200"
+                                                                    : "hover:bg-indigo-100"
+                                                                    }`}
+                                                            >
+                                                                {state}
+                                                            </div>
+                                                        ))}
+
+                                                        {filteredStates.length === 0 && (
+                                                            <div className="px-4 py-2 text-sm text-gray-500">
+                                                                No matching states
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            {/* ZIP */}
+                                            <div>
+                                                <label className="text-sm text-gray-600">
+                                                    ZIP Code
+                                                </label>
+
+                                                <input
+                                                    ref={newClientZipRef}
+                                                    type="text"
+                                                    inputMode="numeric"
+                                                    maxLength={5}
+                                                    value={formData.zip || ""}
+                                                    onChange={(e) => {
+                                                        const value = e.target.value
+                                                            .replace(/\D/g, "")
+                                                            .slice(0, 5);
+
+                                                        setFormData(prev => ({
+                                                            ...prev,
+                                                            zip: value,
+                                                        }));
+                                                    }}
+                                                    onClick={(e) => {
+                                                        if (e.detail === 1) {
+                                                            e.target.select();
+                                                        }
+                                                    }}
+                                                    onDoubleClick={(e) => {
+                                                        e.preventDefault();
+                                                        const input = e.target;
+                                                        const clickX = e.nativeEvent.offsetX;
+                                                        const caretIndex = getCaretIndexFromClick(input, clickX);
+                                                        input.setSelectionRange(caretIndex, caretIndex);
+                                                    }}
+                                                    onKeyDown={(e) => {
+                                                        if (showOtpField) {
+                                                            if (e.key === "Enter" || e.key === "Tab") {
+                                                                e.preventDefault();
+
+                                                                if (e.key === "Enter") {
+                                                                    otpInputRef.current?.focus();
+                                                                } else if (e.shiftKey) {
+                                                                    focusAndSelect(newClientStateRef.current);
+                                                                } else {
+                                                                    otpInputRef.current?.focus();
+                                                                }
+                                                            }
+                                                            return;
+                                                        }
+
+                                                        handleNewClientFieldKeyDown(
+                                                            e,
+                                                            rememberMeRef,
+                                                            newClientStateRef
+                                                        );
+                                                    }}
+                                                    placeholder="ZIP Code"
+                                                    className="w-full mt-2 px-4 py-3 rounded-xl border focus:ring-2 focus:ring-indigo-500 outline-none"
+                                                />
+                                            </div>
+                                        </>
+                                    )}
 
                                     {showOtpField && (
                                         <div>
@@ -2016,6 +3247,31 @@ export default function ScheduleServices({ providers, events, locations, clients
                                                 onChange={(e) =>
                                                     setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))
                                                 }
+                                                onKeyDown={(e) => {
+                                                    if (
+                                                        e.key === "Enter" &&
+                                                        otp.length === 6 &&
+                                                        !verifyLoading
+                                                    ) {
+                                                        e.preventDefault();
+                                                        handleVerifyOTP(e);
+                                                    }
+                                                }}
+
+                                                onClick={(e) => {
+                                                    if (e.detail === 1) {
+                                                        e.target.select();
+                                                    }
+                                                }}
+
+                                                onDoubleClick={(e) => {
+                                                    e.preventDefault();
+                                                    const input = e.target;
+                                                    const clickX = e.nativeEvent.offsetX;
+                                                    const caretIndex = getCaretIndexFromClick(input, clickX);
+                                                    input.setSelectionRange(caretIndex, caretIndex);
+                                                }}
+
                                                 className="w-full mt-2 px-4 py-3 rounded-xl border focus:ring-2 focus:ring-indigo-500 outline-none"
                                             />
 
@@ -2023,11 +3279,11 @@ export default function ScheduleServices({ providers, events, locations, clients
                                                 A security code is texted to your phone each time you log in.
                                                 Enter it here.
                                             </p>
-
-                                            {otpError && (
-                                                <p className="text-xs text-red-500 mt-1">{otpError}</p>
-                                            )}
                                         </div>
+                                    )}
+
+                                    {otpError && (
+                                        <p className="text-xs text-red-500 mt-1">{otpError}</p>
                                     )}
 
                                     {showOtpField && (
@@ -2042,71 +3298,99 @@ export default function ScheduleServices({ providers, events, locations, clients
                                             </button>
                                         </div>
                                     )}
-                                    {showOtpField ? (
-                                        <div className="flex gap-3">
-                                            <button
-                                                type="button"
-                                                onClick={handleCancelOTP}
-                                                className="flex-1 py-3 rounded-xl border border-gray-300 bg-white text-gray-700 hover:bg-gray-100 transition"
-                                            >
-                                                Cancel
-                                            </button>
+                                    {clientTypeConfirmed && (
+                                        <>
+                                            {showOtpField ? (
+                                                /* ================= OTP BUTTONS ================= */
+                                                <div className="flex gap-3">
+                                                    <button
+                                                        type="button"
+                                                        onClick={handleCancelOTP}
+                                                        className="flex-1 py-3 rounded-xl border border-gray-300 bg-white text-gray-700 hover:bg-gray-100 transition"
+                                                    >
+                                                        Cancel
+                                                    </button>
 
-                                            <button
-                                                type="button"
-                                                onClick={handleVerifyOTP}
-                                                disabled={otp.length !== 6 || verifyLoading}
-                                                className={`flex-1 py-3 rounded-xl font-medium transition ${otp.length === 6 && !loginLoading
-                                                    ? "bg-indigo-600 hover:bg-indigo-700 text-white"
-                                                    : "bg-gray-400 text-gray-200 cursor-not-allowed"
-                                                    }`}
-                                            >
-                                                {verifyLoading ? "Verifying..." : "Verify Code"}
-                                            </button>
-                                        </div>
-                                    ) : (
-                                        <button
-                                            type="submit"
-                                            disabled={!isFormValid || loginLoading}
-                                            className={`w-full py-3 rounded-xl font-medium transition ${isFormValid && !loginLoading
-                                                ? "bg-indigo-600 hover:bg-indigo-700 text-white"
-                                                : "bg-gray-400 text-gray-200 cursor-not-allowed"
-                                                }`}
-                                        >
-                                            {loginLoading ? "Checking..." : "Continue"}
-                                        </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={handleVerifyOTP}
+                                                        disabled={otp.length !== 6 || verifyLoading}
+                                                        className={`flex-1 py-3 rounded-xl font-medium transition ${otp.length === 6 && !verifyLoading
+                                                            ? "bg-indigo-600 hover:bg-indigo-700 text-white"
+                                                            : "bg-gray-400 text-gray-200 cursor-not-allowed"
+                                                            }`}
+                                                    >
+                                                        {verifyLoading ? "Verifying..." : "Verify Code"}
+                                                    </button>
+                                                </div>
+
+                                            ) : clientType === "new" ? (
+
+                                                /* ================= NEW CLIENT BUTTONS ================= */
+                                                <div className="flex gap-3">
+                                                    <button
+                                                        type="button"
+                                                        onClick={handleNewClientContinue}
+                                                        onKeyDown={(e) => {
+                                                            if (
+                                                                e.key === "Enter" &&
+                                                                isNewClientValid &&
+                                                                !registerLoading
+                                                            ) {
+                                                                e.preventDefault();
+                                                                handleNewClientContinue();
+                                                            }
+                                                        }}
+                                                        disabled={!isNewClientValid || registerLoading}
+                                                        className={`flex-1 py-3 rounded-xl font-medium transition ${isNewClientValid && !registerLoading
+                                                            ? "bg-indigo-600 hover:bg-indigo-700 text-white"
+                                                            : "bg-gray-400 text-gray-200 cursor-not-allowed"
+                                                            }`}
+                                                    >
+                                                        {registerLoading
+                                                            ? showNewClientAddressFields
+                                                                ? "Registering..."
+                                                                : "Checking..."
+                                                            : "Continue"}
+                                                    </button>
+
+                                                    <button
+                                                        type="button"
+                                                        onClick={handleCancelLogin}
+                                                        className="flex-1 py-3 rounded-xl border border-gray-300 bg-white text-gray-700 hover:bg-gray-100 transition"
+                                                    >
+                                                        Cancel
+                                                    </button>
+                                                </div>
+
+                                            ) : (
+
+                                                /* ================= RETURNING CLIENT BUTTONS ================= */
+                                                <div className="flex gap-3">
+                                                    <button
+                                                        ref={continueBtnRef}
+                                                        type="submit"
+                                                        disabled={!isFormValid || loginLoading}
+                                                        className={`flex-1 py-3 rounded-xl font-medium transition ${isFormValid && !loginLoading
+                                                            ? "bg-indigo-600 hover:bg-indigo-700 text-white"
+                                                            : "bg-gray-400 text-gray-200 cursor-not-allowed"
+                                                            }`}
+                                                    >
+                                                        {loginLoading ? "Checking..." : "Continue"}
+                                                    </button>
+
+                                                    <button
+                                                        type="button"
+                                                        onClick={handleCancelLogin}
+                                                        className="flex-1 py-3 rounded-xl border border-gray-300 bg-white text-gray-700 hover:bg-gray-100 transition"
+                                                    >
+                                                        Cancel
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </>
                                     )}
                                 </form>
-                            )}
-
-                            {/* ================= STEP 2: REGISTER ================= */}
-                            {!otpVerified && userFlow === "register-user" && (
-                                <div className="space-y-6">
-
-                                    <div>
-                                        <h2 className="text-xl font-semibold text-gray-800">
-                                            Create your account
-                                        </h2>
-                                        <p className="text-sm text-gray-500">
-                                            Looks like you're new here. Let’s get you set up.
-                                        </p>
-                                    </div>
-
-                                    <input
-                                        placeholder="Full Name"
-                                        onChange={(e) =>
-                                            setFormData(prev => ({ ...prev, name: e.target.value }))
-                                        }
-                                        className="w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-green-500"
-                                    />
-
-                                    <button
-                                        onClick={handleRegisterUser}
-                                        className="w-full bg-green-600 text-white py-3 rounded-xl hover:bg-green-700"
-                                    >
-                                        Continue
-                                    </button>
-                                </div>
                             )}
 
                             {!otpVerified && userFlow === "phone-exists-different-email" && (
@@ -2568,7 +3852,7 @@ export default function ScheduleServices({ providers, events, locations, clients
                                     {/* HEADER */}
                                     <div className="flex items-center gap-6">
                                         {/* LEFT SECTION - 70% */}
-                                        <div className="w-[50%]">
+                                        <div className="w-[70%]">
                                             <h2 className="text-xl font-semibold text-gray-800">
                                                 Client
                                             </h2>
@@ -2579,7 +3863,7 @@ export default function ScheduleServices({ providers, events, locations, clients
                                         </div>
 
                                         {/* RIGHT SECTION - 30% */}
-                                        <div className="w-[50%] space-y-1 bg-white">
+                                        {/* <div className="w-[50%] space-y-1 bg-white">
                                             <div className="flex justify-between items-center text-sm">
                                                 <span className="text-gray-600 text-[12px]">
                                                     Search Radius:
@@ -2601,7 +3885,7 @@ export default function ScheduleServices({ providers, events, locations, clients
                                             />
 
 
-                                        </div>
+                                        </div> */}
                                     </div>
 
                                     {/* USER INFO */}
@@ -2677,7 +3961,7 @@ export default function ScheduleServices({ providers, events, locations, clients
                             </h3>
 
                             <div className="flex items-center gap-3">
-                                {!showHiddenProviders && (
+                                {/* {!showHiddenProviders && (
                                     <div className="flex items-center gap-1">
                                         <span className="text-xs text-gray-600">
                                             Show
@@ -2697,7 +3981,7 @@ export default function ScheduleServices({ providers, events, locations, clients
                                             ))}
                                         </select>
                                     </div>
-                                )}
+                                )} */}
 
                                 {otpVerified && (
                                     <label className="flex items-center gap-2 text-sm font-medium cursor-pointer">

@@ -209,6 +209,7 @@ export function useBooking({ providers, events, locations, clients, categories, 
   const [selectedEvent, setSelectedEvent] = useState("");
   const [selectedProvider, setSelectedProvider] = useState("");
   const [selectedDate, setSelectedDate] = useState(null);
+  const [providerSelectedDate, setProviderSelectedDate] = useState(null);
   const [selectedTime, setSelectedTime] = useState("");
   const [workCalandar, setWorkCalandar] = useState(null);
   const [firstDay, setFirstDay] = useState(null);
@@ -325,6 +326,7 @@ export function useBooking({ providers, events, locations, clients, categories, 
     setSelectedEvent("");
     setSelectedProvider("");
     setSelectedDate(null);
+    setProviderSelectedDate(null);
     setSelectedTime("");
     setWorkCalandar(null);
     setFirstDay(null);
@@ -650,6 +652,13 @@ export function useBooking({ providers, events, locations, clients, categories, 
 
         setWorkCalandar(calData);
         setFirstDay(dayData);
+        if (!selectedDate && dayData) {
+          const initialDate = new Date(dayData);
+          initialDate.setHours(0, 0, 0, 0);
+
+          setSelectedDate(initialDate);
+          setProviderSelectedDate(initialDate);
+        }
       } catch (err) {
         console.error("Error fetching calendar:", err);
       } finally {
@@ -957,7 +966,7 @@ export function useBooking({ providers, events, locations, clients, categories, 
     loadingTimeSlots,
     submittingBooking,
     loadingAddress,
-tempFormData,
+    tempFormData,
     // Handlers
     handleChange,
     handleCheckboxChange,
@@ -970,6 +979,7 @@ tempFormData,
     setUserEmail,
     setSelectedProvider,
     setSelectedDate,
+    providerSelectedDate,
     setSelectedTime,
     getLatLngFromAddress,
     handleNotFoundSubmit,

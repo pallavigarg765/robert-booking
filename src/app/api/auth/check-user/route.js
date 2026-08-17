@@ -5,13 +5,17 @@ import User from "@/models/User";
 export async function POST(request) {
   try {
     await connectDB();
+
     const body = await request.json();
 
-    const { email, phonenumber } = body;
+    const { email, phonenumber, clientType } = body;
 
-    if (!email || !phonenumber) {
+    if (!email || !phonenumber || !clientType) {
       return NextResponse.json(
-        { success: false, message: "Email and phone number are required" },
+        {
+          success: false,
+          message: "Email, phone number and client type are required",
+        },
         { status: 400 }
       );
     }
@@ -19,57 +23,118 @@ export async function POST(request) {
     const lowerEmail = email.toLowerCase().trim();
     const normalizedPhone = phonenumber.replace(/\D/g, "");
 
-    // 🔍 Check both independently
-    const emailUser = await User.findOne({ email: lowerEmail });
-    const phoneUser = await User.findOne({ phonenumber: normalizedPhone });
+    // ============================================================
+    // FIND USER BY EMAIL
+    // ============================================================
 
-    // =============================
-    // 🎯 SCENARIO 4 FIX
-    // =============================
-    // Email not found BUT phone exists
-    if (!emailUser && phoneUser) {
+    const emailUser = await User.findOne({
+      email: lowerEmail,
+    });
+
+    // ============================================================
+    // RETURNING CLIENT
+    // ============================================================
+
+    if (clientType === "returning") {
+
+      // ----------------------------------------------------------
+      // 1. Email does NOT exist
+      // ----------------------------------------------------------
+
+      if (!emailUser) {
+        return NextResponse.json({
+          success: false,
+          scenario: "email-not-found",
+          canRegister: false,
+          loginAllowed: false,
+          message: "Account does not exist",
+        });
+      }
+
+      // ----------------------------------------------------------
+      // 2. Email exists but phone is incorrect
+      // ----------------------------------------------------------
+
+      if (emailUser.phonenumber !== normalizedPhone) {
+        return NextResponse.json({
+          success: false,
+          scenario: "wrong-phone",
+          canRegister: false,
+          loginAllowed: false,
+          message: "Incorrect Phone Number",
+        });
+      }
+
+      // ----------------------------------------------------------
+      // 3. Email + phone are correct
+      // ----------------------------------------------------------
+
       return NextResponse.json({
         success: true,
-        scenario: "phone-exists-different-email",
-        message:
-          "An account already exists with this phone number but under a different email.",
+        scenario: "login",
+        canRegister: false,
+        loginAllowed: true,
       });
     }
 
-    // =============================
-    // Scenario 1: New user
-    // =============================
-    if (!emailUser && !phoneUser) {
+    // ============================================================
+    // NEW CLIENT
+    // ============================================================
+
+    if (clientType === "new") {
+
+      // ----------------------------------------------------------
+      // Existing email = cannot create another account
+      //
+      // IMPORTANT:
+      // We intentionally DO NOT check whether the phone exists.
+      //
+      // Client requirement:
+      // "New email / any phone number"
+      // ----------------------------------------------------------
+
+      if (emailUser) {
+        return NextResponse.json({
+          success: false,
+          scenario: "email-exists",
+          canRegister: false,
+          loginAllowed: false,
+          message:
+            "Account exists: Choose another email to create your account.",
+        });
+      }
+
+      // ----------------------------------------------------------
+      // New email = valid new client
+      //
+      // Phone can be existing OR new according to client's
+      // "any phone number" requirement.
+      // ----------------------------------------------------------
+
       return NextResponse.json({
         success: true,
         scenario: "new-user",
+        canRegister: true,
         loginAllowed: false,
       });
     }
 
-    // =============================
-    // Scenario 3: Email exists but phone incorrect
-    // =============================
-    if (emailUser && emailUser.phonenumber !== normalizedPhone) {
-      return NextResponse.json({
+    return NextResponse.json(
+      {
         success: false,
-        scenario: "wrong-phone",
-        message: "Phone number is incorrect",
-      });
-    }
-
-    // =============================
-    // Scenario 2: Correct login
-    // =============================
-    return NextResponse.json({
-      success: true,
-      scenario: "login",
-      loginAllowed: true,
-    });
+        message: "Invalid client type",
+      },
+      { status: 400 }
+    );
 
   } catch (error) {
+    console.error("check-user error:", error);
+
     return NextResponse.json(
-      { success: false, message: "Server error" },
+      {
+        success: false,
+        message: "Server error",
+      },
       { status: 500 }
     );
   }

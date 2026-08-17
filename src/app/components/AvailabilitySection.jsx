@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { ChevronLeft, ChevronRight, Clock } from "lucide-react";
+import { ChevronLeft, ChevronRight, Clock, ChevronUp, ChevronDown } from "lucide-react";
 import {
     ChevronsLeft,
     ChevronsRight
@@ -48,6 +48,14 @@ export default function AvailabilitySection({
         }
 
         return true;
+    };
+
+    const getDefaultTimePreference = () => {
+        const hour = new Date().getHours();
+
+        if (hour < 12) return "morning";
+        if (hour < 17) return "afternoon";
+        return "evening";
     };
 
     const getLocalDateKey = (date) => {
@@ -548,12 +556,107 @@ export default function AvailabilitySection({
         return result;
     })();
 
-    const filteredSlots = (
-        selectedDate && isSameDay(selectedDate, today)
-            ? slots.filter(slot => !isPastTimeSlot(slot, selectedDate))
-            : slots
-    ).filter(slot => {
-        // No preference selected → show all available slots
+    const goToPreviousDay = () => {
+        if (!selectedDate) return;
+
+        const previousDate = new Date(selectedDate);
+        previousDate.setDate(previousDate.getDate() - 1);
+
+        if (previousDate < today) return;
+
+        if (
+            previousDate.getMonth() !== currentMonth.getMonth() ||
+            previousDate.getFullYear() !== currentMonth.getFullYear()
+        ) {
+            setCurrentMonth(
+                new Date(
+                    previousDate.getFullYear(),
+                    previousDate.getMonth(),
+                    1
+                )
+            );
+        }
+
+        const key = getLocalDateKey(previousDate);
+        const dayInfo = workCalandar?.[key];
+
+        handleDayClick({
+            key,
+            date: previousDate,
+            label: previousDate.toLocaleDateString("en-US", {
+                weekday: "long",
+                month: "short",
+                day: "numeric",
+            }),
+            timeLabel: resolveTimeRange(dayInfo),
+            isAvailable:
+                dayInfo &&
+                !(
+                    dayInfo.is_day_off === 1 ||
+                    dayInfo.is_day_off === "1" ||
+                    dayInfo.is_day_off === true
+                ),
+            isDayOff:
+                !dayInfo ||
+                dayInfo.is_day_off === 1 ||
+                dayInfo.is_day_off === "1" ||
+                dayInfo.is_day_off === true,
+        });
+    };
+
+    console.log("selectedDate: ", selectedDate);
+
+    const goToNextDay = () => {
+        if (!selectedDate) return;
+
+        const nextDate = new Date(selectedDate);
+        nextDate.setDate(nextDate.getDate() + 1);
+
+        if (
+            nextDate.getMonth() !== currentMonth.getMonth() ||
+            nextDate.getFullYear() !== currentMonth.getFullYear()
+        ) {
+            setCurrentMonth(
+                new Date(
+                    nextDate.getFullYear(),
+                    nextDate.getMonth(),
+                    1
+                )
+            );
+        }
+
+        const key = getLocalDateKey(nextDate);
+        const dayInfo = workCalandar?.[key];
+
+        handleDayClick({
+            key,
+            date: nextDate,
+            label: nextDate.toLocaleDateString("en-US", {
+                weekday: "long",
+                month: "short",
+                day: "numeric",
+            }),
+            timeLabel: resolveTimeRange(dayInfo),
+            isAvailable:
+                dayInfo &&
+                !(
+                    dayInfo.is_day_off === 1 ||
+                    dayInfo.is_day_off === "1" ||
+                    dayInfo.is_day_off === true
+                ),
+            isDayOff:
+                !dayInfo ||
+                dayInfo.is_day_off === 1 ||
+                dayInfo.is_day_off === "1" ||
+                dayInfo.is_day_off === true,
+        });
+    };
+
+    const availableSlots = selectedDate && isSameDay(selectedDate, today)
+        ? slots.filter(slot => !isPastTimeSlot(slot, selectedDate))
+        : [...slots];
+
+    const filteredSlots = availableSlots.filter(slot => {
         if (!timePreference) return true;
 
         const hour = Number(slot.split(":")[0]);
@@ -573,13 +676,139 @@ export default function AvailabilitySection({
         }
     });
 
+    const hasAvailableTime = (period) => {
+        return availableSlots.some((slot, index) => {
+            const hour = Number(slot.split(":")[0]);
+
+            const matchesPeriod =
+                period === "morning"
+                    ? hour < 12
+                    : period === "afternoon"
+                        ? hour >= 12 && hour < 17
+                        : hour >= 17;
+
+            if (!matchesPeriod) return false;
+
+            return canFitAppointment(index, availableSlots);
+        });
+    };
+
+    const morningAvailable = hasAvailableTime("morning");
+    const afternoonAvailable = hasAvailableTime("afternoon");
+    const eveningAvailable = hasAvailableTime("evening");
+
+    // NEW
+    const hasAnyAvailableSlot =
+        morningAvailable || afternoonAvailable || eveningAvailable;
+
+    const hasPreviousAvailableDay = (() => {
+        if (!selectedDate) return false;
+
+        const previousDate = new Date(selectedDate);
+
+        for (let i = 0; i < 365; i++) {
+            previousDate.setDate(previousDate.getDate() - 1);
+
+            if (previousDate < today) {
+                return false;
+            }
+
+            const key = getLocalDateKey(previousDate);
+            const dayInfo = workCalandar?.[key];
+
+            const isDayOff =
+                !dayInfo ||
+                dayInfo.is_day_off === 1 ||
+                dayInfo.is_day_off === "1" ||
+                dayInfo.is_day_off === true;
+
+            if (!isDayOff) {
+                return true;
+            }
+        }
+
+        return false;
+    })();
+
+    useEffect(() => {
+    // No slots today (OFF day)
+    // Keep the user's preference so it is restored on the next day.
+    if (!hasAnyAvailableSlot) {
+        onTimeSelect(null);
+        return;
+    }
+
+    if (!timePreference) return;
+
+    const map = {
+        morning: morningAvailable,
+        afternoon: afternoonAvailable,
+        evening: eveningAvailable,
+    };
+
+    // If today's schedule doesn't contain the selected period,
+    // just clear the selected appointment time.
+    // Keep the preferred period selected.
+    if (!map[timePreference]) {
+        onTimeSelect(null);
+    }
+}, [
+    hasAnyAvailableSlot,
+    morningAvailable,
+    afternoonAvailable,
+    eveningAvailable,
+    timePreference,
+]);
+
+console.log({
+    selectedDate,
+    timePreference,
+    hasAnyAvailableSlot,
+    morningAvailable,
+    afternoonAvailable,
+    eveningAvailable,
+});
+
+    useEffect(() => {
+        // Don't overwrite if the user has already selected one
+        if (timePreference) return;
+
+        let preferred = getDefaultTimePreference();
+
+        // If the preferred period has no availability,
+        // choose the next available one.
+        if (preferred === "morning") {
+            if (morningAvailable) preferred = "morning";
+            else if (afternoonAvailable) preferred = "afternoon";
+            else if (eveningAvailable) preferred = "evening";
+            else return;
+        } else if (preferred === "afternoon") {
+            if (afternoonAvailable) preferred = "afternoon";
+            else if (eveningAvailable) preferred = "evening";
+            else if (morningAvailable) preferred = "morning";
+            else return;
+        } else {
+            if (eveningAvailable) preferred = "evening";
+            else if (morningAvailable) preferred = "morning";
+            else if (afternoonAvailable) preferred = "afternoon";
+            else return;
+        }
+
+        setTimePreference(preferred);
+        onTimeSelect(null);
+    }, [
+        morningAvailable,
+        afternoonAvailable,
+        eveningAvailable,
+        selectedDate,
+    ]);
 
     /* =========================
        RENDER
        ========================= */
     return (
         <div className="space-y-3">
-            <div id="availability-sticky-header" className="sticky top-0 z-30 bg-white border-b shadow-sm pb-3 space-y-3">
+            <div id="availability-sticky-header" className="sticky top-0 z-30 bg-white pb-3 space-y-3">
                 {/* MONTH NAV */}
                 <div className="flex items-center justify-between">
                     <div className="flex gap-2">
@@ -775,20 +1004,26 @@ export default function AvailabilitySection({
 
                 <div className="border rounded-xl bg-white p-3">
                     <div className="text-xs font-semibold text-gray-700 mb-2">
-                        Preferred Appointment Time
+                        Choose preferred appointment window
                     </div>
 
                     <div className="grid grid-cols-3 gap-2">
 
                         <button
                             type="button"
-                            onClick={() => {
-                                setTimePreference("morning");
-                            }}
-                            className={`py-2 text-sm font-medium text-sm font-medium rounded-lg border transition ${timePreference === "morning"
-                                ? "bg-orange-500 text-white border-orange-500"
-                                : "bg-white border-gray-300 hover:bg-gray-50"
-                                }`}
+                            disabled={!hasAnyAvailableSlot || !morningAvailable}
+                            onClick={() => setTimePreference("morning")}
+                            className={`
+        py-2 rounded-lg border transition
+        ${!morningAvailable
+                                    ? "opacity-50 cursor-not-allowed bg-gray-100"
+                                    : ""
+                                }
+        ${timePreference === "morning" && hasAnyAvailableSlot
+                                    ? "bg-orange-500 text-white border-orange-500"
+                                    : "bg-white border-gray-300 hover:bg-gray-50"
+                                }
+    `}
                         >
                             Morning
                             <div className="text-[10px] opacity-80">
@@ -798,13 +1033,19 @@ export default function AvailabilitySection({
 
                         <button
                             type="button"
-                            onClick={() => {
-                                setTimePreference("afternoon");
-                            }}
-                            className={`py-2 text-sm font-medium rounded-lg border transition ${timePreference === "afternoon"
-                                ? "bg-orange-500 text-white border-orange-500"
-                                : "bg-white border-gray-300 hover:bg-gray-50"
-                                }`}
+                            disabled={!hasAnyAvailableSlot || !afternoonAvailable}
+                            onClick={() => setTimePreference("afternoon")}
+                            className={`
+        py-2 rounded-lg border transition
+        ${!afternoonAvailable
+                                    ? "opacity-50 cursor-not-allowed bg-gray-100"
+                                    : ""
+                                }
+        ${timePreference === "afternoon" && hasAnyAvailableSlot
+                                    ? "bg-orange-500 text-white border-orange-500"
+                                    : "bg-white border-gray-300 hover:bg-gray-50"
+                                }
+    `}
                         >
                             Afternoon
                             <div className="text-[10px] opacity-80">
@@ -814,13 +1055,19 @@ export default function AvailabilitySection({
 
                         <button
                             type="button"
-                            onClick={() => {
-                                setTimePreference("evening");
-                            }}
-                            className={`py-2 text-sm font-medium rounded-lg border transition ${timePreference === "evening"
-                                ? "bg-orange-500 text-white border-orange-500"
-                                : "bg-white border-gray-300 hover:bg-gray-50"
-                                }`}
+                            disabled={!hasAnyAvailableSlot || !eveningAvailable}
+                            onClick={() => setTimePreference("evening")}
+                            className={`
+        py-2 rounded-lg border transition
+        ${!eveningAvailable
+                                    ? "opacity-50 cursor-not-allowed bg-gray-100"
+                                    : ""
+                                }
+        ${timePreference === "evening" && hasAnyAvailableSlot
+                                    ? "bg-orange-500 text-white border-orange-500"
+                                    : "bg-white border-gray-300 hover:bg-gray-50"
+                                }
+    `}
                         >
                             Evening
                             <div className="text-[10px] opacity-80">
@@ -830,6 +1077,34 @@ export default function AvailabilitySection({
 
                     </div>
                 </div>
+
+                {/* <div className="sticky top-0 z-20"> */}
+                <div className="flex justify-center items-center gap-2 mt-3">
+                    <button
+                        onClick={goToPreviousDay}
+                        disabled={!hasPreviousAvailableDay}
+                        className={`
+        flex items-center justify-center w-[45%] gap-2 px-4 py-1 rounded-lg border shadow transition
+        ${hasPreviousAvailableDay
+                                ? "bg-white hover:bg-orange-50 hover:text-orange-600"
+                                : "bg-gray-100 text-gray-400 cursor-not-allowed"
+                            }
+    `}
+                    >
+                        <ChevronLeft size={18} />
+                        <span className="font-medium">Previous</span>
+                    </button>
+
+                    <button
+                        onClick={goToNextDay}
+                        className="flex items-center justify-center w-[45%] gap-2 px-4 py-1 rounded-lg border bg-white shadow
+                   hover:bg-orange-50 hover:text-orange-600 transition"
+                    >
+                        <span className="font-medium">Next</span>
+                        <ChevronRight size={18} />
+                    </button>
+                </div>
+                {/* </div> */}
 
             </div>
 
@@ -878,7 +1153,11 @@ export default function AvailabilitySection({
                                     ) : (
                                         <>
 
-                                            {!timePreference ? (
+                                            {!hasAnyAvailableSlot ? (
+                                                <div className="text-center text-sm text-gray-500 py-4">
+                                                    No appointments are available for this day.
+                                                </div>
+                                            ) : !timePreference ? (
                                                 <div className="text-center text-sm text-gray-500 py-4">
                                                     Please select Morning, Afternoon, or Evening.
                                                 </div>
@@ -886,9 +1165,9 @@ export default function AvailabilitySection({
                                                 <div className="grid grid-cols-2 gap-2">
                                                     {filteredSlots.map((slot) => {
                                                         // Find this slot's index in the complete day's slots
-                                                        const originalIndex = slots.indexOf(slot);
+                                                        const originalIndex = availableSlots.indexOf(slot);
 
-                                                        const isValid = canFitAppointment(originalIndex, slots);
+                                                        const isValid = canFitAppointment(originalIndex, availableSlots);
 
                                                         return (
                                                             <button
