@@ -1,11 +1,10 @@
-import mongoose from "mongoose";
+    import mongoose from "mongoose";
 
-const PendingRegistrationSchema =
-    new mongoose.Schema(
+    const PendingRegistrationSchema = new mongoose.Schema(
         {
             name: {
                 type: String,
-                required: true,
+                default: "",
             },
 
             email: {
@@ -22,22 +21,22 @@ const PendingRegistrationSchema =
 
             fullAddress: {
                 type: String,
-                required: true,
+                default: "",
             },
 
             city: {
                 type: String,
-                required: true,
+                default: "",
             },
 
             state: {
                 type: String,
-                required: true,
+                default: "",
             },
 
             zip: {
                 type: String,
-                required: true,
+                default: "",
             },
 
             otp: {
@@ -49,14 +48,19 @@ const PendingRegistrationSchema =
                 type: Date,
                 required: true,
             },
+
+            otpVerified: {
+                type: Boolean,
+                default: false,
+            },
         },
         {
             timestamps: true,
         }
     );
 
-export default mongoose.models.PendingRegistration ||
-    mongoose.model(
-        "PendingRegistration",
-        PendingRegistrationSchema
-    );
+    export default mongoose.models.PendingRegistration ||
+        mongoose.model(
+            "PendingRegistration",
+            PendingRegistrationSchema
+        );
