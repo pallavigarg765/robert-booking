@@ -556,6 +556,25 @@ export default function AvailabilitySection({
         return result;
     })();
 
+    useEffect(() => {
+        if (!selectedDate || !workCalandar) return;
+
+        const selectedKey = getLocalDateKey(selectedDate);
+        const dayInfo = workCalandar[selectedKey];
+
+        const isDayOff =
+            !dayInfo ||
+            dayInfo.is_day_off === 1 ||
+            dayInfo.is_day_off === "1" ||
+            dayInfo.is_day_off === true;
+
+        const isPast = selectedDate < today;
+
+        if (!isDayOff && !isPast) {
+            setExpandedDateKey(selectedKey);
+        }
+    }, [selectedDate, workCalandar]);
+
     const goToPreviousDay = () => {
         if (!selectedDate) return;
 
@@ -731,43 +750,44 @@ export default function AvailabilitySection({
     })();
 
     useEffect(() => {
-    // No slots today (OFF day)
-    // Keep the user's preference so it is restored on the next day.
-    if (!hasAnyAvailableSlot) {
-        onTimeSelect(null);
-        return;
-    }
+        // No slots today (OFF day)
+        // Keep the user's preference so it is restored on the next day.
+        if (!hasAnyAvailableSlot) {
+            onTimeSelect(null);
+            return;
+        }
 
-    if (!timePreference) return;
+        if (!timePreference) return;
 
-    const map = {
-        morning: morningAvailable,
-        afternoon: afternoonAvailable,
-        evening: eveningAvailable,
-    };
+        const map = {
+            morning: morningAvailable,
+            afternoon: afternoonAvailable,
+            evening: eveningAvailable,
+        };
 
-    // If today's schedule doesn't contain the selected period,
-    // just clear the selected appointment time.
-    // Keep the preferred period selected.
-    if (!map[timePreference]) {
-        onTimeSelect(null);
-    }
-}, [
-    hasAnyAvailableSlot,
-    morningAvailable,
-    afternoonAvailable,
-    eveningAvailable,
-    timePreference,
-]);
+        // If today's schedule doesn't contain the selected period,
+        // just clear the selected appointment time.
+        // Keep the preferred period selected.
+        if (!map[timePreference]) {
+            onTimeSelect(null);
+        }
+    }, [
+        hasAnyAvailableSlot,
+        morningAvailable,
+        afternoonAvailable,
+        eveningAvailable,
+        timePreference,
+    ]);
 
-console.log({
-    selectedDate,
-    timePreference,
-    hasAnyAvailableSlot,
-    morningAvailable,
-    afternoonAvailable,
-    eveningAvailable,
-});
+
+    console.log({
+        selectedDate,
+        timePreference,
+        hasAnyAvailableSlot,
+        morningAvailable,
+        afternoonAvailable,
+        eveningAvailable,
+    });
 
     useEffect(() => {
         // Don't overwrite if the user has already selected one

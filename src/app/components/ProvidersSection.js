@@ -36,7 +36,15 @@ export default function ProvidersSection({
   blacklistedProviders = [],
   searchCategory,
   setSearchCategory,
-  setSelectedProvider
+  setSelectedProvider,
+
+  mobileProviders = [],
+  studioProviders = [],
+  mobileProvidersWithDistance = [],
+  studioProvidersWithDistance = [],
+
+  providerType,
+  setProviderType
 }) {
   const [blacklistingProvider, setBlacklistingProvider] = useState(null);
   const [activeProvider, setActiveProvider] = useState(null);
@@ -170,11 +178,32 @@ export default function ProvidersSection({
   }, [userEmail, hiddenStorageKey]);
 
   const filteredProviders = useMemo(() => {
-    return providers.filter((provider) => {
-      const providerCategories = getProviderCategories(provider);
-      return providerCategories.length > 0;
-    });
-  }, [providers, categories]);
+    return providerType === "studio"
+      ? studioProviders
+      : mobileProviders;
+  }, [providerType, mobileProviders, studioProviders]);
+
+  const isProviderHidden = (provider) => {
+  if (!userEmail) return false;
+
+  return hiddenProviders.some(
+    (item) =>
+      String(item.providerId) === String(provider.id) &&
+      item.zip === userAddress?.zip
+  );
+};
+
+const visibleMobileProviders = useMemo(() => {
+  return mobileProviders.filter(
+    (provider) => !isProviderHidden(provider)
+  );
+}, [mobileProviders, hiddenProviders, userEmail, userAddress?.zip]);
+
+const visibleStudioProviders = useMemo(() => {
+  return studioProviders.filter(
+    (provider) => !isProviderHidden(provider)
+  );
+}, [studioProviders, hiddenProviders, userEmail, userAddress?.zip]);
 
   const memoizedMap = useMemo(() => {
     return (
@@ -187,31 +216,31 @@ export default function ProvidersSection({
     );
   }, [filteredProviders, locations, clientLocation, searchWithin]);
 
-  const visibleProviders = filteredProviders.filter((provider) => {
-    if (!userEmail) return true;
+  const currentVisibleProviders =
+  providerType === "studio"
+    ? visibleStudioProviders
+    : visibleMobileProviders;
 
-    return !hiddenProviders.some(
-      (item) =>
-        String(item.providerId) === String(provider.id) &&
-        item.zip === userAddress?.zip
-    );
-  });
+const currentTabProvidersWithDistance =
+  providerType === "studio"
+    ? studioProvidersWithDistance
+    : mobileProvidersWithDistance;
 
-  const limitedVisibleProviders = visibleProviders.slice(0, providerLimit);
-
-  // const displayedProviders = showHiddenProviders
-  // ? hiddenProviderList
-  // : limitedVisibleProviders;
-
-  const hiddenProviderList = providersWithDistance.filter((provider) => {
-    if (!userEmail) return true;
+const hiddenProviderList = currentTabProvidersWithDistance.filter(
+  (provider) => {
+    if (!userEmail) return false;
 
     return hiddenProviders.some(
       (item) =>
         String(item.providerId) === String(provider.id) &&
         item.zip === userAddress?.zip
     );
-  });
+  }
+);
+
+const displayedProviders = showHiddenProviders
+  ? hiddenProviderList
+  : currentVisibleProviders.slice(0, providerLimit);
 
 
   const handleBlacklist = async (providerId) => {
@@ -250,11 +279,11 @@ export default function ProvidersSection({
     }
   };
 
-  const displayedProviders = showHiddenProviders
-    ? hiddenProviderList
-    : visibleProviders.slice(0, providerLimit);
+  // const displayedProviders = showHiddenProviders
+  //   ? hiddenProviderList
+  //   : visibleProviders.slice(0, providerLimit);
 
-    // console.log("displayedProviders: ", displayedProviders);
+  // console.log("displayedProviders: ", displayedProviders);
 
   useEffect(() => {
     providerRefs.current = [];
@@ -396,14 +425,89 @@ export default function ProvidersSection({
           )}
 
           {!showHiddenProviders && (
-            <SearchCategorySection
-                providers={allEligibleProviders}
+            <>
+              <SearchCategorySection
+                providers={filteredProviders}
                 blacklistedProviders={blacklistedProviders}
                 categories={categories}
                 value={searchCategory}
                 onChange={setSearchCategory}
                 setSelectedProvider={setSelectedProvider}
-            />
+              />
+
+              {/* PROVIDER TYPE TABS */}
+              <div className="mb-4">
+                <div className="flex w-full rounded-xl bg-gray-100 p-1">
+
+                  {/* MOBILE TAB */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setProviderType("mobile");
+
+                      // Clear provider selection when switching type.
+                      if (selectedProvider) {
+                        onProviderSelect?.(null);
+                      }
+
+                      setHoveredProvider?.(null);
+                      setExpandedProvider(null);
+                    }}
+                    className={`flex-1 rounded-lg px-1 py-2.5 text-sm font-semibold transition-all ${providerType === "mobile"
+                        ? "bg-white text-indigo-700 shadow-sm"
+                        : "text-gray-500 hover:text-gray-700"
+                      }`}
+                  >
+                    <span className="flex items-center justify-between gap-1">
+                      <span>📱</span>
+                      <span className="text-[10px] scale-[1.2]">Mobile Providers</span>
+                      <span
+                        className={`rounded-full p-1 py-0.5 text-[8px] ${providerType === "mobile"
+                            ? "bg-indigo-100 text-indigo-700"
+                            : "bg-gray-200 text-gray-500"
+                          }`}
+                      >
+                        {visibleMobileProviders.slice(0, providerLimit).length}
+                      </span>
+                    </span>
+                  </button>
+
+                  {/* STUDIO TAB */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setProviderType("studio");
+
+                      // Clear provider selection when switching type.
+                      if (selectedProvider) {
+                        onProviderSelect?.(null);
+                      }
+
+                      setHoveredProvider?.(null);
+                      setExpandedProvider(null);
+                    }}
+                    className={`flex-1 rounded-lg px-1 py-2.5 text-sm font-semibold transition-all ${providerType === "studio"
+                        ? "bg-white text-indigo-700 shadow-sm"
+                        : "text-gray-500 hover:text-gray-700"
+                      }`}
+                  >
+                    <span className="flex items-center justify-between gap-1">
+                      <span>🏢</span>
+                      <span className="text-[10px] scale-[1.2]">Studio Providers</span>
+                      <span
+                        className={`rounded-full p-1 py-0.5 text-[8px] ${providerType === "studio"
+                            ? "bg-indigo-100 text-indigo-700"
+                            : "bg-gray-200 text-gray-500"
+                          }`}
+                      >
+                        {visibleStudioProviders.slice(0, providerLimit).length}
+                      </span>
+                    </span>
+                  </button>
+
+                </div>
+              </div>
+            </>
           )}
 
 
@@ -419,13 +523,7 @@ export default function ProvidersSection({
               )}
 
             {!loadingProviders &&
-              displayedProviders
-                .filter(
-                  (provider) =>
-                    provider.distance != null &&
-                    Number(provider.distance) <= Number(searchWithin)
-                )
-                .map((provider, index) => (
+  displayedProviders.map((provider, index) => (
                   <ProviderCard
                     key={provider.id}
                     provider={provider}
@@ -444,11 +542,7 @@ export default function ProvidersSection({
                     isHiddenView={showHiddenProviders}
                     onUnhide={handleUnhide}
                     providerIndex={index}
-                    totalProviders={displayedProviders.filter(
-                      (provider) =>
-                        provider.distance != null &&
-                        Number(provider.distance) <= Number(searchWithin)
-                    ).length}
+                    totalProviders={displayedProviders.length}
                     providerRefs={providerRefs}
                     expandedProvider={expandedProvider}
                     setExpandedProvider={setExpandedProvider}
@@ -457,13 +551,31 @@ export default function ProvidersSection({
                 ))}
 
             {!loadingProviders &&
-              (showHiddenProviders
-                ? hiddenProviderList.length
-                : visibleProviders.length) === 0 && (
+  (showHiddenProviders
+    ? hiddenProviderList.length
+    : currentVisibleProviders.length) === 0 && (
                 <div className="text-center py-6 text-sm text-gray-500">
-                  {showHiddenProviders
-                    ? "No hidden providers"
-                    : "No providers found"}
+                  {showHiddenProviders ? (
+                    "No hidden providers"
+                  ) : providerType === "studio" ? (
+                    <>
+                      <div className="text-base font-medium text-gray-700">
+                        No Studio providers found
+                      </div>
+                      <div className="mt-1 text-xs text-gray-500">
+                        Try another address or increase your search radius.
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="text-base font-medium text-gray-700">
+                        No Mobile providers found
+                      </div>
+                      <div className="mt-1 text-xs text-gray-500">
+                        Try another address or increase your search radius.
+                      </div>
+                    </>
+                  )}
                 </div>
               )}
           </div>
@@ -616,6 +728,69 @@ export default function ProvidersSection({
                   }`}
               </p>
             </div>
+
+            {/* PROVIDER TYPE TABS */}
+            {!showHiddenProviders && (
+              <div className="mb-6">
+                <div className="flex max-w-md rounded-xl bg-gray-100 p-1">
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setProviderType("mobile");
+                      onProviderSelect?.(null);
+                      setHoveredProvider?.(null);
+                      setExpandedProvider(null);
+                    }}
+                    className={`flex-1 rounded-lg px-5 py-3 text-sm font-semibold transition-all ${providerType === "mobile"
+                        ? "bg-white text-indigo-700 shadow-sm"
+                        : "text-gray-500 hover:text-gray-700"
+                      }`}
+                  >
+                    <span className="flex items-center justify-center gap-2">
+                      <span>📱</span>
+                      <span>Mobile Providers</span>
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-xs ${providerType === "mobile"
+                            ? "bg-indigo-100 text-indigo-700"
+                            : "bg-gray-200 text-gray-500"
+                          }`}
+                      >
+                        {visibleMobileProviders.slice(0, providerLimit).length}
+                      </span>
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setProviderType("studio");
+                      onProviderSelect?.(null);
+                      setHoveredProvider?.(null);
+                      setExpandedProvider(null);
+                    }}
+                    className={`flex-1 rounded-lg px-5 py-3 text-sm font-semibold transition-all ${providerType === "studio"
+                        ? "bg-white text-indigo-700 shadow-sm"
+                        : "text-gray-500 hover:text-gray-700"
+                      }`}
+                  >
+                    <span className="flex items-center justify-center gap-2">
+                      <span>🏢</span>
+                      <span>Studio Providers</span>
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-xs ${providerType === "studio"
+                            ? "bg-indigo-100 text-indigo-700"
+                            : "bg-gray-200 text-gray-500"
+                          }`}
+                      >
+                        {visibleStudioProviders.slice(0, providerLimit).length}
+                      </span>
+                    </span>
+                  </button>
+
+                </div>
+              </div>
+            )}
 
             {/* RIGHT SIDE → Home button + Search Radius */}
             <div className="flex items-center gap-4">
@@ -811,17 +986,16 @@ function ProviderCard({
 
   useEffect(() => {
     if (expandedProvider !== provider.id) {
-        setShowDescription(false);
+      setShowDescription(false);
     }
-}, [expandedProvider, provider.id]);
+  }, [expandedProvider, provider.id]);
 
   const cleanName = (name = "") =>
     name
-      // remove leading 03a) or 03a), with optional comma/space
-      .replace(/^\d+[a-z]\),?\s*/i, "")
-      // remove DTD or Salon or DTD Schedule / Salon Schedule
-      .replace(/\s*,?\s*(DTD|Salon)(\s*Schedule)?/gi, "")
-      .trim();
+        // Remove everything from the first comma onward
+        .split(",")[0]
+        .replace(/^\d+[a-z]\),?\s*/i, "")
+        .trim();
 
 
   const getLocationDisplay = () => {
@@ -852,40 +1026,39 @@ function ProviderCard({
         aria-label={`Provider ${cleanName(provider.name)}`}
         className={`provider-card relative p-3 rounded-xl border-2 cursor-pointer transition-all duration-300
   focus:outline-none
-  ${
-    isSelected
-      ? "border-indigo-500 bg-indigo-50 ring-1 ring-indigo-500"
-      : isHovered
-      ? "border-indigo-500 bg-white ring-1 ring-indigo-500"
-      : "border-gray-200 bg-white"
-  }
+  ${isSelected
+            ? "border-indigo-500 bg-indigo-50 ring-1 ring-indigo-500"
+            : isHovered
+              ? "border-indigo-500 bg-white ring-1 ring-indigo-500"
+              : "border-gray-200 bg-white"
+          }
 `}
         onMouseEnter={() => {
-  setIsHovered(true);
+          setIsHovered(true);
 
-  // Highlight categories/services
-  onHover?.(provider);
+          // Highlight categories/services
+          onHover?.(provider);
 
-  // Select provider
-  if (selectedProvider !== provider.id) {
-    onSelect(provider.id);
-  }
+          // Select provider
+          if (selectedProvider !== provider.id) {
+            onSelect(provider.id);
+          }
 
-  // Never auto-expand on hover
-  setExpandedProvider(null);
-}}
+          // Never auto-expand on hover
+          setExpandedProvider(null);
+        }}
         onMouseLeave={() => {
           setIsHovered(false);
           onHover?.(null);
         }}
         onClick={() => {
-    if (isBlacklisting) return;
+          if (isBlacklisting) return;
 
-    onSelect(provider.id);
+          onSelect(provider.id);
 
-    // Do NOT expand anymore
-    setExpandedProvider(null);
-}}
+          // Do NOT expand anymore
+          setExpandedProvider(null);
+        }}
 
 
         onDoubleClick={() => {
@@ -1028,23 +1201,23 @@ function ProviderCard({
                 type="button"
                 tabIndex={-1}
                 onClick={(e) => {
-    e.stopPropagation();
+                  e.stopPropagation();
 
-    // Select this provider
-    onSelect(provider.id);
+                  // Select this provider
+                  onSelect(provider.id);
 
-    // Expand/collapse
-    setExpandedProvider(prev =>
-        prev === provider.id ? null : provider.id
-    );
+                  // Expand/collapse
+                  setExpandedProvider(prev =>
+                    prev === provider.id ? null : provider.id
+                  );
 
-    // Show description
-    setShowDescription(prev =>
-        expandedProvider === provider.id
-            ? !prev
-            : true
-    );
-}}
+                  // Show description
+                  setShowDescription(prev =>
+                    expandedProvider === provider.id
+                      ? !prev
+                      : true
+                  );
+                }}
                 className="p-1 text-gray-400 hover:text-indigo-600"
               >
                 <Info className="w-4 h-4" />
@@ -1216,23 +1389,23 @@ function ProviderCard({
               type="button"
               tabIndex={-1}
               onClick={(e) => {
-    e.stopPropagation();
+                e.stopPropagation();
 
-    // Select this provider
-    onSelect(provider.id);
+                // Select this provider
+                onSelect(provider.id);
 
-    // Expand/collapse
-    setExpandedProvider(prev =>
-        prev === provider.id ? null : provider.id
-    );
+                // Expand/collapse
+                setExpandedProvider(prev =>
+                  prev === provider.id ? null : provider.id
+                );
 
-    // Show description
-    setShowDescription(prev =>
-        expandedProvider === provider.id
-            ? !prev
-            : true
-    );
-}}
+                // Show description
+                setShowDescription(prev =>
+                  expandedProvider === provider.id
+                    ? !prev
+                    : true
+                );
+              }}
               className="p-1 text-gray-400 hover:text-indigo-600"
             >
               <Info className="w-4 h-4" />

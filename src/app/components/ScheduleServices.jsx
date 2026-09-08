@@ -67,6 +67,7 @@ export default function ScheduleServices({ providers, events, locations, clients
     const availabilityScrollRef = useRef(null);
     const [searchCategory, setSearchCategory] = useState("ALL");
     const [providerCategories, setProviderCategories] = useState([]);
+    const [providerType, setProviderType] = useState("mobile");
     const [hoveredProvider, setHoveredProvider] = useState(null);
     const [emailError, setEmailError] = useState("");
     const [addressReady, setAddressReady] = useState(false);
@@ -243,11 +244,18 @@ export default function ScheduleServices({ providers, events, locations, clients
     };
 
     const handleCancelLogin = () => {
-        // Optional cleanup
         resetBooking();
 
         localStorage.removeItem("bookingState");
         localStorage.removeItem("userAuth");
+
+        // User explicitly unchecked Remember Me before cancelling.
+        if (!loginData.rememberMe) {
+            localStorage.removeItem("rememberedEmail");
+            localStorage.removeItem("rememberedPhone");
+            localStorage.removeItem("rememberMe");
+            localStorage.removeItem("rememberedNewClient");
+        }
 
         router.push("/");
     };
@@ -309,10 +317,11 @@ export default function ScheduleServices({ providers, events, locations, clients
     };
 
     const cleanName = (name = "") =>
-        name
-            .replace(/^\d+[a-z]\),?\s*/i, "")
-            .replace(/\s*,?\s*(DTD|Salon)(\s*Schedule)?/gi, "")
-            .trim();
+    name
+        // Remove everything from the first comma onward
+        .split(",")[0]
+        .replace(/^\d+[a-z]\),?\s*/i, "")
+        .trim();
     const [activeStep, setActiveStep] = useState(1); // 1: Providers, 2: Services, 3: Date, 4: Time, 5: Booking
 
     const saveBookingState = () => {
@@ -385,7 +394,11 @@ export default function ScheduleServices({ providers, events, locations, clients
         setFilteredProviders,
         providerLimit,
         setProviderLimit,
-        providersWithDistance
+        providersWithDistance,
+        mobileProviders,
+        studioProviders,
+        mobileProvidersWithDistance,
+        studioProvidersWithDistance,
     } = useBooking({ providers, events, locations, clients, categories, searchCategory });
 
     // Custom handler for provider selection that automatically moves to next step
@@ -2615,6 +2628,7 @@ export default function ScheduleServices({ providers, events, locations, clients
     );
 
     const activeProvider = selectedProviderObj;
+
     const formatPhoneDisplay = (value) => {
         const digits = value.replace(/\D/g, "").slice(0, 10);
 
@@ -4742,7 +4756,7 @@ export default function ScheduleServices({ providers, events, locations, clients
                                     <p className="text-sm">Finding providers near you...</p>
                                 </div>
 
-                            ) : filteredProviders.length > 0 ? (
+                            ) : (
 
                                 <ProvidersSection
                                     providers={filteredProviders}
@@ -4769,16 +4783,23 @@ export default function ScheduleServices({ providers, events, locations, clients
                                     searchCategory={searchCategory}
                                     setSearchCategory={setSearchCategory}
                                     setSelectedProvider={setSelectedProvider}
+
+                                    mobileProviders={mobileProviders}
+                                    studioProviders={studioProviders}
+                                    mobileProvidersWithDistance={mobileProvidersWithDistance}
+                                    studioProvidersWithDistance={studioProvidersWithDistance}
+                                    providerType={providerType}
+                                    setProviderType={setProviderType}
                                 />
 
                             )
-                                : (
+                                // : (
 
-                                    <StepLocked
-                                        title="No Providers Found"
-                                        message="Try another address or increase your search radius."
-                                    />
-                                )
+                                //     <StepLocked
+                                //         title="No Providers Found"
+                                //         message="Try another address or increase your search radius."
+                                //     />
+                                // )
                             }
                         </div>
                     </div>
@@ -4788,7 +4809,7 @@ export default function ScheduleServices({ providers, events, locations, clients
                         <div className="px-4 py-3 bg-purple-50">
                             <h3 className="text-lg font-bold">
                                 {activeProvider
-                                    ? `${cleanName(activeProvider.name)}'s Services`
+                                    ? `${cleanName(activeProvider.name)} ${String(activeProvider.name).includes("Mobile") ? "Mobile" : "Studio"} Services`
                                     : "Services"}
                             </h3>
                         </div>

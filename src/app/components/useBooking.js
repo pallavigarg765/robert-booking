@@ -20,6 +20,34 @@ function getDistance(lat1, lon1, lat2, lon2) {
   return R * c;
 }
 
+function getLocationCoordinates(location) {
+  if (!location) {
+    return {
+      lat: null,
+      lng: null,
+    };
+  }
+
+  const lat = Number(
+    location.lat ??
+    location.latitude ??
+    location.latitude_deg
+  );
+
+  const lng = Number(
+    location.lng ??
+    location.lon ??
+    location.long ??
+    location.longitude ??
+    location.longitude_deg
+  );
+
+  return {
+    lat: Number.isFinite(lat) ? lat : null,
+    lng: Number.isFinite(lng) ? lng : null,
+  };
+}
+
 // Helper function to convert state names to codes
 function stateNameToCode(stateName) {
   const stateMap = {
@@ -92,6 +120,55 @@ function normalizeState(state) {
   return stateNameToCode(state);
 }
 
+function getLocationProviderType(location) {
+  const address2 = String(location?.address2 || "").trim();
+
+  const studioMatch = address2.match(
+    /^studio(?:[\s,]+(\d+(?:\.\d+)?))?$/i
+  );
+
+  if (studioMatch) {
+    return {
+      mode: "studio",
+      isStudio: true,
+      isMobile: false,
+      distanceLimit: null,
+    };
+  }
+
+  const mobileMatch = address2.match(
+    /^mobile\s+(\d+(?:\.\d+)?)$/i
+  );
+
+  if (mobileMatch) {
+    return {
+      mode: "mobile",
+      isStudio: false,
+      isMobile: true,
+      distanceLimit: Number(mobileMatch[1]),
+    };
+  }
+
+  const numericMatch = address2.match(
+    /^(\d+(?:\.\d+)?)$/
+  );
+
+  if (numericMatch) {
+    return {
+      mode: "mobile",
+      isStudio: false,
+      isMobile: true,
+      distanceLimit: Number(numericMatch[1]),
+    };
+  }
+
+  return {
+    mode: null,
+    isStudio: false,
+    isMobile: false,
+    distanceLimit: null,
+  };
+}
 
 // Helper function to extract state and address2 from location
 function getStateFromLocation(location, userState = '') {
@@ -224,6 +301,14 @@ export function useBooking({ providers, events, locations, clients, categories, 
   const [limitedLocations, setLimitedLocations] = useState([]);
   const [filteredProviders, setFilteredProviders] = useState([]);
   const [visibleProviders, setVisibleProviders] = useState([]);
+
+  const [mobileProviders, setMobileProviders] = useState([]);
+const [studioProviders, setStudioProviders] = useState([]);
+
+const [mobileProvidersWithDistance, setMobileProvidersWithDistance] = useState([]);
+const [studioProvidersWithDistance, setStudioProvidersWithDistance] = useState([]);
+
+
   const [userEmail, setUserEmail] = useState("");
   const [providerLimit, setProviderLimit] = useState(4);
   // New loading states
@@ -710,211 +795,766 @@ export function useBooking({ providers, events, locations, clients, categories, 
     setLoadingTimeSlots(false);
   }, [selectedDate, workCalandar]);
 
-  useEffect(() => {
+    useEffect(() => {
+    console.log("🔎 Triggered provider filtering");
 
-    console.log("triggered filter providers useEffect")
-
+    // Clear results while required data is missing.
     if (!providerArray || providerArray.length === 0) {
       setFilteredProviders([]);
+      setVisibleProviders([]);
+      setProvidersWithDistanceState([]);
+      setMobileProviders([]);
+      setStudioProviders([]);
+      setMobileProvidersWithDistance([]);
+      setStudioProvidersWithDistance([]);
+      setLoadingProviders(false);
       return;
     }
 
-    if (!clientLocation) {
+    if (
+      !clientLocation ||
+      !Number.isFinite(Number(clientLocation[0])) ||
+      !Number.isFinite(Number(clientLocation[1]))
+    ) {
       setFilteredProviders([]);
+      setVisibleProviders([]);
+      setProvidersWithDistanceState([]);
+      setMobileProviders([]);
+      setStudioProviders([]);
+      setMobileProvidersWithDistance([]);
+      setStudioProvidersWithDistance([]);
+      setLoadingProviders(false);
       return;
     }
 
     setLoadingProviders(true);
 
-    const [userLat, userLng] = clientLocation;
+    const userLat = Number(clientLocation[0]);
+    const userLng = Number(clientLocation[1]);
+    const customerSearchRadius = Number(searchWithin);
 
-    /* ---------------------------------------------
-       STEP 1: STATE-BASED FILTERING (STRICT)
-    ---------------------------------------------- */
-
-    let stateFilteredProviders = providerArray;
-
-    if (address.state && address.state.length === 2) {
-      stateFilteredProviders = providerArray
-        .map((p) => {
-          const providerLocations = p.locations
-            ?.map((locId) => locationArray.find((l) => l.id === locId))
-            .filter(Boolean);
-
-          if (!providerLocations?.length) return null;
-
-          let matchesState = false;
-
-          for (const loc of providerLocations) {
-            const { state } = getStateFromLocation(loc, address.state);
-            if (state === address.state) {
-              matchesState = true;
-              break;
-            }
-          }
-
-          if (!matchesState) {
-            console.log(`❌ Provider ${p.id} filtered - state mismatch`);
-            return null;
-          }
-
-          return {
-            ...p,
-            providerLocations,
-          };
-        })
-        .filter(Boolean);
-
-      console.log(
-        "Providers after state filtering:",
-        stateFilteredProviders.length
+    /*
+     * ---------------------------------------------------------
+     * STEP 1: STATE-BASED FILTERING
+     * ---------------------------------------------------------
+     *
+     * Keep a provider if at least one of its locations belongs
+     * to the customer's selected state.
+     */
+    let stateFilteredProviders = providerArray
+      .map((provider) => {
+        const providerLocations = (provider.locations || [])
+  .map((providerLocation) => {
+    /*
+     * Case 1:
+     * provider.locations contains a location ID
+     */
+    if (
+      typeof providerLocation === "string" ||
+      typeof providerLocation === "number"
+    ) {
+      return locationArray.find(
+        (location) =>
+          String(location.id) === String(providerLocation)
       );
-    } else {
-      // If no valid state, keep providers with valid locations
-      stateFilteredProviders = providerArray
-        .map((p) => ({
-          ...p,
-          providerLocations: p.locations
-            ?.map((locId) => locationArray.find((l) => l.id === locId))
-            .filter(Boolean),
-        }))
-        .filter((p) => p.providerLocations?.length);
     }
 
-    /* ---------------------------------------------
-       STEP 2: DISTANCE FILTERING
-       address2 = service distance limit
-       address2 = "0" → NO travel allowed
-    ---------------------------------------------- */
+    /*
+     * Case 2:
+     * provider.locations already contains
+     * a location object.
+     */
+    if (
+      providerLocation &&
+      typeof providerLocation === "object"
+    ) {
+      const locationId =
+        providerLocation.id ??
+        providerLocation.locationId;
 
-    const providersWithDistance = stateFilteredProviders
-      .map((p) => {
-        let minDistance = Infinity;
-        let nearestLocation = null;
-        let distanceLimit = 0; // default: no travel allowed
+      if (locationId != null) {
+        return (
+          locationArray.find(
+            (location) =>
+              String(location.id) === String(locationId)
+          ) || providerLocation
+        );
+      }
 
-        p.providerLocations.forEach((loc) => {
-          const dist = getDistance(
-            userLat,
-            userLng,
-            parseFloat(loc.lat),
-            parseFloat(loc.lng)
-          );
+      return providerLocation;
+    }
 
-          let locLimit = Number(loc.address2);
-          if (isNaN(locLimit) || locLimit < 0) locLimit = 0;
+    return null;
+  })
+  .filter(Boolean);
 
-          // choose nearest location
-          if (dist < minDistance) {
-            minDistance = dist;
-            nearestLocation = loc;
-            distanceLimit = locLimit;
-          }
-        });
+  console.log("🏢 PROVIDER LOCATION MAPPING", {
+  providerId: provider.id,
+  providerName: provider.name,
 
-        return {
-          ...p,
-          distance: minDistance,
-          nearestLocation,
-          distanceLimit,
-        };
-      })
-      .filter((p) => {
-        const withinUserRadius = p.distance <= searchWithin;
-        const withinProviderLimit = p.distance <= p.distanceLimit;
+  providerLocationIds: provider.locations,
 
-        if (!withinProviderLimit) {
-          console.log(
-            `❌ Provider ${p.id} filtered - exceeds provider limit (${p.distance} > ${p.distanceLimit})`
-          );
+  resolvedLocations: providerLocations.map((location) => ({
+    id: location.id,
+    title: location.title,
+    address2: location.address2,
+    lat: location.lat,
+    lng: location.lng,
+    lon: location.lon,
+    latitude: location.latitude,
+    longitude: location.longitude,
+  })),
+});
+
+        if (providerLocations.length === 0) {
+          return null;
         }
 
-        return withinUserRadius && withinProviderLimit;
-      })
-      .sort((a, b) => a.distance - b.distance);
+        // If there is no valid state, keep all providers
+        // that have valid locations.
+        if (!address.state || address.state.length !== 2) {
+          return {
+            ...provider,
+            providerLocations,
+          };
+        }
 
-    console.log(
-      "Providers after distance filtering:",
-      providersWithDistance.length
-    );
+        const hasMatchingState = providerLocations.some(
+          (location) => {
+            const { state } = getStateFromLocation(
+              location,
+              address.state
+            );
 
-    setProvidersWithDistanceState(providersWithDistance);
-    const limitedProviders = providersWithDistance;
-    /* ---------------------------------------------
-       STEP 4 + 5: BLACKLIST + BOOKING PRIORITY
-    ---------------------------------------------- */
-
-    async function filterProviders() {
-      if (!userEmail) {
-
-        setVisibleProviders(limitedProviders);
-
-        setFilteredProviders(
-          limitedProviders.filter(providerMatchesSearchCategory)
+            return state === address.state;
+          }
         );
 
-        setLoadingProviders(false);
+        if (!hasMatchingState) {
+          console.log(
+            `❌ Provider ${provider.id} filtered - state mismatch`
+          );
+
+          return null;
+        }
+
+        return {
+          ...provider,
+          providerLocations,
+        };
+      })
+      .filter(Boolean);
+
+    console.log(
+      "📍 Providers after state filtering:",
+      stateFilteredProviders.length
+    );
+
+    /*
+     * ---------------------------------------------------------
+     * STEP 2: LOCATION-BASED TYPE + DISTANCE FILTERING
+     * ---------------------------------------------------------
+     *
+     * address2 determines the type of EACH LOCATION:
+     *
+     * Studio:
+     *   "Studio"
+     *   "Studio 0"
+     *   "Studio, 0"
+     *
+     * Mobile:
+     *   numeric value such as "26"
+     *
+     * Unknown address2:
+     *   ignored
+     *
+     * IMPORTANT:
+     *
+     * We evaluate every provider location independently.
+     *
+     * We DO NOT first decide:
+     *
+     *     "provider has a Studio location"
+     *
+     * and then ignore its Mobile locations.
+     *
+     * Instead, every location must pass its own rules.
+     */
+    const eligibleProviderRecords = [];
+
+    stateFilteredProviders.forEach((provider) => {
+      const configuredLocations = [];
+
+      (provider.providerLocations || []).forEach((location) => {
+        const config = getLocationProviderType(location);
+
+        /*
+         * Ignore unknown/invalid address2 values.
+         *
+         * This prevents an unknown location from accidentally
+         * becoming a Mobile provider.
+         */
+        if (!config.mode) {
+          console.log(
+            "⚠️ Ignoring invalid provider location configuration:",
+            {
+              providerId: provider.id,
+              locationId: location.id,
+              address2: location.address2,
+              title: location.title,
+            }
+          );
+
+          return;
+        }
+
+        const { lat, lng } = getLocationCoordinates(location);
+
+/*
+ * Ignore locations without valid coordinates.
+ */
+if (
+  !Number.isFinite(lat) ||
+  !Number.isFinite(lng)
+) {
+  console.log(
+    "⚠️ Ignoring provider location with invalid coordinates:",
+    {
+      providerId: provider.id,
+      providerName: provider.name,
+      locationId: location.id,
+      locationTitle: location.title,
+      address2: location.address2,
+
+      rawLat: location.lat,
+      rawLng: location.lng,
+      rawLon: location.lon,
+      rawLatitude: location.latitude,
+      rawLongitude: location.longitude,
+    }
+  );
+
+  return;
+}
+
+/*
+ * Calculate distance from THIS CUSTOMER
+ * to THIS PROVIDER LOCATION.
+ */
+const distance = getDistance(
+  userLat,
+  userLng,
+  lat,
+  lng
+);
+
+console.log("📍 DISTANCE CALCULATION", {
+  providerId: provider.id,
+  providerName: provider.name,
+
+  locationId: location.id,
+  locationTitle: location.title,
+  address2: location.address2,
+
+  customer: {
+    lat: userLat,
+    lng: userLng,
+  },
+
+  providerLocation: {
+    lat,
+    lng,
+  },
+
+  distance,
+});
+
+        /*
+         * Customer search radius applies to BOTH Mobile
+         * and Studio.
+         */
+        const withinCustomerRadius =
+          distance <= customerSearchRadius;
+
+        console.log("location: ", location);
+        console.log("distance: ", distance);
+        console.log("customerSearchRadius: ", customerSearchRadius);
+        console.log("withinCustomerRadius: ", withinCustomerRadius);
+
+        /*
+         * Studio:
+         * No provider travel limit.
+         *
+         * Mobile:
+         * address2 contains the provider's maximum travel
+         * distance.
+         */
+        const withinProviderTravelLimit =
+          config.isStudio
+            ? true
+            : distance <= Number(config.distanceLimit);
+
+        /*
+         * A location is eligible only if BOTH conditions
+         * are satisfied.
+         */
+        const eligible =
+          withinCustomerRadius &&
+          withinProviderTravelLimit;
+
+        configuredLocations.push({
+          location,
+          config,
+          distance,
+          withinCustomerRadius,
+          withinProviderTravelLimit,
+          eligible,
+        });
+      });
+
+      /*
+       * Only use locations that actually passed all rules.
+       */
+      const eligibleLocations =
+        configuredLocations.filter(
+          (record) => record.eligible
+        );
+
+      /*
+       * If no location is eligible, this provider must NOT
+       * appear in either Mobile or Studio.
+       */
+      if (eligibleLocations.length === 0) {
+        console.log(
+          `❌ Provider ${provider.id} filtered - no eligible location`,
+          {
+            providerId: provider.id,
+            searchWithin: customerSearchRadius,
+            locations: configuredLocations.map(
+              (record) => ({
+                locationId: record.location?.id,
+                address2: record.location?.address2,
+                type: record.config.mode,
+                distance: Number(
+                  record.distance.toFixed(2)
+                ),
+                providerLimit:
+                  record.config.distanceLimit,
+                withinCustomerRadius:
+                  record.withinCustomerRadius,
+                withinProviderTravelLimit:
+                  record.withinProviderTravelLimit,
+              })
+            ),
+          }
+        );
+
         return;
       }
 
+      /*
+       * -------------------------------------------------------
+       * FIND ELIGIBLE LOCATIONS BY TYPE
+       * -------------------------------------------------------
+       */
+      const eligibleStudioLocations =
+        eligibleLocations.filter(
+          (record) => record.config.isStudio
+        );
+
+      const eligibleMobileLocations =
+        eligibleLocations.filter(
+          (record) => record.config.isMobile
+        );
+
+      /*
+       * Find the nearest ELIGIBLE Studio location.
+       */
+      const nearestStudio =
+        eligibleStudioLocations.length > 0
+          ? eligibleStudioLocations.reduce(
+              (nearest, current) =>
+                current.distance < nearest.distance
+                  ? current
+                  : nearest
+            )
+          : null;
+
+      /*
+       * Find the nearest ELIGIBLE Mobile location.
+       */
+      const nearestMobile =
+        eligibleMobileLocations.length > 0
+          ? eligibleMobileLocations.reduce(
+              (nearest, current) =>
+                current.distance < nearest.distance
+                  ? current
+                  : nearest
+            )
+          : null;
+
+      /*
+       * -------------------------------------------------------
+       * DETERMINE FINAL PROVIDER TYPE
+       * -------------------------------------------------------
+       *
+       * Existing application behavior is preserved:
+       *
+       *   eligible Studio location → Studio
+       *
+       *   otherwise eligible Mobile location → Mobile
+       *
+       * The critical difference is that the location MUST
+       * first pass the distance rules.
+       */
+      let selectedRecord = null;
+      let providerMode = null;
+
+      if (nearestStudio) {
+        selectedRecord = nearestStudio;
+        providerMode = "studio";
+      } else if (nearestMobile) {
+        selectedRecord = nearestMobile;
+        providerMode = "mobile";
+      }
+
+      /*
+       * Safety check.
+       */
+      if (!selectedRecord) {
+        return;
+      }
+
+      /*
+       * -------------------------------------------------------
+       * CREATE FINAL PROVIDER OBJECT
+       * -------------------------------------------------------
+       *
+       * distance, nearestLocation, providerMode and
+       * distanceLimit ALL come from the SAME location.
+       */
+      const finalProvider = {
+        ...provider,
+
+        distance: selectedRecord.distance,
+
+        nearestLocation:
+          selectedRecord.location,
+
+        providerMode,
+
+        isStudio:
+          providerMode === "studio",
+
+        isMobile:
+          providerMode === "mobile",
+
+        distanceLimit:
+          providerMode === "mobile"
+            ? selectedRecord.config.distanceLimit
+            : null,
+      };
+
+      eligibleProviderRecords.push(
+        finalProvider
+      );
+    });
+
+    /*
+     * Sort all eligible providers by their actual eligible
+     * location distance.
+     */
+    const providersWithDistance =
+      eligibleProviderRecords.sort(
+        (a, b) =>
+          a.distance - b.distance
+      );
+
+    console.log(
+      "✅ Providers after location-based distance filtering:",
+      providersWithDistance.map((provider) => ({
+        id: provider.id,
+        name: provider.name,
+        type: provider.providerMode,
+        distance: Number(
+          provider.distance.toFixed(2)
+        ),
+        providerLimit:
+          provider.distanceLimit,
+        locationId:
+          provider.nearestLocation?.id,
+        location:
+          provider.nearestLocation?.title,
+        address2:
+          provider.nearestLocation?.address2,
+      }))
+    );
+
+    setProvidersWithDistanceState(
+      providersWithDistance
+    );
+
+    const limitedProviders =
+      providersWithDistance;
+
+    /*
+     * ---------------------------------------------------------
+     * STEP 3: BLACKLIST + BOOKING PRIORITY
+     * ---------------------------------------------------------
+     */
+    async function filterProviders() {
       try {
-        const blacklistRes = await fetch(`/api/blacklist?email=${userEmail}`);
-        const blacklistData = await blacklistRes.json();
-        const blockedIds = blacklistData?.blockedProviderIds || [];
+        let finalList = limitedProviders;
 
-        const bookingRes = await fetch(`/api/bookings?email=${userEmail}`);
-        const bookingData = await bookingRes.json();
+        /*
+         * If the user has an email, apply blacklist and
+         * booking priority.
+         */
+        if (userEmail) {
+          const blacklistRes = await fetch(
+            `/api/blacklist?email=${encodeURIComponent(
+              userEmail
+            )}`
+          );
 
-        const providerLastBookingMap = new Map();
+          const blacklistData =
+            await blacklistRes.json();
 
-        bookingData?.data?.forEach((booking) => {
-          const providerId = booking.provider?.toString();
-          const bookingDate = new Date(booking.createdAt || booking.date);
+          const blockedIds =
+            blacklistData?.blockedProviderIds || [];
 
-          if (!providerId) return;
+          const bookingRes = await fetch(
+            `/api/bookings?email=${encodeURIComponent(
+              userEmail
+            )}`
+          );
 
-          if (!providerLastBookingMap.has(providerId)) {
-            providerLastBookingMap.set(providerId, bookingDate);
-          } else if (bookingDate > providerLastBookingMap.get(providerId)) {
-            providerLastBookingMap.set(providerId, bookingDate);
-          }
-        });
+          const bookingData =
+            await bookingRes.json();
 
-        let finalList = limitedProviders.filter(
-          (p) => !blockedIds.includes(p.id.toString())
+          const providerLastBookingMap =
+            new Map();
+
+          bookingData?.data?.forEach(
+            (booking) => {
+              const providerId =
+                booking.provider?.toString();
+
+              const bookingDate = new Date(
+                booking.createdAt ||
+                  booking.date
+              );
+
+              if (!providerId) return;
+
+              if (
+                !providerLastBookingMap.has(
+                  providerId
+                )
+              ) {
+                providerLastBookingMap.set(
+                  providerId,
+                  bookingDate
+                );
+              } else if (
+                bookingDate >
+                providerLastBookingMap.get(
+                  providerId
+                )
+              ) {
+                providerLastBookingMap.set(
+                  providerId,
+                  bookingDate
+                );
+              }
+            }
+          );
+
+          /*
+           * Remove blacklisted providers.
+           */
+          finalList = limitedProviders.filter(
+            (provider) =>
+              !blockedIds.includes(
+                provider.id.toString()
+              )
+          );
+
+          /*
+           * Existing booking priority.
+           */
+          finalList.sort((a, b) => {
+            const aLast =
+              providerLastBookingMap.get(
+                a.id.toString()
+              );
+
+            const bLast =
+              providerLastBookingMap.get(
+                b.id.toString()
+              );
+
+            if (aLast && bLast) {
+              return bLast - aLast;
+            }
+
+            if (aLast) return -1;
+
+            if (bLast) return 1;
+
+            return a.distance - b.distance;
+          });
+        }
+
+        /*
+         * -----------------------------------------------------
+         * FINAL ELIGIBLE PROVIDERS
+         * -----------------------------------------------------
+         */
+        setVisibleProviders(
+          finalList
         );
 
-        finalList.sort((a, b) => {
-          const aLast = providerLastBookingMap.get(a.id.toString());
-          const bLast = providerLastBookingMap.get(b.id.toString());
-
-          if (aLast && bLast) return bLast - aLast;
-          if (aLast) return -1;
-          if (bLast) return 1;
-
-          return a.distance - b.distance;
-        });
-
-        // ⭐ Save ALL visible providers
-        setVisibleProviders(finalList);
-
-        // ⭐ Now apply category filter
+        /*
+         * Existing category/service filtering.
+         */
         const categoryFilteredProviders =
-          finalList.filter(providerMatchesSearchCategory);
-
-        console.log(
-          "Providers after category filtering:",
-          categoryFilteredProviders.length
-        );
-
-        // ⭐ Show only providers matching the selected category
-        setFilteredProviders(categoryFilteredProviders);
-      } catch (err) {
-        console.error("Provider filtering error:", err);
-        setVisibleProviders(limitedProviders);
+          finalList.filter(
+            providerMatchesSearchCategory
+          );
 
         setFilteredProviders(
-          limitedProviders.filter(providerMatchesSearchCategory)
+          categoryFilteredProviders
+        );
+
+        /*
+         * -----------------------------------------------------
+         * MOBILE / STUDIO SPLIT
+         * -----------------------------------------------------
+         *
+         * IMPORTANT:
+         *
+         * We use providerMode calculated above.
+         *
+         * DO NOT use parseProviderMode() here.
+         */
+        const mobileProvidersList =
+          categoryFilteredProviders.filter(
+            (provider) =>
+              provider.providerMode === "mobile"
+          );
+
+        const studioProvidersList =
+          categoryFilteredProviders.filter(
+            (provider) =>
+              provider.providerMode === "studio"
+          );
+
+        setMobileProviders(
+          mobileProvidersList
+        );
+
+        setStudioProviders(
+          studioProvidersList
+        );
+
+        setMobileProvidersWithDistance(
+          mobileProvidersList
+        );
+
+        setStudioProvidersWithDistance(
+          studioProvidersList
+        );
+
+        console.log(
+          "📱 FINAL MOBILE PROVIDERS:",
+          mobileProvidersList.map(
+            (provider) => ({
+              id: provider.id,
+              name: provider.name,
+              distance: Number(
+                provider.distance.toFixed(2)
+              ),
+              limit:
+                provider.distanceLimit,
+              locationId:
+                provider.nearestLocation?.id,
+              location:
+                provider.nearestLocation?.title,
+              address2:
+                provider.nearestLocation?.address2,
+            })
+          )
+        );
+
+        console.log(
+          "🏢 FINAL STUDIO PROVIDERS:",
+          studioProvidersList.map(
+            (provider) => ({
+              id: provider.id,
+              name: provider.name,
+              distance: Number(
+                provider.distance.toFixed(2)
+              ),
+              locationId:
+                provider.nearestLocation?.id,
+              location:
+                provider.nearestLocation?.title,
+              address2:
+                provider.nearestLocation?.address2,
+            })
+          )
+        );
+      } catch (err) {
+        console.error(
+          "❌ Provider filtering error:",
+          err
+        );
+
+        /*
+         * IMPORTANT:
+         * Do NOT fall back to the original unfiltered
+         * providerArray. That would bypass all distance rules.
+         */
+        setVisibleProviders(
+          limitedProviders
+        );
+
+        const categoryFilteredProviders =
+          limitedProviders.filter(
+            providerMatchesSearchCategory
+          );
+
+        setFilteredProviders(
+          categoryFilteredProviders
+        );
+
+        const mobileProvidersList =
+          categoryFilteredProviders.filter(
+            (provider) =>
+              provider.providerMode === "mobile"
+          );
+
+        const studioProvidersList =
+          categoryFilteredProviders.filter(
+            (provider) =>
+              provider.providerMode === "studio"
+          );
+
+        setMobileProviders(
+          mobileProvidersList
+        );
+
+        setStudioProviders(
+          studioProvidersList
+        );
+
+        setMobileProvidersWithDistance(
+          mobileProvidersList
+        );
+
+        setStudioProvidersWithDistance(
+          studioProvidersList
         );
       } finally {
         setLoadingProviders(false);
@@ -931,8 +1571,7 @@ export function useBooking({ providers, events, locations, clients, categories, 
     address.state,
     searchCategory,
     categories,
-    providerLimit   // ← add this
-
+    providerLimit,
   ]);
 
   return {
@@ -992,6 +1631,10 @@ export function useBooking({ providers, events, locations, clients, categories, 
     providerLimit,
     setProviderLimit,
     providersWithDistance: providersWithDistanceState,
+    mobileProviders,
+studioProviders,
+mobileProvidersWithDistance,
+studioProvidersWithDistance,
 
   };
 }

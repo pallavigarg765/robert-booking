@@ -43,10 +43,10 @@ export default function ServiceSelectionSection({
   const providerName = provider?.name || "";
   const cleanName = (name = "") =>
     name
-      // remove leading "03a) ", "10b) ", etc.
-      .replace(/^\d+[a-z]\)\s*/i, "")
-      // remove schedule suffixes
-      .replace(/\s*,?\s*(DTD|Salon)\s*Schedule/i, "");
+        // Remove everything from the first comma onward
+        .split(",")[0]
+        .replace(/^\d+[a-z]\),?\s*/i, "")
+        .trim();
 
   // const visibleServices = collapsed[category.id]
   //   ? category.services.filter(s => services?.[s.key])
