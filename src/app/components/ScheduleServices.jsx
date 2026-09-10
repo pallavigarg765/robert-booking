@@ -4681,8 +4681,8 @@ export default function ScheduleServices({ providers, events, locations, clients
                         <div className="px-4 py-3 bg-indigo-50 flex items-center justify-between">
                             <h3 className="text-lg font-bold">
                                 {showHiddenProviders
-                                    ? "Hidden Providers"
-                                    : "Service Providers"}
+                                    ? `${providerType == "mobile" ? "Mobile" : "Studio"} Hidden Providers`
+                                    : `${providerType == "mobile" ? "Mobile" : "Studio"} Service Providers`}
                             </h3>
 
                             <div className="flex items-center gap-3">

@@ -27,8 +27,26 @@ export default function AvailabilitySection({
     const [viewMode, setViewMode] = useState("weekNav");
 
     const [lastWeekAnchor, setLastWeekAnchor] = useState(null);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+
+    const [today, setToday] = useState(() => {
+        const date = new Date();
+        date.setHours(0, 0, 0, 0);
+        return date;
+    });
+
+    useEffect(() => {
+        const now = new Date();
+        const nextMidnight = new Date(now);
+        nextMidnight.setHours(24, 0, 0, 0);
+
+        const timeoutId = setTimeout(() => {
+            const currentDate = new Date();
+            currentDate.setHours(0, 0, 0, 0);
+            setToday(currentDate);
+        }, nextMidnight.getTime() - now.getTime() + 100);
+
+        return () => clearTimeout(timeoutId);
+    }, [today]);
 
     const canFitAppointment = (slotIndex, slotList) => {
         if (!totalDuration) return false;
@@ -101,7 +119,7 @@ export default function AvailabilitySection({
     useEffect(() => {
         if (!selectedDate || !Array.isArray(slots) || slots.length === 0) return;
 
-        const key = selectedDate.toISOString().split("T")[0];
+        const key = getLocalDateKey(selectedDate);
 
         setDayTimeRanges(prev => ({
             ...prev,
@@ -403,7 +421,7 @@ export default function AvailabilitySection({
             )
         );
 
-        setExpandedDateKey(null);
+        setExpandedDateKey(getLocalDateKey(selectedDay));
     };
 
     const smoothScroll = (container, targetY, duration = 600) => {
@@ -521,43 +539,62 @@ export default function AvailabilitySection({
     };
 
     const displayWeek = (() => {
-        const baseDate = selectedDate || today;
-        const result = [];
+    let baseDate = selectedDate ? new Date(selectedDate) : new Date(today);
 
-        for (let i = 0; i < 7; i++) {
-            const date = new Date(baseDate);
-            date.setDate(baseDate.getDate() + i);
+    // Protect against an invalid selectedDate.
+    if (Number.isNaN(baseDate.getTime())) {
+        baseDate = new Date(today);
+    }
 
-            const key = getLocalDateKey(date);
-            const dayInfo = workCalandar?.[key];
+    // Normalize to local midnight.
+    baseDate.setHours(0, 0, 0, 0);
 
-            const isDayOff =
-                !dayInfo ||
-                dayInfo.is_day_off === 1 ||
-                dayInfo.is_day_off === "1" ||
-                dayInfo.is_day_off === true;
+    // If the selected date is already in the past,
+    // start the day dropdown from today instead.
+    if (baseDate < today) {
+        baseDate = new Date(today);
+    }
 
-            const isPast = date < today;
+    const result = [];
 
-            result.push({
-                key,
-                date,
-                label: date.toLocaleDateString("en-US", {
-                    weekday: "long",
-                    month: "short",
-                    day: "numeric",
-                }),
-                isAvailable: !isDayOff && !isPast,
-                isDayOff,
-                timeLabel: resolveTimeRange(dayInfo),
-            });
-        }
+    for (let i = 0; i < 7; i++) {
+        const date = new Date(baseDate);
+        date.setDate(baseDate.getDate() + i);
+        date.setHours(0, 0, 0, 0);
 
-        return result;
-    })();
+        const key = getLocalDateKey(date);
+        const dayInfo = workCalandar?.[key];
+
+        const isDayOff =
+            !dayInfo ||
+            dayInfo.is_day_off === 1 ||
+            dayInfo.is_day_off === "1" ||
+            dayInfo.is_day_off === true;
+
+        const isPast = date < today;
+
+        result.push({
+            key,
+            date,
+            label: date.toLocaleDateString("en-US", {
+                weekday: "long",
+                month: "short",
+                day: "numeric",
+            }),
+            isAvailable: !isDayOff && !isPast,
+            isDayOff,
+            timeLabel: resolveTimeRange(dayInfo),
+        });
+    }
+
+    return result;
+})();
 
     useEffect(() => {
-        if (!selectedDate || !workCalandar) return;
+        if (!selectedDate || !workCalandar) {
+            setExpandedDateKey(null);
+            return;
+        }
 
         const selectedKey = getLocalDateKey(selectedDate);
         const dayInfo = workCalandar[selectedKey];
@@ -568,12 +605,17 @@ export default function AvailabilitySection({
             dayInfo.is_day_off === "1" ||
             dayInfo.is_day_off === true;
 
-        const isPast = selectedDate < today;
+        const selectedDay = new Date(selectedDate);
+        selectedDay.setHours(0, 0, 0, 0);
+
+        const isPast = selectedDay < today;
 
         if (!isDayOff && !isPast) {
             setExpandedDateKey(selectedKey);
+        } else {
+            setExpandedDateKey(null);
         }
-    }, [selectedDate, workCalandar]);
+    }, [selectedDate, workCalandar, today]);
 
     const goToPreviousDay = () => {
         if (!selectedDate) return;
@@ -911,6 +953,7 @@ export default function AvailabilitySection({
                                 );
 
                                 onDateSelect(newDate);
+                                setExpandedDateKey(getLocalDateKey(newDate));
                             }}
                         >
                             <ChevronsLeft className="w-4 h-4" />
@@ -964,19 +1007,22 @@ export default function AvailabilitySection({
                                 if (!day) return <div key={j}></div>;
 
                                 const isSelected =
-                                    selectedDate &&
-                                    isSameDay(selectedDate, day.date);
+                                    selectedDate instanceof Date &&
+                                    !Number.isNaN(selectedDate.getTime()) &&
+                                    isSameDay(selectedDate, day.date) &&
+                                    !day.isPast;
 
                                 const isToday = isSameDay(day.date, today);
                                 return (
                                     <button
                                         key={day.key}
                                         disabled={day.isPast}
-                                        onClick={() => onDateSelect(day.date)}   // only highlight
-                                        onDoubleClick={() =>
+                                        onClick={() =>
                                             handleDayClick({
                                                 ...day,
-                                                dayName: day.date.toLocaleDateString("en-US", { weekday: "short" }),
+                                                dayName: day.date.toLocaleDateString("en-US", {
+                                                    weekday: "short",
+                                                }),
                                                 label: day.date.toLocaleDateString("en-US", {
                                                     weekday: "long",
                                                     month: "short",
@@ -1135,9 +1181,7 @@ export default function AvailabilitySection({
                 </div>
             ) : (
                 displayWeek.map((day) => {
-                    const expanded =
-                        expandedDateKey === day.key &&
-                        selectedDate?.toDateString() === day.date.toDateString();
+                    const expanded = expandedDateKey === day.key;
 
                     return (
                         <div

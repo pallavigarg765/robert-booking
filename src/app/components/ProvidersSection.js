@@ -453,16 +453,16 @@ const displayedProviders = showHiddenProviders
                       setHoveredProvider?.(null);
                       setExpandedProvider(null);
                     }}
-                    className={`flex-1 rounded-lg px-1 py-2.5 text-sm font-semibold transition-all ${providerType === "mobile"
+                    className={`flex-1 rounded-lg px-3 py-2.5 text-sm font-semibold transition-all ${providerType === "mobile"
                         ? "bg-white text-indigo-700 shadow-sm"
                         : "text-gray-500 hover:text-gray-700"
                       }`}
                   >
                     <span className="flex items-center justify-between gap-1">
                       <span>📱</span>
-                      <span className="text-[10px] scale-[1.2]">Mobile Providers</span>
+                      <span className="text-[12px] scale-[1.2]">Mobile</span>
                       <span
-                        className={`rounded-full p-1 py-0.5 text-[8px] ${providerType === "mobile"
+                        className={`rounded-full p-2 py-1 text-[10px] ${providerType === "mobile"
                             ? "bg-indigo-100 text-indigo-700"
                             : "bg-gray-200 text-gray-500"
                           }`}
@@ -486,16 +486,16 @@ const displayedProviders = showHiddenProviders
                       setHoveredProvider?.(null);
                       setExpandedProvider(null);
                     }}
-                    className={`flex-1 rounded-lg px-1 py-2.5 text-sm font-semibold transition-all ${providerType === "studio"
+                    className={`flex-1 rounded-lg px-3 py-2.5 text-sm font-semibold transition-all ${providerType === "studio"
                         ? "bg-white text-indigo-700 shadow-sm"
                         : "text-gray-500 hover:text-gray-700"
                       }`}
                   >
                     <span className="flex items-center justify-between gap-1">
                       <span>🏢</span>
-                      <span className="text-[10px] scale-[1.2]">Studio Providers</span>
+                      <span className="text-[12px] scale-[1.2]">Studio</span>
                       <span
-                        className={`rounded-full p-1 py-0.5 text-[8px] ${providerType === "studio"
+                        className={`rounded-full p-2 py-1 text-[10px] ${providerType === "studio"
                             ? "bg-indigo-100 text-indigo-700"
                             : "bg-gray-200 text-gray-500"
                           }`}
@@ -749,7 +749,7 @@ const displayedProviders = showHiddenProviders
                   >
                     <span className="flex items-center justify-center gap-2">
                       <span>📱</span>
-                      <span>Mobile Providers</span>
+                      <span>Mobile</span>
                       <span
                         className={`rounded-full px-2 py-0.5 text-xs ${providerType === "mobile"
                             ? "bg-indigo-100 text-indigo-700"
@@ -776,7 +776,7 @@ const displayedProviders = showHiddenProviders
                   >
                     <span className="flex items-center justify-center gap-2">
                       <span>🏢</span>
-                      <span>Studio Providers</span>
+                      <span>Studio</span>
                       <span
                         className={`rounded-full px-2 py-0.5 text-xs ${providerType === "studio"
                             ? "bg-indigo-100 text-indigo-700"
