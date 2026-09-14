@@ -451,14 +451,10 @@ export default function AvailabilitySection({
     };
 
     const handleDayClick = (day) => {
-        // Always select the date
         onDateSelect(day.date);
 
-        // Only expand if the day is available
         if (day.isAvailable) {
-            setExpandedDateKey((prevKey) =>
-                prevKey === day.key ? null : day.key
-            );
+            setExpandedDateKey(day.key);
         } else {
             setExpandedDateKey(null);
         }
@@ -539,56 +535,56 @@ export default function AvailabilitySection({
     };
 
     const displayWeek = (() => {
-    let baseDate = selectedDate ? new Date(selectedDate) : new Date(today);
+        let baseDate = selectedDate ? new Date(selectedDate) : new Date(today);
 
-    // Protect against an invalid selectedDate.
-    if (Number.isNaN(baseDate.getTime())) {
-        baseDate = new Date(today);
-    }
+        // Protect against an invalid selectedDate.
+        if (Number.isNaN(baseDate.getTime())) {
+            baseDate = new Date(today);
+        }
 
-    // Normalize to local midnight.
-    baseDate.setHours(0, 0, 0, 0);
+        // Normalize to local midnight.
+        baseDate.setHours(0, 0, 0, 0);
 
-    // If the selected date is already in the past,
-    // start the day dropdown from today instead.
-    if (baseDate < today) {
-        baseDate = new Date(today);
-    }
+        // If the selected date is already in the past,
+        // start the day dropdown from today instead.
+        if (baseDate < today) {
+            baseDate = new Date(today);
+        }
 
-    const result = [];
+        const result = [];
 
-    for (let i = 0; i < 7; i++) {
-        const date = new Date(baseDate);
-        date.setDate(baseDate.getDate() + i);
-        date.setHours(0, 0, 0, 0);
+        for (let i = 0; i < 7; i++) {
+            const date = new Date(baseDate);
+            date.setDate(baseDate.getDate() + i);
+            date.setHours(0, 0, 0, 0);
 
-        const key = getLocalDateKey(date);
-        const dayInfo = workCalandar?.[key];
+            const key = getLocalDateKey(date);
+            const dayInfo = workCalandar?.[key];
 
-        const isDayOff =
-            !dayInfo ||
-            dayInfo.is_day_off === 1 ||
-            dayInfo.is_day_off === "1" ||
-            dayInfo.is_day_off === true;
+            const isDayOff =
+                !dayInfo ||
+                dayInfo.is_day_off === 1 ||
+                dayInfo.is_day_off === "1" ||
+                dayInfo.is_day_off === true;
 
-        const isPast = date < today;
+            const isPast = date < today;
 
-        result.push({
-            key,
-            date,
-            label: date.toLocaleDateString("en-US", {
-                weekday: "long",
-                month: "short",
-                day: "numeric",
-            }),
-            isAvailable: !isDayOff && !isPast,
-            isDayOff,
-            timeLabel: resolveTimeRange(dayInfo),
-        });
-    }
+            result.push({
+                key,
+                date,
+                label: date.toLocaleDateString("en-US", {
+                    weekday: "long",
+                    month: "short",
+                    day: "numeric",
+                }),
+                isAvailable: !isDayOff && !isPast,
+                isDayOff,
+                timeLabel: resolveTimeRange(dayInfo),
+            });
+        }
 
-    return result;
-})();
+        return result;
+    })();
 
     useEffect(() => {
         if (!selectedDate || !workCalandar) {
@@ -610,11 +606,13 @@ export default function AvailabilitySection({
 
         const isPast = selectedDay < today;
 
-        if (!isDayOff && !isPast) {
-            setExpandedDateKey(selectedKey);
-        } else {
+        if (isDayOff || isPast) {
             setExpandedDateKey(null);
+            return;
         }
+
+        // Always expand the currently selected day.
+        setExpandedDateKey(selectedKey);
     }, [selectedDate, workCalandar, today]);
 
     const goToPreviousDay = () => {
@@ -759,8 +757,11 @@ export default function AvailabilitySection({
     const eveningAvailable = hasAvailableTime("evening");
 
     // NEW
+    const slotsLoaded = !loadingTimeSlots;
+
     const hasAnyAvailableSlot =
-        morningAvailable || afternoonAvailable || eveningAvailable;
+        slotsLoaded &&
+        (morningAvailable || afternoonAvailable || eveningAvailable);
 
     const hasPreviousAvailableDay = (() => {
         if (!selectedDate) return false;
@@ -792,8 +793,10 @@ export default function AvailabilitySection({
     })();
 
     useEffect(() => {
-        // No slots today (OFF day)
-        // Keep the user's preference so it is restored on the next day.
+        // Do not treat an empty slots array as "no availability"
+        // while SimplyBook is still loading the slots.
+        if (loadingTimeSlots) return;
+
         if (!hasAnyAvailableSlot) {
             onTimeSelect(null);
             return;
@@ -807,13 +810,11 @@ export default function AvailabilitySection({
             evening: eveningAvailable,
         };
 
-        // If today's schedule doesn't contain the selected period,
-        // just clear the selected appointment time.
-        // Keep the preferred period selected.
         if (!map[timePreference]) {
             onTimeSelect(null);
         }
     }, [
+        loadingTimeSlots,
         hasAnyAvailableSlot,
         morningAvailable,
         afternoonAvailable,
@@ -821,44 +822,50 @@ export default function AvailabilitySection({
         timePreference,
     ]);
 
-
-    console.log({
-        selectedDate,
-        timePreference,
-        hasAnyAvailableSlot,
-        morningAvailable,
-        afternoonAvailable,
-        eveningAvailable,
-    });
-
     useEffect(() => {
-        // Don't overwrite if the user has already selected one
+        // Wait until the slots for the selected date are loaded.
+        if (loadingTimeSlots) return;
+
         if (timePreference) return;
 
         let preferred = getDefaultTimePreference();
 
-        // If the preferred period has no availability,
-        // choose the next available one.
         if (preferred === "morning") {
-            if (morningAvailable) preferred = "morning";
-            else if (afternoonAvailable) preferred = "afternoon";
-            else if (eveningAvailable) preferred = "evening";
-            else return;
+            if (morningAvailable) {
+                preferred = "morning";
+            } else if (afternoonAvailable) {
+                preferred = "afternoon";
+            } else if (eveningAvailable) {
+                preferred = "evening";
+            } else {
+                return;
+            }
         } else if (preferred === "afternoon") {
-            if (afternoonAvailable) preferred = "afternoon";
-            else if (eveningAvailable) preferred = "evening";
-            else if (morningAvailable) preferred = "morning";
-            else return;
+            if (afternoonAvailable) {
+                preferred = "afternoon";
+            } else if (eveningAvailable) {
+                preferred = "evening";
+            } else if (morningAvailable) {
+                preferred = "morning";
+            } else {
+                return;
+            }
         } else {
-            if (eveningAvailable) preferred = "evening";
-            else if (morningAvailable) preferred = "morning";
-            else if (afternoonAvailable) preferred = "afternoon";
-            else return;
+            if (eveningAvailable) {
+                preferred = "evening";
+            } else if (morningAvailable) {
+                preferred = "morning";
+            } else if (afternoonAvailable) {
+                preferred = "afternoon";
+            } else {
+                return;
+            }
         }
 
         setTimePreference(preferred);
         onTimeSelect(null);
     }, [
+        loadingTimeSlots,
         morningAvailable,
         afternoonAvailable,
         eveningAvailable,

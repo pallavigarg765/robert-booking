@@ -121,6 +121,8 @@ export default function ScheduleServices({ providers, events, locations, clients
         zip: "",
     });
 
+    console.log("providers are here: ", providers);
+
     const [resendTimer, setResendTimer] = useState(30);
     const [canResend, setCanResend] = useState(false);
     const [registerLoading, setRegisterLoading] = useState(false);

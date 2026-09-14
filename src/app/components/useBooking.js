@@ -737,13 +737,42 @@ const [studioProvidersWithDistance, setStudioProvidersWithDistance] = useState([
 
         setWorkCalandar(calData);
         setFirstDay(dayData);
-        if (!selectedDate && dayData) {
-          const initialDate = new Date(dayData);
-          initialDate.setHours(0, 0, 0, 0);
+        if (!selectedDate && calData) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
 
-          setSelectedDate(initialDate);
-          setProviderSelectedDate(initialDate);
-        }
+  let initialDate = null;
+
+  // Check today first, then the next 6 days.
+  for (let i = 0; i < 7; i++) {
+    const candidateDate = new Date(today);
+    candidateDate.setDate(today.getDate() + i);
+    candidateDate.setHours(0, 0, 0, 0);
+
+    const year = candidateDate.getFullYear();
+    const month = String(candidateDate.getMonth() + 1).padStart(2, "0");
+    const day = String(candidateDate.getDate()).padStart(2, "0");
+
+    const key = `${year}-${month}-${day}`;
+    const dayInfo = calData[key];
+
+    const isDayOff =
+      !dayInfo ||
+      dayInfo.is_day_off === 1 ||
+      dayInfo.is_day_off === "1" ||
+      dayInfo.is_day_off === true;
+
+    if (!isDayOff) {
+      initialDate = candidateDate;
+      break;
+    }
+  }
+
+  if (initialDate) {
+    setSelectedDate(initialDate);
+    setProviderSelectedDate(initialDate);
+  }
+}
       } catch (err) {
         console.error("Error fetching calendar:", err);
       } finally {
@@ -1234,26 +1263,38 @@ console.log("📍 DISTANCE CALCULATION", {
        * distanceLimit ALL come from the SAME location.
        */
       const finalProvider = {
-        ...provider,
+  ...provider,
 
-        distance: selectedRecord.distance,
+  // Keep the provider's existing services when available.
+  // Studio providers may not have a top-level `services`
+  // array, so use the selected location's events as the
+  // service list in that case.
+  services:
+    Array.isArray(provider.services) &&
+    provider.services.length > 0
+      ? provider.services.map(Number)
+      : Array.isArray(selectedRecord.location?.events)
+        ? selectedRecord.location.events.map(Number)
+        : [],
 
-        nearestLocation:
-          selectedRecord.location,
+  distance: selectedRecord.distance,
 
-        providerMode,
+  nearestLocation:
+    selectedRecord.location,
 
-        isStudio:
-          providerMode === "studio",
+  providerMode,
 
-        isMobile:
-          providerMode === "mobile",
+  isStudio:
+    providerMode === "studio",
 
-        distanceLimit:
-          providerMode === "mobile"
-            ? selectedRecord.config.distanceLimit
-            : null,
-      };
+  isMobile:
+    providerMode === "mobile",
+
+  distanceLimit:
+    providerMode === "mobile"
+      ? selectedRecord.config.distanceLimit
+      : null,
+};
 
       eligibleProviderRecords.push(
         finalProvider
