@@ -23,6 +23,7 @@ export default function AvailabilitySection({
     const [timePreference, setTimePreference] = useState("");
     const [dayTimeRanges, setDayTimeRanges] = useState({});
     const dayRefs = useRef({});
+    const initializedTodayRef = useRef(false);
     const SLOT_INTERVAL = 30;
     const [viewMode, setViewMode] = useState("weekNav");
 
@@ -451,19 +452,42 @@ export default function AvailabilitySection({
     };
 
     const handleDayClick = (day) => {
-        onDateSelect(day.date);
+        const selectedDay = new Date(day.date);
+        selectedDay.setHours(0, 0, 0, 0);
 
+        const key = getLocalDateKey(selectedDay);
+
+        // Select the date
+        onDateSelect(selectedDay);
+
+        // Clear previously selected exact time
+        onTimeSelect(null);
+
+        // Reset preference so it is recalculated
+        // after the new day's slots load.
+        setTimePreference("");
+
+        // Expand the selected day
         if (day.isAvailable) {
-            setExpandedDateKey(day.key);
+            setExpandedDateKey(key);
         } else {
             setExpandedDateKey(null);
         }
+
+        // Keep calendar on selected date's month
+        setCurrentMonth(
+            new Date(
+                selectedDay.getFullYear(),
+                selectedDay.getMonth(),
+                1
+            )
+        );
 
         setViewMode("day");
 
         requestAnimationFrame(() => {
             const container = scrollContainerRef?.current;
-            const target = dayRefs.current[day.key];
+            const target = dayRefs.current[key];
 
             if (!container || !target) return;
 
@@ -492,6 +516,61 @@ export default function AvailabilitySection({
             });
         });
     };
+
+    useEffect(() => {
+        initializedTodayRef.current = false;
+
+        setTimePreference("");
+        setExpandedDateKey(null);
+        onTimeSelect(null);
+    }, [workCalandar]);
+
+    useEffect(() => {
+        if (!workCalandar) return;
+
+        // Only initialize once for each calendar load.
+        if (initializedTodayRef.current) return;
+
+        const todayKey = getLocalDateKey(today);
+        const todayInfo = workCalandar[todayKey];
+
+        const isDayOff =
+            !todayInfo ||
+            todayInfo.is_day_off === 1 ||
+            todayInfo.is_day_off === "1" ||
+            todayInfo.is_day_off === true;
+
+        // Mark as initialized so this does not repeatedly
+        // trigger every time selectedDate changes.
+        initializedTodayRef.current = true;
+
+        // Always make today the initial selected date.
+        const todayDate = new Date(today);
+        todayDate.setHours(0, 0, 0, 0);
+
+        onDateSelect(todayDate);
+
+        // Behave exactly like clicking today's date.
+        if (!isDayOff) {
+            setExpandedDateKey(todayKey);
+        } else {
+            setExpandedDateKey(null);
+        }
+
+        setCurrentMonth(
+            new Date(
+                today.getFullYear(),
+                today.getMonth(),
+                1
+            )
+        );
+
+        setViewMode("day");
+
+        // Reset old time/preference state.
+        setTimePreference("");
+        onTimeSelect(null);
+    }, [workCalandar, today]);
 
     // useEffect(() => {
     //     if (currentWeekIndex === 4 && weeks.length > 0) {
@@ -592,7 +671,10 @@ export default function AvailabilitySection({
             return;
         }
 
-        const selectedKey = getLocalDateKey(selectedDate);
+        const selectedDay = new Date(selectedDate);
+        selectedDay.setHours(0, 0, 0, 0);
+
+        const selectedKey = getLocalDateKey(selectedDay);
         const dayInfo = workCalandar[selectedKey];
 
         const isDayOff =
@@ -601,18 +683,17 @@ export default function AvailabilitySection({
             dayInfo.is_day_off === "1" ||
             dayInfo.is_day_off === true;
 
-        const selectedDay = new Date(selectedDate);
-        selectedDay.setHours(0, 0, 0, 0);
-
         const isPast = selectedDay < today;
 
-        if (isDayOff || isPast) {
+        if (isPast) {
             setExpandedDateKey(null);
             return;
         }
 
-        // Always expand the currently selected day.
-        setExpandedDateKey(selectedKey);
+        // Always expand the currently selected available day.
+        setExpandedDateKey(
+            isDayOff ? null : selectedKey
+        );
     }, [selectedDate, workCalandar, today]);
 
     const goToPreviousDay = () => {
@@ -823,53 +904,91 @@ export default function AvailabilitySection({
     ]);
 
     useEffect(() => {
-        // Wait until the slots for the selected date are loaded.
+        // Wait until SimplyBook has finished loading slots.
         if (loadingTimeSlots) return;
 
-        if (timePreference) return;
+        if (!selectedDate) return;
 
-        let preferred = getDefaultTimePreference();
+        // There are no valid appointment slots.
+        if (!hasAnyAvailableSlot) {
+            setTimePreference("");
+            onTimeSelect(null);
+            return;
+        }
 
-        if (preferred === "morning") {
+        // Keep the current preference if it is still valid
+        // for the newly selected date.
+        if (
+            timePreference === "morning" &&
+            morningAvailable
+        ) {
+            return;
+        }
+
+        if (
+            timePreference === "afternoon" &&
+            afternoonAvailable
+        ) {
+            return;
+        }
+
+        if (
+            timePreference === "evening" &&
+            eveningAvailable
+        ) {
+            return;
+        }
+
+        const currentPreference = getDefaultTimePreference();
+
+        let preferred = "";
+
+        if (currentPreference === "morning") {
             if (morningAvailable) {
                 preferred = "morning";
             } else if (afternoonAvailable) {
                 preferred = "afternoon";
             } else if (eveningAvailable) {
                 preferred = "evening";
-            } else {
-                return;
             }
-        } else if (preferred === "afternoon") {
+        }
+
+        if (currentPreference === "afternoon") {
             if (afternoonAvailable) {
                 preferred = "afternoon";
             } else if (eveningAvailable) {
                 preferred = "evening";
             } else if (morningAvailable) {
                 preferred = "morning";
-            } else {
-                return;
             }
-        } else {
+        }
+
+        if (currentPreference === "evening") {
             if (eveningAvailable) {
                 preferred = "evening";
             } else if (morningAvailable) {
                 preferred = "morning";
             } else if (afternoonAvailable) {
                 preferred = "afternoon";
-            } else {
-                return;
             }
+        }
+
+        if (!preferred) {
+            setTimePreference("");
+            onTimeSelect(null);
+            return;
         }
 
         setTimePreference(preferred);
         onTimeSelect(null);
     }, [
         loadingTimeSlots,
+        selectedDate,
+        hasAnyAvailableSlot,
         morningAvailable,
         afternoonAvailable,
         eveningAvailable,
-        selectedDate,
+        timePreference,
     ]);
 
     /* =========================
