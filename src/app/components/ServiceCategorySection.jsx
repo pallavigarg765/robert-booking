@@ -13,16 +13,35 @@ export default function ServiceCategorySection({
     const [serviceCategories, setServiceCategories] = useState([]);
 
     useEffect(() => {
-        if (!selectedProvider || !providers || !events || !categories) return;
+        // Always clear previous provider categories first.
+        setServiceCategories([]);
+        onCategoriesReady?.([]);
 
-        const provider = providers.find(p => p.id === selectedProvider);
-        if (!provider?.services) return;
+        if (!selectedProvider || !providers || !events || !categories) {
+            return;
+        }
+
+        // selectedProvider can be either an ID or a provider object.
+        const providerId =
+            typeof selectedProvider === "object"
+                ? selectedProvider?.id
+                : selectedProvider;
+
+        const provider = providers.find(
+            p => String(p.id) === String(providerId)
+        );
+
+        // Provider exists but has no services.
+        if (!provider || !Array.isArray(provider.services) || provider.services.length === 0) {
+            return;
+        }
 
         const providerServices = provider.services
             .map(serviceId => {
                 const service = events.find(
-                    event => event.id === serviceId.toString()
+                    event => String(event.id) === String(serviceId)
                 );
+
                 if (!service) return null;
 
                 const serviceKey = service.name
@@ -39,6 +58,10 @@ export default function ServiceCategorySection({
             })
             .filter(Boolean);
 
+        // Provider has service IDs, but none matched the events API.
+        if (providerServices.length === 0) {
+            return;
+        }
 
         const grouped = {};
 
@@ -46,7 +69,9 @@ export default function ServiceCategorySection({
             if (!Array.isArray(category.events)) return;
 
             const categoryServices = providerServices.filter(service =>
-                category.events.map(Number).includes(Number(service.id))
+                category.events
+                    .map(Number)
+                    .includes(Number(service.id))
             );
 
             if (categoryServices.length) {
@@ -64,9 +89,15 @@ export default function ServiceCategorySection({
 
         setServiceCategories(result);
         onCategoriesReady?.(result);
-    }, [selectedProvider, providers, events, categories]);
+    }, [
+        selectedProvider,
+        providers,
+        events,
+        categories,
+        onCategoriesReady
+    ]);
 
-    const getCategoryIcon = (name) => {
+    const getCategoryIcon = (name = "") => {
         const map = {
             nails: "💅",
             hair: "💇",
@@ -78,44 +109,15 @@ export default function ServiceCategorySection({
             eyebrow: "✏️",
             waxing: "🔥",
         };
+
         const lower = name.toLowerCase();
-        return Object.keys(map).find(k => lower.includes(k))
-            ? map[Object.keys(map).find(k => lower.includes(k))]
-            : "🔧";
+
+        const key = Object.keys(map).find(k =>
+            lower.includes(k)
+        );
+
+        return key ? map[key] : "🔧";
     };
 
-    // if (loading) {
-    //     return (
-    //         <div className="text-center py-6">
-    //             <p className="text-sm text-gray-500">Loading...</p>
-    //         </div>
-    //     );
-    // }
-
     return null;
-    // return (
-    //     <div className="space-y-2">
-    //         {serviceCategories.map(category => (
-    //             <button
-    //                 key={category.id}
-    //                 onClick={() => onCategorySelect(category)}
-    //                 className={`w-full flex items-center gap-3 p-3 rounded-lg border transition ${selectedCategory?.id === category.id
-    //                     ? "border-purple-500 bg-purple-50"
-    //                     : "border-gray-200 hover:border-purple-300"
-    //                     }`}
-    //             >
-    //                 <div className="w-8 h-8 bg-purple-500 rounded-lg flex items-center justify-center">
-    //                     {category.icon}
-    //                 </div>
-
-    //                 <div className="flex-1 text-left">
-    //                     <div className="text-sm font-semibold">{category.name}</div>
-    //                     <div className="text-xs text-gray-500">
-    //                         {category.services.length} services
-    //                     </div>
-    //                 </div>
-    //             </button>
-    //         ))}
-    //     </div>
-    // );
 }

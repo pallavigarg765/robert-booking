@@ -48,6 +48,14 @@ export default function ServiceSelectionSection({
         .replace(/^\d+[a-z]\),?\s*/i, "")
         .trim();
 
+        const hasServices =
+    Array.isArray(categories) &&
+    categories.some(
+        category =>
+            Array.isArray(category.services) &&
+            category.services.length > 0
+    );
+
   // const visibleServices = collapsed[category.id]
   //   ? category.services.filter(s => services?.[s.key])
   //   : category.services;
@@ -128,6 +136,22 @@ export default function ServiceSelectionSection({
       </div> */}
 
         <div className="space-y-2">
+          {!hasServices ? (
+        <div className="flex flex-col items-center justify-center min-h-[250px] text-center px-6">
+            <div className="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center mb-4">
+                <span className="text-2xl">🔧</span>
+            </div>
+
+            <h4 className="text-sm font-semibold text-gray-700 mb-1">
+                No Services Available
+            </h4>
+
+            <p className="text-sm text-gray-500">
+                No services are available for this provider.
+            </p>
+        </div>
+    ) : (
+
           <div>
 
             {[...categories]
@@ -305,6 +329,7 @@ ${isSelected
               })}
 
           </div>
+    )}
 
         </div>
       </div>
