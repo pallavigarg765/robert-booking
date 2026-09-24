@@ -177,12 +177,6 @@ export default function ProvidersSection({
     }
   }, [userEmail, hiddenStorageKey]);
 
-  const filteredProviders = useMemo(() => {
-    return providerType === "studio"
-      ? studioProviders
-      : mobileProviders;
-  }, [providerType, mobileProviders, studioProviders]);
-
   const isProviderHidden = (provider) => {
   if (!userEmail) return false;
 
@@ -193,17 +187,58 @@ export default function ProvidersSection({
   );
 };
 
+const providerHasServices = (provider) => {
+  if (!Array.isArray(provider?.services) || provider.services.length === 0) {
+    return false;
+  }
+
+  return provider.services.some((serviceId) =>
+    events.some(
+      (event) => String(event.id) === String(serviceId)
+    )
+  );
+};
+
+console.log("mobileProviders: ", mobileProviders);
+console.log("studioProviders: ", studioProviders);
+
 const visibleMobileProviders = useMemo(() => {
   return mobileProviders.filter(
-    (provider) => !isProviderHidden(provider)
+    (provider) =>
+      providerHasServices(provider) &&
+      !isProviderHidden(provider)
   );
-}, [mobileProviders, hiddenProviders, userEmail, userAddress?.zip]);
+}, [
+  mobileProviders,
+  hiddenProviders,
+  userEmail,
+  userAddress?.zip,
+  events
+]);
 
 const visibleStudioProviders = useMemo(() => {
   return studioProviders.filter(
-    (provider) => !isProviderHidden(provider)
+    (provider) =>
+      providerHasServices(provider) &&
+      !isProviderHidden(provider)
   );
-}, [studioProviders, hiddenProviders, userEmail, userAddress?.zip]);
+}, [
+  studioProviders,
+  hiddenProviders,
+  userEmail,
+  userAddress?.zip,
+  events
+]);
+
+const filteredProviders = useMemo(() => {
+  return providerType === "studio"
+    ? visibleStudioProviders
+    : visibleMobileProviders;
+}, [
+  providerType,
+  visibleMobileProviders,
+  visibleStudioProviders
+]);
 
   const memoizedMap = useMemo(() => {
     return (
@@ -981,6 +1016,20 @@ function ProviderCard({
       );
     });
   };
+
+  const providerHasServices = (provider) => {
+  if (!Array.isArray(provider?.services) || provider.services.length === 0) {
+    return false;
+  }
+
+  // Make sure the provider has services that actually exist
+  // in the events/services API response.
+  return provider.services.some((serviceId) =>
+    events.some(
+      (event) => String(event.id) === String(serviceId)
+    )
+  );
+};
 
   const providerCategories = getProviderCategories();
 

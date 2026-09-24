@@ -4820,14 +4820,17 @@ export default function ScheduleServices({ providers, events, locations, clients
                             {otpVerified && activeProvider ? (<>
                                 {/* ⭐ Hidden data loader */}
                                 <ServiceCategorySection
-                                    selectedProvider={finalProvider}
-                                    providers={providers}
-
-                                    events={events}
-                                    categories={categories}
-                                    loading={loadingServices}
-                                    onCategoriesReady={setProviderCategories}
-                                />
+    selectedProvider={finalProvider}
+    providers={
+        providerType === "studio"
+            ? studioProviders
+            : mobileProviders
+    }
+    events={events}
+    categories={categories}
+    loading={loadingServices}
+    onCategoriesReady={setProviderCategories}
+/>
 
                                 {/* ⭐ Actual UI */}
                                 <ServiceSelectionSection

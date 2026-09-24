@@ -17,24 +17,40 @@ export default function ServiceCategorySection({
         setServiceCategories([]);
         onCategoriesReady?.([]);
 
+        console.log("selectedProvider is here: ", selectedProvider);
+
         if (!selectedProvider || !providers || !events || !categories) {
             return;
         }
 
         // selectedProvider can be either an ID or a provider object.
-        const providerId =
-            typeof selectedProvider === "object"
-                ? selectedProvider?.id
-                : selectedProvider;
-
-        const provider = providers.find(
-            p => String(p.id) === String(providerId)
+        const provider =
+    typeof selectedProvider === "object"
+        ? selectedProvider
+        : providers.find(
+            p => String(p.id) === String(selectedProvider)
         );
 
-        // Provider exists but has no services.
-        if (!provider || !Array.isArray(provider.services) || provider.services.length === 0) {
-            return;
-        }
+if (
+    !provider ||
+    !Array.isArray(provider.services) ||
+    provider.services.length === 0
+) {
+    return;
+}
+
+console.log("🔍 ServiceCategorySection selectedProvider:", selectedProvider);
+console.log("🔍 ServiceCategorySection resolved provider:", provider);
+console.log("🔍 Provider services:", provider?.services);
+console.log("🔍 Events count:", events?.length);
+console.log(
+    "🔍 Matching services:",
+    provider?.services?.filter(serviceId =>
+        events.some(
+            event => String(event.id) === String(serviceId)
+        )
+    )
+);
 
         const providerServices = provider.services
             .map(serviceId => {
