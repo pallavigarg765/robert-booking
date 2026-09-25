@@ -650,6 +650,21 @@ const [studioProvidersWithDistance, setStudioProvidersWithDistance] = useState([
     }
   };
 
+  const providerHasServices = (provider) => {
+    if (
+        !Array.isArray(provider?.services) ||
+        provider.services.length === 0
+    ) {
+        return false;
+    }
+
+    return provider.services.some((serviceId) =>
+        eventArray.some(
+            (event) => String(event.id) === String(serviceId)
+        )
+    );
+};
+
   const handleNotFoundSubmit = async () => {
     if (address.email === "" || address.phone === "") {
       alert("Email and Phone is required...");
@@ -1269,12 +1284,10 @@ console.log("📍 DISTANCE CALCULATION", {
   // Studio providers may not have a top-level `services`
   // array, so use the selected location's events as the
   // service list in that case.
-  services:
-    Array.isArray(provider.services) &&
-    provider.services.length > 0
-      ? provider.services.map(Number)
-      : Array.isArray(selectedRecord.location?.events)
-        ? selectedRecord.location.events.map(Number)
+  services: Array.isArray(provider.services)
+        ? provider.services
+            .map(Number)
+            .filter(Number.isFinite)
         : [],
 
   distance: selectedRecord.distance,
@@ -1448,155 +1461,79 @@ console.log("📍 DISTANCE CALCULATION", {
         }
 
         /*
-         * -----------------------------------------------------
-         * FINAL ELIGIBLE PROVIDERS
-         * -----------------------------------------------------
-         */
-        setVisibleProviders(
-          finalList
-        );
+ * FINAL ELIGIBLE PROVIDERS
+ *
+ * Filter out providers without valid services BEFORE
+ * setting the main provider lists and applying the limit.
+ */
+const providersWithServices = finalList.filter(
+    providerHasServices
+);
 
-        /*
-         * Existing category/service filtering.
-         */
-        const categoryFilteredProviders =
-          finalList.filter(
-            providerMatchesSearchCategory
-          );
+setVisibleProviders(providersWithServices);
 
-        setFilteredProviders(
-          categoryFilteredProviders
-        );
+/*
+ * Apply the selected category filter after the service filter.
+ */
+const categoryFilteredProviders =
+    providersWithServices.filter(
+        providerMatchesSearchCategory
+    );
 
-        /*
-         * -----------------------------------------------------
-         * MOBILE / STUDIO SPLIT
-         * -----------------------------------------------------
-         *
-         * IMPORTANT:
-         *
-         * We use providerMode calculated above.
-         *
-         * DO NOT use parseProviderMode() here.
-         */
-        const mobileProvidersList =
-          categoryFilteredProviders.filter(
-            (provider) =>
-              provider.providerMode === "mobile"
-          );
+setFilteredProviders(categoryFilteredProviders);
 
-        const studioProvidersList =
-          categoryFilteredProviders.filter(
-            (provider) =>
-              provider.providerMode === "studio"
-          );
+/*
+ * Split the same filtered list into Mobile and Studio.
+ */
+const mobileProvidersList =
+    categoryFilteredProviders.filter(
+        (provider) => provider.providerMode === "mobile"
+    );
 
-        setMobileProviders(
-          mobileProvidersList
-        );
+const studioProvidersList =
+    categoryFilteredProviders.filter(
+        (provider) => provider.providerMode === "studio"
+    );
 
-        setStudioProviders(
-          studioProvidersList
-        );
+setMobileProviders(mobileProvidersList);
+setStudioProviders(studioProvidersList);
 
-        setMobileProvidersWithDistance(
-          mobileProvidersList
-        );
-
-        setStudioProvidersWithDistance(
-          studioProvidersList
-        );
-
-        console.log(
-          "📱 FINAL MOBILE PROVIDERS:",
-          mobileProvidersList.map(
-            (provider) => ({
-              id: provider.id,
-              name: provider.name,
-              distance: Number(
-                provider.distance.toFixed(2)
-              ),
-              limit:
-                provider.distanceLimit,
-              locationId:
-                provider.nearestLocation?.id,
-              location:
-                provider.nearestLocation?.title,
-              address2:
-                provider.nearestLocation?.address2,
-            })
-          )
-        );
-
-        console.log(
-          "🏢 FINAL STUDIO PROVIDERS:",
-          studioProvidersList.map(
-            (provider) => ({
-              id: provider.id,
-              name: provider.name,
-              distance: Number(
-                provider.distance.toFixed(2)
-              ),
-              locationId:
-                provider.nearestLocation?.id,
-              location:
-                provider.nearestLocation?.title,
-              address2:
-                provider.nearestLocation?.address2,
-            })
-          )
-        );
+setMobileProvidersWithDistance(mobileProvidersList);
+setStudioProvidersWithDistance(studioProvidersList);
+        
       } catch (err) {
         console.error(
           "❌ Provider filtering error:",
           err
         );
+const providersWithServices = limitedProviders.filter(
+    providerHasServices
+);
 
-        /*
-         * IMPORTANT:
-         * Do NOT fall back to the original unfiltered
-         * providerArray. That would bypass all distance rules.
-         */
-        setVisibleProviders(
-          limitedProviders
-        );
+setVisibleProviders(providersWithServices);
 
-        const categoryFilteredProviders =
-          limitedProviders.filter(
-            providerMatchesSearchCategory
-          );
+const categoryFilteredProviders =
+    providersWithServices.filter(
+        providerMatchesSearchCategory
+    );
 
-        setFilteredProviders(
-          categoryFilteredProviders
-        );
+setFilteredProviders(categoryFilteredProviders);
 
-        const mobileProvidersList =
-          categoryFilteredProviders.filter(
-            (provider) =>
-              provider.providerMode === "mobile"
-          );
+const mobileProvidersList =
+    categoryFilteredProviders.filter(
+        (provider) => provider.providerMode === "mobile"
+    );
 
-        const studioProvidersList =
-          categoryFilteredProviders.filter(
-            (provider) =>
-              provider.providerMode === "studio"
-          );
+const studioProvidersList =
+    categoryFilteredProviders.filter(
+        (provider) => provider.providerMode === "studio"
+    );
 
-        setMobileProviders(
-          mobileProvidersList
-        );
+setMobileProviders(mobileProvidersList);
+setStudioProviders(studioProvidersList);
 
-        setStudioProviders(
-          studioProvidersList
-        );
-
-        setMobileProvidersWithDistance(
-          mobileProvidersList
-        );
-
-        setStudioProvidersWithDistance(
-          studioProvidersList
-        );
+setMobileProvidersWithDistance(mobileProvidersList);
+setStudioProvidersWithDistance(studioProvidersList);
       } finally {
         setLoadingProviders(false);
       }

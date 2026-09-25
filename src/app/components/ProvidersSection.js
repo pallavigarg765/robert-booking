@@ -199,35 +199,26 @@ const providerHasServices = (provider) => {
   );
 };
 
-console.log("mobileProviders: ", mobileProviders);
-console.log("studioProviders: ", studioProviders);
-
 const visibleMobileProviders = useMemo(() => {
-  return mobileProviders.filter(
-    (provider) =>
-      providerHasServices(provider) &&
-      !isProviderHidden(provider)
-  );
+    return mobileProviders.filter(
+        (provider) => !isProviderHidden(provider)
+    );
 }, [
-  mobileProviders,
-  hiddenProviders,
-  userEmail,
-  userAddress?.zip,
-  events
+    mobileProviders,
+    hiddenProviders,
+    userEmail,
+    userAddress?.zip
 ]);
 
 const visibleStudioProviders = useMemo(() => {
-  return studioProviders.filter(
-    (provider) =>
-      providerHasServices(provider) &&
-      !isProviderHidden(provider)
-  );
+    return studioProviders.filter(
+        (provider) => !isProviderHidden(provider)
+    );
 }, [
-  studioProviders,
-  hiddenProviders,
-  userEmail,
-  userAddress?.zip,
-  events
+    studioProviders,
+    hiddenProviders,
+    userEmail,
+    userAddress?.zip
 ]);
 
 const filteredProviders = useMemo(() => {

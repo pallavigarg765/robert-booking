@@ -345,6 +345,8 @@ export default function ScheduleServices({ providers, events, locations, clients
         // console.log('💾 Saved booking state for navigation');
     };
 
+    console.log("providers from api: ", providers);
+
     // Get all hook functions FIRST
     const {
         selectedEvent,
