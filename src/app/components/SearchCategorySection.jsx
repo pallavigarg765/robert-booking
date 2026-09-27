@@ -30,53 +30,22 @@ export default function SearchCategorySection({
 }) {
     // console.log("blacklistedProviders: ", blacklistedProviders);
     const availableCategories = useMemo(() => {
-        // Remove hidden providers first
-        const visibleProviders = providers.filter((provider) => {
-            return !blacklistedProviders.some((item) => {
-                // Supports both:
-                // ["12", "15"]
-                // and
-                // [{ providerId: "12" }, { providerId: "15" }]
-                const hiddenId =
-                    typeof item === "object"
-                        ? item.providerId
-                        : item;
+    return [...categories]
+        .filter((category) => Array.isArray(category.events))
+        .sort((a, b) => a.name.localeCompare(b.name));
+}, [categories]);
 
-                return String(hiddenId) === String(provider.id);
-            });
-        });
+useEffect(() => {
+    if (value === "ALL") return;
 
-        return categories
-            .filter((category) => {
-                if (!Array.isArray(category.events)) return false;
+    const exists = availableCategories.some(
+        (category) => String(category.id) === String(value)
+    );
 
-                return visibleProviders.some((provider) => {
-                    if (!Array.isArray(provider.services)) return false;
-
-                    return provider.services.some((serviceId) =>
-                        category.events
-                            .map(Number)
-                            .includes(Number(serviceId))
-                    );
-                });
-            })
-            .sort((a, b) => a.name.localeCompare(b.name));
-    }, [providers, blacklistedProviders, categories]);
-
-    useEffect(() => {
-        if (value === "ALL") return;
-
-        const exists = availableCategories.some(
-            (category) => String(category.id) === String(value)
-        );
-
-        if (!exists) {
-            onChange("ALL");
-        }
-        
-        // setSelectedProvider(null);
-
-    }, [availableCategories, value, onChange]);
+    if (!exists) {
+        onChange("ALL");
+    }
+}, [availableCategories, value, onChange]);
 
     useEffect(() => {
         setSelectedProvider(null);

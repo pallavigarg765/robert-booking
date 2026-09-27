@@ -345,6 +345,28 @@ export default function ScheduleServices({ providers, events, locations, clients
         // console.log('💾 Saved booking state for navigation');
     };
 
+    const handleServicesWheel = (e) => {
+    const container = e.currentTarget;
+
+    const isAtTop = container.scrollTop <= 0;
+
+    const isAtBottom =
+        container.scrollTop + container.clientHeight >=
+        container.scrollHeight - 1;
+
+    // Forward the scroll to the page when the inner
+    // services container reaches either boundary.
+    if (
+        (e.deltaY > 0 && isAtBottom) ||
+        (e.deltaY < 0 && isAtTop)
+    ) {
+        window.scrollBy({
+            top: e.deltaY,
+            behavior: "auto",
+        });
+    }
+};
+
     console.log("providers from api: ", providers);
 
     // Get all hook functions FIRST
@@ -4818,7 +4840,7 @@ export default function ScheduleServices({ providers, events, locations, clients
                             </h3>
                         </div>
 
-                        <div className="flex-1 overflow-y-auto p-4">
+                        <div onWheel={handleServicesWheel} className="flex-1 overflow-y-auto p-4">
                             {otpVerified && activeProvider ? (<>
                                 {/* ⭐ Hidden data loader */}
                                 <ServiceCategorySection
