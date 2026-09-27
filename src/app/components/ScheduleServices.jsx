@@ -4784,6 +4784,7 @@ export default function ScheduleServices({ providers, events, locations, clients
 
                             ) : (
 
+                                <div onWheel={handleServicesWheel}>
                                 <ProvidersSection
                                     providers={filteredProviders}
                                     allEligibleProviders={visibleProviders}
@@ -4817,6 +4818,7 @@ export default function ScheduleServices({ providers, events, locations, clients
                                     providerType={providerType}
                                     setProviderType={setProviderType}
                                 />
+                                </div>
 
                             )
                                 // : (
@@ -4911,7 +4913,7 @@ export default function ScheduleServices({ providers, events, locations, clients
                         <div className="px-4 py-3 bg-green-50">
                             <h3 className="text-lg font-bold">Availability</h3>
                         </div>
-                        <div ref={availabilityScrollRef} className="flex-1 overflow-y-auto p-4">
+                        <div ref={availabilityScrollRef} onWheel={handleServicesWheel} className="flex-1 overflow-y-auto p-4">
                             {Object.values(services).some(Boolean) ? (
                                 <AvailabilitySection
                                     key={otpVerified ? "logged-in" : "logged-out"}
