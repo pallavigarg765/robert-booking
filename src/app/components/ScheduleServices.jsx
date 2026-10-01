@@ -9,6 +9,7 @@ import ServiceSelectionSection from "./ServiceSelectionSection";
 import AvailabilitySection from "./AvailabilitySection";
 import NoProvidersModal from "./NoProvidersModal";
 import SearchCategorySection from "./SearchCategorySection";
+import SimplyBookCheckout from "./SimplyBookCheckout";
 import { Calendar, Clock, CheckCircle, ChevronRight, User, Scissors, CalendarDays, Clock4, FileText } from "lucide-react";
 import { useRouter } from "next/navigation";
 const dayMap = {
@@ -85,6 +86,7 @@ export default function ScheduleServices({ providers, events, locations, clients
     const [clientType, setClientType] = useState("returning");
     const [clientTypeConfirmed, setClientTypeConfirmed] = useState(false);
     const [hasRememberedLogin, setHasRememberedLogin] = useState(false);
+    const [simplyBookResult, setSimplyBookResult] = useState(null);
 
     const [showOtpField, setShowOtpField] = useState(false);
     const [showNewClientAddressFields, setShowNewClientAddressFields] = useState(false);
@@ -120,8 +122,6 @@ export default function ScheduleServices({ providers, events, locations, clients
         state: "",
         zip: "",
     });
-
-    console.log("providers are here: ", providers);
 
     const [resendTimer, setResendTimer] = useState(30);
     const [canResend, setCanResend] = useState(false);
@@ -478,6 +478,45 @@ export default function ScheduleServices({ providers, events, locations, clients
             setIsSearchingProviders(false);
         }
     };
+
+    console.log("categories: ", categories);
+
+    const getSimplyBookServices = () => {
+    // `services` is the object containing the selected
+    // service keys and their true/false values.
+    const selectedServiceKeys = Object.entries(services || {})
+        .filter(([, isSelected]) => isSelected)
+        .map(([serviceKey]) => serviceKey);
+
+    // Match each selected key with its actual SimplyBook event.
+    return selectedServiceKeys.map((serviceKey) => {
+        const event = events?.find((item) => {
+            const eventKey = item.name
+                ?.toLowerCase()
+                .replace(/[^a-z0-9]+/g, "_")
+                .replace(/^_+|_+$/g, "");
+
+            return eventKey === serviceKey;
+        });
+
+        if (!event) {
+            throw new Error(
+                `Could not find a SimplyBook event for selected service: ${serviceKey}`
+            );
+        }
+
+        return {
+            eventId: String(event.id),
+            name: event.name,
+            duration: Number(
+                event.duration ||
+                event.duration_minutes ||
+                event.length ||
+                60
+            ),
+        };
+    });
+};
 
     useEffect(() => {
         if (
@@ -3190,6 +3229,15 @@ export default function ScheduleServices({ providers, events, locations, clients
         }
     };
 
+    console.log("services are here: ", services);
+    console.log("selectedProvider is here: ", selectedProvider);
+    console.log("selectedDate: ", selectedDate);
+    console.log("selectedTime: ", selectedTime);
+
+    console.log("Selected provider:", selectedProvider);
+console.log("Available providers:", providers);
+console.log("Available events:", events);
+
     // Main horizontal flow content - FIXED VERSION
     const renderHorizontalFlow = () => {
         return (
@@ -4939,6 +4987,45 @@ export default function ScheduleServices({ providers, events, locations, clients
                             )}
                         </div>
                     </div>
+
+                    {selectedTime && (
+  <SimplyBookCheckout
+    provider={allProviders.find(
+      (item) =>
+        String(item.id) === String(selectedProvider)
+    )}
+    services={getSimplyBookServices()}
+    selectedDate={selectedDate}
+    selectedTime={selectedTime}
+    client={{
+      name:
+        formData.name ||
+        loginData.name ||
+        userName,
+      email:
+        userEmail ||
+        loginData.email ||
+        formData.email,
+      phone:
+        loginData.phonenumber ||
+        formData.phonenumber ||
+        formData.phone,
+    }}
+    onBack={() => setActiveStep(4)}
+    onSuccess={(result) => {
+      setSimplyBookResult(result);
+
+      setBookingDetails({
+        provider: selectedProvider,
+        date: selectedDate,
+        time: selectedTime,
+        services: getSelectedServiceNames(),
+      });
+
+      setShowSuccess(true);
+    }}
+  />
+)}
                 </div>
             </div >
         );
