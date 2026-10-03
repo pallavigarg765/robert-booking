@@ -506,15 +506,24 @@ export default function ScheduleServices({ providers, events, locations, clients
         }
 
         return {
-            eventId: String(event.id),
-            name: event.name,
-            duration: Number(
-                event.duration ||
-                event.duration_minutes ||
-                event.length ||
-                60
-            ),
-        };
+  eventId: String(event.id),
+  name: event.name,
+
+  duration: Number(
+    event.duration ||
+      event.duration_minutes ||
+      event.length ||
+      60
+  ),
+
+  price:
+    event.price ??
+    event.price_amount ??
+    event.priceAmount ??
+    event.cost ??
+    event.amount ??
+    null,
+};
     });
 };
 
@@ -1023,21 +1032,20 @@ export default function ScheduleServices({ providers, events, locations, clients
 
     // Enhanced handleSubmit that shows success notification
     const handleSubmitWithNotification = async (e) => {
-        const result = await handleSubmit(e);
-        if (result && result.success) {
-            setBookingDetails({
-                provider: selectedProvider,
-                date: selectedDate,
-                time: selectedTime,
-                services: getSelectedServiceNames(),
-            });
-            setShowSuccess(true);
-            setTimeout(() => {
-                setShowSuccess(false);
-                setBookingDetails(null);
-            }, 5000);
-        }
-    };
+  const result = await handleSubmit(e);
+
+  if (result && result.success) {
+    setBookingDetails({
+      provider: selectedProvider,
+      date: selectedDate,
+      time: selectedTime,
+      services: getSelectedServiceNames(),
+    });
+
+    // Keep confirmation open until the user closes it.
+    setShowSuccess(true);
+  }
+};
 
     const handleCloseSuccess = () => {
         setShowSuccess(false);
@@ -4990,41 +4998,86 @@ console.log("Available events:", events);
 
                     {selectedTime && (
   <SimplyBookCheckout
-    provider={allProviders.find(
-      (item) =>
-        String(item.id) === String(selectedProvider)
-    )}
-    services={getSimplyBookServices()}
-    selectedDate={selectedDate}
-    selectedTime={selectedTime}
-    client={{
-      name:
-        formData.name ||
-        loginData.name ||
-        userName,
-      email:
-        userEmail ||
-        loginData.email ||
-        formData.email,
-      phone:
-        loginData.phonenumber ||
-        formData.phonenumber ||
-        formData.phone,
-    }}
-    onBack={() => setActiveStep(4)}
-    onSuccess={(result) => {
-      setSimplyBookResult(result);
+  provider={allProviders.find(
+    (item) =>
+      String(item.id) === String(selectedProvider)
+  )}
 
-      setBookingDetails({
-        provider: selectedProvider,
-        date: selectedDate,
-        time: selectedTime,
-        services: getSelectedServiceNames(),
-      });
+  services={getSimplyBookServices()}
 
-      setShowSuccess(true);
-    }}
-  />
+  selectedDate={selectedDate}
+
+  selectedTime={selectedTime}
+
+  client={{
+    name:
+      formData.name ||
+      loginData.name ||
+      userName,
+
+    email:
+      userEmail ||
+      loginData.email ||
+      formData.email,
+
+    phone:
+      loginData.phonenumber ||
+      formData.phonenumber ||
+      formData.phone,
+
+    fullAddress:
+      formData.fullAddress,
+
+    city:
+      formData.city,
+
+    state:
+      formData.state,
+
+    zip:
+      formData.zip,
+  }}
+
+  appointmentLocation={{
+    type:
+      String(
+        allProviders.find(
+          (item) =>
+            String(item.id) ===
+            String(selectedProvider)
+        )?.providerMode || ""
+      ).toLowerCase() === "studio"
+        ? "Studio"
+        : "Home",
+
+    fullAddress:
+      formData.fullAddress,
+
+    city:
+      formData.city,
+
+    state:
+      formData.state,
+
+    zip:
+      formData.zip,
+  }}
+
+  onBack={() => setActiveStep(4)}
+
+  onSuccess={(result) => {
+    setSimplyBookResult(result);
+
+    setBookingDetails({
+      provider: selectedProvider,
+      date: selectedDate,
+      time: selectedTime,
+      services: getSelectedServiceNames(),
+    });
+
+    setShowSuccess(true);
+  }}
+/>
 )}
                 </div>
             </div >
