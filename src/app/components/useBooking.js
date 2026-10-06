@@ -292,6 +292,7 @@ export function useBooking({ providers, events, locations, clients, categories, 
   const [firstDay, setFirstDay] = useState(null);
   const [loadingCalendar, setLoadingCalendar] = useState(false);
   const [slots, setSlots] = useState([]);
+  const [availableSlots, setAvailableSlots] = useState([]);
   const [clientLocation, setClientLocation] = useState(null);
   const [searchWithin, setSearchWithin] = useState(50);
   const [selectedClient, setSelectedClient] = useState("");
@@ -303,10 +304,10 @@ export function useBooking({ providers, events, locations, clients, categories, 
   const [visibleProviders, setVisibleProviders] = useState([]);
 
   const [mobileProviders, setMobileProviders] = useState([]);
-const [studioProviders, setStudioProviders] = useState([]);
+  const [studioProviders, setStudioProviders] = useState([]);
 
-const [mobileProvidersWithDistance, setMobileProvidersWithDistance] = useState([]);
-const [studioProvidersWithDistance, setStudioProvidersWithDistance] = useState([]);
+  const [mobileProvidersWithDistance, setMobileProvidersWithDistance] = useState([]);
+  const [studioProvidersWithDistance, setStudioProvidersWithDistance] = useState([]);
 
 
   const [userEmail, setUserEmail] = useState("");
@@ -366,6 +367,52 @@ const [studioProvidersWithDistance, setStudioProvidersWithDistance] = useState([
         .includes(Number(serviceId))
     );
 
+  };
+
+  const generateWorkingSlots = (dayInfo) => {
+    if (!dayInfo?.from || !dayInfo?.to) {
+      return [];
+    }
+
+    const [fromHour, fromMinute] = String(dayInfo.from)
+      .substring(0, 5)
+      .split(":")
+      .map(Number);
+
+    const [toHour, toMinute] = String(dayInfo.to)
+      .substring(0, 5)
+      .split(":")
+      .map(Number);
+
+    if (
+      !Number.isFinite(fromHour) ||
+      !Number.isFinite(fromMinute) ||
+      !Number.isFinite(toHour) ||
+      !Number.isFinite(toMinute)
+    ) {
+      return [];
+    }
+
+    let currentMinutes = fromHour * 60 + fromMinute;
+    const endMinutes = toHour * 60 + toMinute;
+
+    const result = [];
+
+    while (currentMinutes < endMinutes) {
+      const hour = Math.floor(currentMinutes / 60);
+      const minute = currentMinutes % 60;
+
+      result.push(
+        `${String(hour).padStart(2, "0")}:${String(minute).padStart(
+          2,
+          "0"
+        )}`
+      );
+
+      currentMinutes += 30;
+    }
+
+    return result;
   };
 
   // Initialize dynamic services state based on events
@@ -652,18 +699,18 @@ const [studioProvidersWithDistance, setStudioProvidersWithDistance] = useState([
 
   const providerHasServices = (provider) => {
     if (
-        !Array.isArray(provider?.services) ||
-        provider.services.length === 0
+      !Array.isArray(provider?.services) ||
+      provider.services.length === 0
     ) {
-        return false;
+      return false;
     }
 
     return provider.services.some((serviceId) =>
-        eventArray.some(
-            (event) => String(event.id) === String(serviceId)
-        )
+      eventArray.some(
+        (event) => String(event.id) === String(serviceId)
+      )
     );
-};
+  };
 
   const handleNotFoundSubmit = async () => {
     if (address.email === "" || address.phone === "") {
@@ -753,41 +800,41 @@ const [studioProvidersWithDistance, setStudioProvidersWithDistance] = useState([
         setWorkCalandar(calData);
         setFirstDay(dayData);
         if (!selectedDate && calData) {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
 
-  let initialDate = null;
+          let initialDate = null;
 
-  // Check today first, then the next 6 days.
-  for (let i = 0; i < 7; i++) {
-    const candidateDate = new Date(today);
-    candidateDate.setDate(today.getDate() + i);
-    candidateDate.setHours(0, 0, 0, 0);
+          // Check today first, then the next 6 days.
+          for (let i = 0; i < 7; i++) {
+            const candidateDate = new Date(today);
+            candidateDate.setDate(today.getDate() + i);
+            candidateDate.setHours(0, 0, 0, 0);
 
-    const year = candidateDate.getFullYear();
-    const month = String(candidateDate.getMonth() + 1).padStart(2, "0");
-    const day = String(candidateDate.getDate()).padStart(2, "0");
+            const year = candidateDate.getFullYear();
+            const month = String(candidateDate.getMonth() + 1).padStart(2, "0");
+            const day = String(candidateDate.getDate()).padStart(2, "0");
 
-    const key = `${year}-${month}-${day}`;
-    const dayInfo = calData[key];
+            const key = `${year}-${month}-${day}`;
+            const dayInfo = calData[key];
 
-    const isDayOff =
-      !dayInfo ||
-      dayInfo.is_day_off === 1 ||
-      dayInfo.is_day_off === "1" ||
-      dayInfo.is_day_off === true;
+            const isDayOff =
+              !dayInfo ||
+              dayInfo.is_day_off === 1 ||
+              dayInfo.is_day_off === "1" ||
+              dayInfo.is_day_off === true;
 
-    if (!isDayOff) {
-      initialDate = candidateDate;
-      break;
-    }
-  }
+            if (!isDayOff) {
+              initialDate = candidateDate;
+              break;
+            }
+          }
 
-  if (initialDate) {
-    setSelectedDate(initialDate);
-    setProviderSelectedDate(initialDate);
-  }
-}
+          if (initialDate) {
+            setSelectedDate(initialDate);
+            setProviderSelectedDate(initialDate);
+          }
+        }
       } catch (err) {
         console.error("Error fetching calendar:", err);
       } finally {
@@ -798,48 +845,182 @@ const [studioProvidersWithDistance, setStudioProvidersWithDistance] = useState([
   }, [selectedProvider]);
 
   useEffect(() => {
-    if (!selectedDate || !workCalandar) {
+    if (!selectedDate || !selectedProvider || !workCalandar) {
       setSlots([]);
-      return;
-    }
-
-    setLoadingTimeSlots(true);
-
-    const y = selectedDate.getFullYear();
-    const m = String(selectedDate.getMonth() + 1).padStart(2, "0");
-    const d = String(selectedDate.getDate()).padStart(2, "0");
-    const key = `${y}-${m}-${d}`;
-
-    const dayInfo = workCalandar[key];
-    if (!dayInfo || parseInt(dayInfo.is_day_off) === 1) {
-      setSlots([]);
+      setAvailableSlots([]);
       setLoadingTimeSlots(false);
       return;
     }
 
-    let [startHour, startMin] = dayInfo.from.split(":").map(Number);
-    let [endHour, endMin] = dayInfo.to.split(":").map(Number);
+    let cancelled = false;
 
-    const slotsArr = [];
-    const start = new Date(selectedDate);
-    start.setHours(startHour, startMin, 0, 0);
+    const fetchAvailableSlots = async () => {
+      setLoadingTimeSlots(true);
 
-    const end = new Date(selectedDate);
-    end.setHours(endHour, endMin, 0, 0);
+      // Clear old availability immediately so old day's data
+      // cannot temporarily appear for the new date.
+      setAvailableSlots([]);
 
-    let current = new Date(start);
-    while (current < end) {
-      const hh = String(current.getHours()).padStart(2, "0");
-      const mm = String(current.getMinutes()).padStart(2, "0");
-      slotsArr.push(`${hh}:${mm}`);
-      current.setMinutes(current.getMinutes() + 30);
-    }
+      try {
+        const y = selectedDate.getFullYear();
+        const m = String(selectedDate.getMonth() + 1).padStart(2, "0");
+        const d = String(selectedDate.getDate()).padStart(2, "0");
 
-    setSlots(slotsArr);
-    setLoadingTimeSlots(false);
-  }, [selectedDate, workCalandar]);
+        const dateKey = `${y}-${m}-${d}`;
 
-    useEffect(() => {
+        const dayInfo = workCalandar[dateKey];
+
+        // Provider is OFF on this day.
+        if (
+          !dayInfo ||
+          dayInfo.is_day_off === 1 ||
+          dayInfo.is_day_off === "1" ||
+          dayInfo.is_day_off === true
+        ) {
+          if (!cancelled) {
+            setSlots([]);
+            setAvailableSlots([]);
+          }
+
+          return;
+        }
+
+        /*
+         * -------------------------------------------------------
+         * 1. Generate ALL working-hour slots.
+         * -------------------------------------------------------
+         *
+         * These are used only for displaying the complete
+         * provider schedule.
+         */
+        const workingSlots = generateWorkingSlots(dayInfo);
+
+        if (!cancelled) {
+          setSlots(workingSlots);
+        }
+
+        /*
+         * -------------------------------------------------------
+         * 2. Find selected SimplyBook service.
+         * -------------------------------------------------------
+         *
+         * getStartTimeMatrix requires an event/service ID.
+         */
+        const selectedServiceKeys = Object.entries(services || {})
+          .filter(([, isSelected]) => isSelected)
+          .map(([serviceKey]) => serviceKey);
+
+        if (selectedServiceKeys.length === 0) {
+          if (!cancelled) {
+            setAvailableSlots([]);
+          }
+
+          return;
+        }
+
+        const selectedServiceKey = selectedServiceKeys[0];
+
+        const selectedEvent = eventArray.find((event) => {
+          const eventKey = event.name
+            ?.toLowerCase()
+            .replace(/[^a-z0-9]+/g, "_")
+            .replace(/^_+|_+$/g, "");
+
+          return eventKey === selectedServiceKey;
+        });
+
+        if (!selectedEvent?.id) {
+          console.error(
+            "Could not find SimplyBook event for selected service:",
+            selectedServiceKey
+          );
+
+          if (!cancelled) {
+            setAvailableSlots([]);
+          }
+
+          return;
+        }
+
+        const eventId = selectedEvent.id;
+
+        /*
+         * -------------------------------------------------------
+         * 3. Ask SimplyBook for REAL available start times.
+         * -------------------------------------------------------
+         */
+        const response = await fetch(
+          `/api/available-time-slots?eventId=${eventId}&performerId=${selectedProvider}&date=${dateKey}`,
+          {
+            cache: "no-store",
+          }
+        );
+
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+          throw new Error(
+            data.message || "Unable to fetch availability"
+          );
+        }
+
+        const normalizedAvailableIntervals = Array.isArray(
+  data.data
+)
+  ? data.data
+      .map((interval) => ({
+        from: String(interval?.from || "").substring(0, 5),
+        to: String(interval?.to || "").substring(0, 5),
+      }))
+      .filter(
+        (interval) =>
+          interval.from &&
+          interval.to
+      )
+  : [];
+
+if (!cancelled) {
+  setAvailableSlots(normalizedAvailableIntervals);
+}
+      } catch (error) {
+        console.error(
+          "Error fetching available SimplyBook slots:",
+          error
+        );
+
+        if (!cancelled) {
+          /*
+           * IMPORTANT:
+           *
+           * Keep working slots visible, but mark every slot
+           * unavailable if SimplyBook failed to return availability.
+           *
+           * This is safer than allowing bookings when the
+           * availability API failed.
+           */
+          setAvailableSlots([]);
+        }
+      } finally {
+        if (!cancelled) {
+          setLoadingTimeSlots(false);
+        }
+      }
+    };
+
+    fetchAvailableSlots();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    selectedDate,
+    selectedProvider,
+    workCalandar,
+    services,
+    eventArray,
+  ]);
+
+  useEffect(() => {
     console.log("🔎 Triggered provider filtering");
 
     // Clear results while required data is missing.
@@ -888,67 +1069,67 @@ const [studioProvidersWithDistance, setStudioProvidersWithDistance] = useState([
     let stateFilteredProviders = providerArray
       .map((provider) => {
         const providerLocations = (provider.locations || [])
-  .map((providerLocation) => {
-    /*
-     * Case 1:
-     * provider.locations contains a location ID
-     */
-    if (
-      typeof providerLocation === "string" ||
-      typeof providerLocation === "number"
-    ) {
-      return locationArray.find(
-        (location) =>
-          String(location.id) === String(providerLocation)
-      );
-    }
+          .map((providerLocation) => {
+            /*
+             * Case 1:
+             * provider.locations contains a location ID
+             */
+            if (
+              typeof providerLocation === "string" ||
+              typeof providerLocation === "number"
+            ) {
+              return locationArray.find(
+                (location) =>
+                  String(location.id) === String(providerLocation)
+              );
+            }
 
-    /*
-     * Case 2:
-     * provider.locations already contains
-     * a location object.
-     */
-    if (
-      providerLocation &&
-      typeof providerLocation === "object"
-    ) {
-      const locationId =
-        providerLocation.id ??
-        providerLocation.locationId;
+            /*
+             * Case 2:
+             * provider.locations already contains
+             * a location object.
+             */
+            if (
+              providerLocation &&
+              typeof providerLocation === "object"
+            ) {
+              const locationId =
+                providerLocation.id ??
+                providerLocation.locationId;
 
-      if (locationId != null) {
-        return (
-          locationArray.find(
-            (location) =>
-              String(location.id) === String(locationId)
-          ) || providerLocation
-        );
-      }
+              if (locationId != null) {
+                return (
+                  locationArray.find(
+                    (location) =>
+                      String(location.id) === String(locationId)
+                  ) || providerLocation
+                );
+              }
 
-      return providerLocation;
-    }
+              return providerLocation;
+            }
 
-    return null;
-  })
-  .filter(Boolean);
+            return null;
+          })
+          .filter(Boolean);
 
-  console.log("🏢 PROVIDER LOCATION MAPPING", {
-  providerId: provider.id,
-  providerName: provider.name,
+        console.log("🏢 PROVIDER LOCATION MAPPING", {
+          providerId: provider.id,
+          providerName: provider.name,
 
-  providerLocationIds: provider.locations,
+          providerLocationIds: provider.locations,
 
-  resolvedLocations: providerLocations.map((location) => ({
-    id: location.id,
-    title: location.title,
-    address2: location.address2,
-    lat: location.lat,
-    lng: location.lng,
-    lon: location.lon,
-    latitude: location.latitude,
-    longitude: location.longitude,
-  })),
-});
+          resolvedLocations: providerLocations.map((location) => ({
+            id: location.id,
+            title: location.title,
+            address2: location.address2,
+            lat: location.lat,
+            lng: location.lng,
+            lon: location.lon,
+            latitude: location.latitude,
+            longitude: location.longitude,
+          })),
+        });
 
         if (providerLocations.length === 0) {
           return null;
@@ -1054,64 +1235,64 @@ const [studioProvidersWithDistance, setStudioProvidersWithDistance] = useState([
 
         const { lat, lng } = getLocationCoordinates(location);
 
-/*
- * Ignore locations without valid coordinates.
- */
-if (
-  !Number.isFinite(lat) ||
-  !Number.isFinite(lng)
-) {
-  console.log(
-    "⚠️ Ignoring provider location with invalid coordinates:",
-    {
-      providerId: provider.id,
-      providerName: provider.name,
-      locationId: location.id,
-      locationTitle: location.title,
-      address2: location.address2,
+        /*
+         * Ignore locations without valid coordinates.
+         */
+        if (
+          !Number.isFinite(lat) ||
+          !Number.isFinite(lng)
+        ) {
+          console.log(
+            "⚠️ Ignoring provider location with invalid coordinates:",
+            {
+              providerId: provider.id,
+              providerName: provider.name,
+              locationId: location.id,
+              locationTitle: location.title,
+              address2: location.address2,
 
-      rawLat: location.lat,
-      rawLng: location.lng,
-      rawLon: location.lon,
-      rawLatitude: location.latitude,
-      rawLongitude: location.longitude,
-    }
-  );
+              rawLat: location.lat,
+              rawLng: location.lng,
+              rawLon: location.lon,
+              rawLatitude: location.latitude,
+              rawLongitude: location.longitude,
+            }
+          );
 
-  return;
-}
+          return;
+        }
 
-/*
- * Calculate distance from THIS CUSTOMER
- * to THIS PROVIDER LOCATION.
- */
-const distance = getDistance(
-  userLat,
-  userLng,
-  lat,
-  lng
-);
+        /*
+         * Calculate distance from THIS CUSTOMER
+         * to THIS PROVIDER LOCATION.
+         */
+        const distance = getDistance(
+          userLat,
+          userLng,
+          lat,
+          lng
+        );
 
-console.log("📍 DISTANCE CALCULATION", {
-  providerId: provider.id,
-  providerName: provider.name,
+        console.log("📍 DISTANCE CALCULATION", {
+          providerId: provider.id,
+          providerName: provider.name,
 
-  locationId: location.id,
-  locationTitle: location.title,
-  address2: location.address2,
+          locationId: location.id,
+          locationTitle: location.title,
+          address2: location.address2,
 
-  customer: {
-    lat: userLat,
-    lng: userLng,
-  },
+          customer: {
+            lat: userLat,
+            lng: userLng,
+          },
 
-  providerLocation: {
-    lat,
-    lng,
-  },
+          providerLocation: {
+            lat,
+            lng,
+          },
 
-  distance,
-});
+          distance,
+        });
 
         /*
          * Customer search radius applies to BOTH Mobile
@@ -1217,11 +1398,11 @@ console.log("📍 DISTANCE CALCULATION", {
       const nearestStudio =
         eligibleStudioLocations.length > 0
           ? eligibleStudioLocations.reduce(
-              (nearest, current) =>
-                current.distance < nearest.distance
-                  ? current
-                  : nearest
-            )
+            (nearest, current) =>
+              current.distance < nearest.distance
+                ? current
+                : nearest
+          )
           : null;
 
       /*
@@ -1230,11 +1411,11 @@ console.log("📍 DISTANCE CALCULATION", {
       const nearestMobile =
         eligibleMobileLocations.length > 0
           ? eligibleMobileLocations.reduce(
-              (nearest, current) =>
-                current.distance < nearest.distance
-                  ? current
-                  : nearest
-            )
+            (nearest, current) =>
+              current.distance < nearest.distance
+                ? current
+                : nearest
+          )
           : null;
 
       /*
@@ -1278,36 +1459,36 @@ console.log("📍 DISTANCE CALCULATION", {
        * distanceLimit ALL come from the SAME location.
        */
       const finalProvider = {
-  ...provider,
+        ...provider,
 
-  // Keep the provider's existing services when available.
-  // Studio providers may not have a top-level `services`
-  // array, so use the selected location's events as the
-  // service list in that case.
-  services: Array.isArray(provider.services)
-        ? provider.services
+        // Keep the provider's existing services when available.
+        // Studio providers may not have a top-level `services`
+        // array, so use the selected location's events as the
+        // service list in that case.
+        services: Array.isArray(provider.services)
+          ? provider.services
             .map(Number)
             .filter(Number.isFinite)
-        : [],
+          : [],
 
-  distance: selectedRecord.distance,
+        distance: selectedRecord.distance,
 
-  nearestLocation:
-    selectedRecord.location,
+        nearestLocation:
+          selectedRecord.location,
 
-  providerMode,
+        providerMode,
 
-  isStudio:
-    providerMode === "studio",
+        isStudio:
+          providerMode === "studio",
 
-  isMobile:
-    providerMode === "mobile",
+        isMobile:
+          providerMode === "mobile",
 
-  distanceLimit:
-    providerMode === "mobile"
-      ? selectedRecord.config.distanceLimit
-      : null,
-};
+        distanceLimit:
+          providerMode === "mobile"
+            ? selectedRecord.config.distanceLimit
+            : null,
+      };
 
       eligibleProviderRecords.push(
         finalProvider
@@ -1396,7 +1577,7 @@ console.log("📍 DISTANCE CALCULATION", {
 
               const bookingDate = new Date(
                 booking.createdAt ||
-                  booking.date
+                booking.date
               );
 
               if (!providerId) return;
@@ -1466,74 +1647,74 @@ console.log("📍 DISTANCE CALCULATION", {
  * Filter out providers without valid services BEFORE
  * setting the main provider lists and applying the limit.
  */
-const providersWithServices = finalList.filter(
-    providerHasServices
-);
+        const providersWithServices = finalList.filter(
+          providerHasServices
+        );
 
-setVisibleProviders(providersWithServices);
+        setVisibleProviders(providersWithServices);
 
-/*
- * Apply the selected category filter after the service filter.
- */
-const categoryFilteredProviders =
-    providersWithServices.filter(
-        providerMatchesSearchCategory
-    );
+        /*
+         * Apply the selected category filter after the service filter.
+         */
+        const categoryFilteredProviders =
+          providersWithServices.filter(
+            providerMatchesSearchCategory
+          );
 
-setFilteredProviders(categoryFilteredProviders);
+        setFilteredProviders(categoryFilteredProviders);
 
-/*
- * Split the same filtered list into Mobile and Studio.
- */
-const mobileProvidersList =
-    categoryFilteredProviders.filter(
-        (provider) => provider.providerMode === "mobile"
-    );
+        /*
+         * Split the same filtered list into Mobile and Studio.
+         */
+        const mobileProvidersList =
+          categoryFilteredProviders.filter(
+            (provider) => provider.providerMode === "mobile"
+          );
 
-const studioProvidersList =
-    categoryFilteredProviders.filter(
-        (provider) => provider.providerMode === "studio"
-    );
+        const studioProvidersList =
+          categoryFilteredProviders.filter(
+            (provider) => provider.providerMode === "studio"
+          );
 
-setMobileProviders(mobileProvidersList);
-setStudioProviders(studioProvidersList);
+        setMobileProviders(mobileProvidersList);
+        setStudioProviders(studioProvidersList);
 
-setMobileProvidersWithDistance(mobileProvidersList);
-setStudioProvidersWithDistance(studioProvidersList);
-        
+        setMobileProvidersWithDistance(mobileProvidersList);
+        setStudioProvidersWithDistance(studioProvidersList);
+
       } catch (err) {
         console.error(
           "❌ Provider filtering error:",
           err
         );
-const providersWithServices = limitedProviders.filter(
-    providerHasServices
-);
+        const providersWithServices = limitedProviders.filter(
+          providerHasServices
+        );
 
-setVisibleProviders(providersWithServices);
+        setVisibleProviders(providersWithServices);
 
-const categoryFilteredProviders =
-    providersWithServices.filter(
-        providerMatchesSearchCategory
-    );
+        const categoryFilteredProviders =
+          providersWithServices.filter(
+            providerMatchesSearchCategory
+          );
 
-setFilteredProviders(categoryFilteredProviders);
+        setFilteredProviders(categoryFilteredProviders);
 
-const mobileProvidersList =
-    categoryFilteredProviders.filter(
-        (provider) => provider.providerMode === "mobile"
-    );
+        const mobileProvidersList =
+          categoryFilteredProviders.filter(
+            (provider) => provider.providerMode === "mobile"
+          );
 
-const studioProvidersList =
-    categoryFilteredProviders.filter(
-        (provider) => provider.providerMode === "studio"
-    );
+        const studioProvidersList =
+          categoryFilteredProviders.filter(
+            (provider) => provider.providerMode === "studio"
+          );
 
-setMobileProviders(mobileProvidersList);
-setStudioProviders(studioProvidersList);
+        setMobileProviders(mobileProvidersList);
+        setStudioProviders(studioProvidersList);
 
-setMobileProvidersWithDistance(mobileProvidersList);
-setStudioProvidersWithDistance(studioProvidersList);
+        setMobileProvidersWithDistance(mobileProvidersList);
+        setStudioProvidersWithDistance(studioProvidersList);
       } finally {
         setLoadingProviders(false);
       }
@@ -1563,6 +1744,7 @@ setStudioProvidersWithDistance(studioProvidersList);
     loadingCalendar,
     slots,
     clientLocation,
+    availableSlots,
     searchWithin,
     selectedClient,
     query,
@@ -1610,9 +1792,9 @@ setStudioProvidersWithDistance(studioProvidersList);
     setProviderLimit,
     providersWithDistance: providersWithDistanceState,
     mobileProviders,
-studioProviders,
-mobileProvidersWithDistance,
-studioProvidersWithDistance,
+    studioProviders,
+    mobileProvidersWithDistance,
+    studioProvidersWithDistance,
 
   };
 }

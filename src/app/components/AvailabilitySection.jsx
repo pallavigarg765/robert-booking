@@ -10,6 +10,7 @@ export default function AvailabilitySection({
     selectedDate,
     selectedTime,
     slots,
+    availableSlots,
     onDateSelect,
     onTimeSelect,
     loadingCalendar,
@@ -49,25 +50,105 @@ export default function AvailabilitySection({
         return () => clearTimeout(timeoutId);
     }, [today]);
 
-    const canFitAppointment = (slotIndex, slotList) => {
-        if (!totalDuration) return false;
+    const normalizeSlot = (slot) => {
+  if (!slot) return "";
 
-        const requiredSlots = Math.ceil(totalDuration / SLOT_INTERVAL);
+  return String(slot).substring(0, 5);
+};
 
-        // Not enough remaining slots
-        if (slotIndex + requiredSlots > slotList.length) {
-            return false;
-        }
+const timeToMinutes = (time) => {
+  if (!time) return null;
 
-        // Check if consecutive slots exist
-        for (let i = 0; i < requiredSlots; i++) {
-            if (!slotList[slotIndex + i]) {
-                return false;
-            }
-        }
+  const [hours, minutes] = String(time)
+    .substring(0, 5)
+    .split(":")
+    .map(Number);
 
-        return true;
-    };
+  if (
+    !Number.isFinite(hours) ||
+    !Number.isFinite(minutes)
+  ) {
+    return null;
+  }
+
+  return hours * 60 + minutes;
+};
+
+const isSlotInsideAvailableInterval = (slot) => {
+  const slotStart = timeToMinutes(slot);
+
+  if (slotStart === null) {
+    return false;
+  }
+
+  /*
+   * totalDuration is in minutes.
+   *
+   * Example:
+   * 1 service  = 60
+   * 2 services = 120
+   */
+  const duration = Number(totalDuration);
+
+  if (!Number.isFinite(duration) || duration <= 0) {
+    return false;
+  }
+
+  const slotEnd = slotStart + duration;
+
+  if (!Array.isArray(availableSlots)) {
+    return false;
+  }
+
+  return availableSlots.some((interval) => {
+    const intervalStart = timeToMinutes(
+      interval?.from
+    );
+
+    const intervalEnd = timeToMinutes(
+      interval?.to
+    );
+
+    if (
+      intervalStart === null ||
+      intervalEnd === null
+    ) {
+      return false;
+    }
+
+    /*
+     * The entire appointment must fit inside
+     * the same continuously available interval.
+     *
+     * Example:
+     *
+     * Available: 09:00 - 13:00
+     * Duration: 60
+     *
+     * 09:00 -> 10:00  YES
+     * 09:30 -> 10:30  YES
+     * 10:00 -> 11:00  YES
+     * 12:00 -> 13:00  YES
+     * 12:30 -> 13:30  NO
+     */
+    return (
+      slotStart >= intervalStart &&
+      slotEnd <= intervalEnd
+    );
+  });
+};
+
+const canFitAppointment = (slot) => {
+  if (!slot) {
+    return false;
+  }
+
+  return isSlotInsideAvailableInterval(slot);
+};
+
+const isSlotBookable = (slot) => {
+  return canFitAppointment(slot);
+};
 
     const getDefaultTimePreference = () => {
         const hour = new Date().getHours();
@@ -792,11 +873,14 @@ export default function AvailabilitySection({
         });
     };
 
-    const availableSlots = selectedDate && isSameDay(selectedDate, today)
-        ? slots.filter(slot => !isPastTimeSlot(slot, selectedDate))
-        : [...slots];
+    const workingSlots =
+        selectedDate && isSameDay(selectedDate, today)
+            ? slots.filter(
+                (slot) => !isPastTimeSlot(slot, selectedDate)
+            )
+            : [...slots];
 
-    const filteredSlots = availableSlots.filter(slot => {
+    const filteredSlots = workingSlots.filter((slot) => {
         if (!timePreference) return true;
 
         const hour = Number(slot.split(":")[0]);
@@ -817,7 +901,7 @@ export default function AvailabilitySection({
     });
 
     const hasAvailableTime = (period) => {
-        return availableSlots.some((slot, index) => {
+        return workingSlots.some((slot) => {
             const hour = Number(slot.split(":")[0]);
 
             const matchesPeriod =
@@ -827,9 +911,11 @@ export default function AvailabilitySection({
                         ? hour >= 12 && hour < 17
                         : hour >= 17;
 
-            if (!matchesPeriod) return false;
+            if (!matchesPeriod) {
+                return false;
+            }
 
-            return canFitAppointment(index, availableSlots);
+            return isSlotBookable(slot);
         });
     };
 
@@ -1354,27 +1440,33 @@ export default function AvailabilitySection({
                                             ) : filteredSlots.length > 0 ? (
                                                 <div className="grid grid-cols-2 gap-2">
                                                     {filteredSlots.map((slot) => {
-                                                        // Find this slot's index in the complete day's slots
-                                                        const originalIndex = availableSlots.indexOf(slot);
+  const isValid = isSlotBookable(slot);
 
-                                                        const isValid = canFitAppointment(originalIndex, availableSlots);
-
-                                                        return (
-                                                            <button
-                                                                key={slot}
-                                                                disabled={!isValid}
-                                                                onClick={() => isValid && onTimeSelect(slot)}
-                                                                className={`p-2 text-xs rounded-lg ${!isValid
-                                                                    ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                                                                    : selectedTime === slot
-                                                                        ? "bg-orange-500 text-white"
-                                                                        : "bg-white border"
-                                                                    }`}
-                                                            >
-                                                                {formatTime(slot)}
-                                                            </button>
-                                                        );
-                                                    })}
+  return (
+    <button
+      key={slot}
+      type="button"
+      disabled={!isValid}
+      onClick={() => {
+        if (isValid) {
+          onTimeSelect(slot);
+        }
+      }}
+      className={`
+        p-2 text-xs rounded-lg transition-colors
+        ${
+          !isValid
+            ? "bg-gray-200 text-gray-400 border border-gray-200 cursor-not-allowed"
+            : selectedTime === slot
+              ? "bg-orange-500 text-white"
+              : "bg-white border hover:bg-orange-50 hover:border-orange-300"
+        }
+      `}
+    >
+      {formatTime(slot)}
+    </button>
+  );
+})}
                                                 </div>
                                             ) : (
                                                 <div className="flex items-center gap-2 text-xs text-gray-500">

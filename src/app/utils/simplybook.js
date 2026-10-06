@@ -367,7 +367,7 @@ export async function getAvailableTimeSlots({
   const token = await getToken();
 
   return callSimplyBook(
-    "getStartTimeMatrix",
+    "getAvailableTimeIntervals",
     [
       fromDate,
       toDate,

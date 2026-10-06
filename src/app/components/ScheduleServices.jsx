@@ -379,6 +379,7 @@ export default function ScheduleServices({ providers, events, locations, clients
         firstDay,
         loadingCalendar,
         slots,
+        availableSlots,
         clientLocation,
         searchWithin,
         selectedClient,
@@ -4972,21 +4973,20 @@ console.log("Available events:", events);
                         <div ref={availabilityScrollRef} onWheel={handleServicesWheel} className="flex-1 overflow-y-auto p-4">
                             {Object.values(services).some(Boolean) ? (
                                 <AvailabilitySection
-                                    key={otpVerified ? "logged-in" : "logged-out"}
-                                    scrollContainerRef={availabilityScrollRef}
-                                    workCalandar={workCalandar}
-                                    selectedDate={selectedDate}
-                                    selectedTime={selectedTime}
-                                    slots={slots}
-                                    onDateSelect={(date) => {
-                                        setSelectedDate(date);
-                                        setSelectedTime("");
-                                    }}
-                                    onTimeSelect={setSelectedTime}
-                                    loadingCalendar={loadingCalendar}
-                                    loadingTimeSlots={loadingTimeSlots}
-                                    totalDuration={totalDuration}
-                                />
+    workCalandar={workCalandar}
+    selectedDate={selectedDate}
+    selectedTime={selectedTime}
+    slots={slots}
+    availableSlots={availableSlots}
+    onDateSelect={(date) => {
+        setSelectedDate(date);
+        setSelectedTime("");
+    }}
+    onTimeSelect={setSelectedTime}
+    loadingCalendar={loadingCalendar}
+    loadingTimeSlots={loadingTimeSlots}
+    totalDuration={totalDuration}
+/>
                             ) : (
                                 <StepLocked
                                     title="Select Time Slot"
