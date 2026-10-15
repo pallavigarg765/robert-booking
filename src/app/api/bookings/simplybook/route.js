@@ -1,4 +1,8 @@
+
 import { NextResponse } from "next/server";
+import { connectDB } from "@/lib/mongodb";
+import Booking from "@/models/Booking";
+import User from "@/models/User";
 
 import {
   bookSimplyBook,
@@ -9,9 +13,104 @@ import {
 
 export const runtime = "nodejs";
 
+function normalizeEmail(email) {
+  return typeof email === "string"
+    ? email.trim().toLowerCase()
+    : "";
+}
+
+async function saveBookingToMongoDB({
+  clientData,
+  performerId,
+  date,
+  time,
+  services,
+  result,
+  clientaddress,
+}) {
+  await connectDB();
+
+  const email = normalizeEmail(clientData.email);
+
+  // Find or create the customer.
+  let user = await User.findOne({ email });
+
+  if (!user) {
+    user = await User.create({
+      name: clientData.name.trim(),
+      email,
+      phone: clientData.phone.trim(),
+      address: clientaddress?.fullAddress || "",
+    });
+  } else {
+    user.name = clientData.name.trim();
+    user.phone = clientData.phone.trim();
+
+    if (clientaddress?.fullAddress) {
+      user.address = clientaddress.fullAddress;
+    }
+
+    await user.save();
+  }
+
+  // Keep the service names and IDs for the previous-bookings UI.
+  
+const savedServices = Array.isArray(services)
+  ? Object.fromEntries(
+      services.map((service) => [
+        String(service.eventId),
+        true,
+      ])
+    )
+  : {};
+
+
+  const booking = await Booking.create({
+    fullname: clientData.name.trim(),
+    email,
+    phonenumber: clientData.phone.trim(),
+
+    // This is the SimplyBook provider/unit ID.
+    provider: String(performerId),
+
+    date,
+    time,
+
+    clientaddress: {
+      fullAddress: clientaddress?.fullAddress || "",
+      ...(clientaddress?.lat != null
+        ? { lat: Number(clientaddress.lat) }
+        : {}),
+      ...(clientaddress?.lon != null
+        ? { lon: Number(clientaddress.lon) }
+        : {}),
+      city: clientaddress?.city || "",
+      state: clientaddress?.state || "",
+    },
+
+    services: savedServices,
+    userId: user._id,
+
+    // Keep the original SimplyBook response for reference.
+    simplybookResponse: result,
+  });
+
+  console.log("[SimplyBook] Booking saved to MongoDB:", {
+    bookingId: String(booking._id),
+    email,
+    provider: String(performerId),
+    database: Booking.db.name,
+    collection: Booking.collection.name,
+  });
+
+  return booking;
+}
+
 export async function POST(request) {
+  let body;
+
   try {
-    const body = await request.json();
+    body = await request.json();
 
     const {
       action = "book",
@@ -21,12 +120,13 @@ export async function POST(request) {
       time,
       clientData,
       additional = {},
-      services,
+      services = [],
+      clientaddress,
     } = body;
 
-    // Check availability without creating a booking.
+    // Availability checks must not create local booking records.
     if (action === "availability") {
-      const result = await getAvailableTimeSlots({
+      const availability = await getAvailableTimeSlots({
         eventId,
         performerId,
         fromDate: date,
@@ -36,69 +136,185 @@ export async function POST(request) {
 
       return NextResponse.json({
         success: true,
-        availability: result,
+        availability,
       });
     }
 
-    // Validate customer details before booking.
     if (
-      !clientData?.name ||
-      !clientData?.email ||
-      !clientData?.phone
+      !clientData?.name?.trim() ||
+      !clientData?.email?.trim() ||
+      !clientData?.phone?.trim()
     ) {
-      throw new Error(
-        "Client name, email and phone are required"
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Client name, email and phone are required.",
+        },
+        { status: 400 }
       );
     }
 
-    // Retrieve the customer's SimplyBook authorization
-    // from the server, rather than trusting browser input.
-    const clientAuth = await getSimplyBookClientByEmail(
-      clientData.email
-    );
+    if (!performerId || !date || !time) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Provider, date and time are required.",
+        },
+        { status: 400 }
+      );
+    }
+
+    const normalizedEmail = normalizeEmail(clientData.email);
+
+    // Get the customer's SimplyBook authorization.
+    const clientAuth =
+      await getSimplyBookClientByEmail(normalizedEmail);
 
     if (!clientAuth?.clientId || !clientAuth?.clientHash) {
-      throw new Error(
-        "This customer is not linked to a SimplyBook client, " +
-          "or their authorization details are unavailable."
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            "The customer is not linked to a SimplyBook client, " +
+            "or their authorization details are unavailable.",
+        },
+        { status: 400 }
       );
     }
 
-    // Book multiple services consecutively.
+    let simplyBookResult;
+    let selectedServices = [];
+
+    // Create the appointment(s) in SimplyBook first.
     if (action === "bookMultiple") {
-      const result = await bookMultipleSimplyBookServices({
+      if (!Array.isArray(services) || services.length === 0) {
+        return NextResponse.json(
+          {
+            success: false,
+            message: "At least one service is required.",
+          },
+          { status: 400 }
+        );
+      }
+
+      selectedServices = services;
+
+      simplyBookResult = await bookMultipleSimplyBookServices({
         services,
         performerId,
         date,
         startTime: time,
-        clientData,
+        clientData: {
+          ...clientData,
+          email: normalizedEmail,
+        },
         clientAuth,
         additional,
       });
+    } else if (action === "book") {
+      if (!eventId) {
+        return NextResponse.json(
+          {
+            success: false,
+            message: "A service/event ID is required.",
+          },
+          { status: 400 }
+        );
+      }
 
-      return NextResponse.json({
-        success: true,
-        bookings: result,
+      selectedServices = [
+        {
+          eventId: Number(eventId),
+          name:
+            services?.[0]?.name ||
+            `Service ${eventId}`,
+          duration: Number(services?.[0]?.duration || 60),
+          price: services?.[0]?.price ?? null,
+        },
+      ];
+
+      simplyBookResult = await bookSimplyBook({
+        eventId,
+        performerId,
+        date,
+        time,
+        clientData: {
+          ...clientData,
+          email: normalizedEmail,
+        },
+        clientAuth,
+        additional,
       });
+    } else {
+      return NextResponse.json(
+        {
+          success: false,
+          message: `Unsupported action: ${action}`,
+        },
+        { status: 400 }
+      );
     }
 
-    // Default: book one service.
-    const result = await bookSimplyBook({
-      eventId,
-      performerId,
-      date,
-      time,
-      clientData,
-      clientAuth,
-      additional,
-    });
+    // SimplyBook has successfully created the appointment(s).
+    // Now persist a local record for the previous-bookings UI.
+    try {
+      const localBooking = await saveBookingToMongoDB({
+        clientData: {
+          ...clientData,
+          email: normalizedEmail,
+        },
+        performerId,
+        date,
+        time,
+        services: selectedServices,
+        result: simplyBookResult,
+        clientaddress,
+      });
 
-    return NextResponse.json({
-      success: true,
-      booking: result,
-    });
+      return NextResponse.json(
+        {
+          success: true,
+          message: "Booking created successfully.",
+          booking: simplyBookResult,
+          localBookingId: String(localBooking._id),
+          localRecordSaved: true,
+        },
+        { status: 200 }
+      );
+    } catch (dbError) {
+      // The external booking already exists. Do not report that the
+      // appointment failed, as the customer might submit it again.
+      console.error(
+        "[SimplyBook] Appointment created, but MongoDB save failed:",
+        {
+          message: dbError?.message,
+          name: dbError?.name,
+          stack: dbError?.stack,
+          database: Booking.db?.name,
+          collection: Booking.collection?.name,
+          email: normalizedEmail,
+        }
+      );
+
+      return NextResponse.json(
+        {
+          success: true,
+          message:
+            "The appointment was created in SimplyBook, but its local history record could not be saved.",
+          booking: simplyBookResult,
+          localRecordSaved: false,
+          persistenceWarning:
+            "Check the server logs and Booking schema.",
+        },
+        { status: 200 }
+      );
+    }
   } catch (error) {
-    console.error("SimplyBook booking error:", error);
+    console.error("[SimplyBook] Booking request failed:", {
+      message: error?.message,
+      name: error?.name,
+      stack: error?.stack,
+    });
 
     return NextResponse.json(
       {
@@ -106,9 +322,9 @@ export async function POST(request) {
         message:
           error instanceof Error
             ? error.message
-            : "Failed to process SimplyBook booking",
+            : "Failed to process the SimplyBook booking.",
       },
-      { status: 400 }
+      { status: 500 }
     );
   }
 }

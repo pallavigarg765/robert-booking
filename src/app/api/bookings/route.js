@@ -7,40 +7,57 @@ export async function GET(request) {
   try {
     await connectDB();
 
-    // Get search params from URL
     const { searchParams } = new URL(request.url);
-    const email = searchParams.get("email"); // optional
+    const email = searchParams.get("email")?.trim();
 
-    let filter = {};
-    if (email) {
-      filter.email = email; // filter by email if provided
-    }
+    // Escape user input before using it in a regular expression.
+    const escapedEmail = email?.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-    // Find and sort by most recent first
-    const bookings = await Booking.find(filter).sort({ createdAt: -1 });
+    const filter = email
+      ? { email: { $regex: `^${escapedEmail}$`, $options: "i" } }
+      : {};
+
+    const [bookings, totalBookings] = await Promise.all([
+      Booking.find(filter).sort({ createdAt: -1 }).lean(),
+      Booking.countDocuments({}),
+    ]);
+
+    console.log("Bookings GET diagnostics:", {
+      requestedEmail: email || "(no email filter)",
+      totalBookings,
+      matchingBookings: bookings.length,
+      database: Booking.db.name,
+      collection: Booking.collection.name,
+    });
+
+    return NextResponse.json({
+      success: true,
+      totalBookings,
+      count: bookings.length,
+      data: bookings,
+    });
+  } catch (error) {
+    console.error("Error fetching bookings:", error);
 
     return NextResponse.json(
       {
-        success: true,
-        count: bookings.length,
-        data: bookings,
+        success: false,
+        message: "Failed to fetch bookings",
+        data: [],
       },
-      { status: 200 }
-    );
-  } catch (error) {
-    console.error("Error fetching bookings:", error);
-   return NextResponse.json(
-      { success: false, data: [] },
-      { status: 200 }
+      { status: 500 }
     );
   }
 }
 
-export async function POST(request) {
+
+export async function POST(req) {
   try {
     await connectDB();
-    const body = await request.json();
 
+    const body = await req.json();
+
+    // 1. Extract and normalize request data
     const {
       fullname,
       email,
@@ -52,110 +69,173 @@ export async function POST(request) {
       services = {},
     } = body;
 
-    // Validation
+    const normalizedFullname =
+      typeof fullname === "string" ? fullname.trim() : "";
+
+    const normalizedEmail =
+      typeof email === "string" ? email.trim().toLowerCase() : "";
+
+    const normalizedPhone =
+      typeof phonenumber === "string" || typeof phonenumber === "number"
+        ? String(phonenumber).trim()
+        : "";
+
+    // 2. Validate required fields
+    const missingFields = [];
+
+    if (!normalizedFullname) missingFields.push("fullname");
+    if (!normalizedEmail) missingFields.push("email");
+    if (!normalizedPhone) missingFields.push("phonenumber");
+    if (!provider) missingFields.push("provider");
+    if (!date) missingFields.push("date");
+    if (!time) missingFields.push("time");
+
+    if (missingFields.length > 0) {
+      return Response.json(
+        {
+          success: false,
+          message: "Please provide all required booking fields.",
+          missingFields,
+        },
+        { status: 400 }
+      );
+    }
+
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    if (!emailRegex.test(normalizedEmail)) {
+      return Response.json(
+        {
+          success: false,
+          message: "Please provide a valid email address.",
+        },
+        { status: 400 }
+      );
+    }
+
+    // Validate address without rejecting valid 0 coordinates
     if (
-      !fullname ||
-      !email ||
-      !phonenumber ||
-      !provider ||
-      !date ||
-      !time ||
-      !clientaddress?.fullAddress ||
-      !clientaddress?.lat ||
-      !clientaddress?.lon
+      !clientaddress ||
+      typeof clientaddress.fullAddress !== "string" ||
+      !clientaddress.fullAddress.trim() ||
+      clientaddress.lat == null ||
+      clientaddress.lon == null ||
+      !Number.isFinite(Number(clientaddress.lat)) ||
+      !Number.isFinite(Number(clientaddress.lon)) ||
+      Number(clientaddress.lat) < -90 ||
+      Number(clientaddress.lat) > 90 ||
+      Number(clientaddress.lon) < -180 ||
+      Number(clientaddress.lon) > 180
     ) {
-        return NextResponse.json(
-        { success: false, data: [] },
-        { status: 200 }
+      return Response.json(
+        {
+          success: false,
+          message:
+            "Please provide a valid address with latitude and longitude.",
+        },
+        { status: 400 }
       );
     }
 
-    // Check if user exists, if not create new user
-    let user = await User.findOne({ email });
-
-    if (!user) {
-      // Create new user with the first address from booking
-      user = await User.create({
-        name: fullname,
-        email: email,
-        phonenumber,
-        address: [
-          {
-            fullAddress: clientaddress.fullAddress,
-            lat: clientaddress.lat,
-            lon: clientaddress.lon,
-            city: clientaddress.city || "",
-            state: clientaddress.state || "",
-          },
-        ],
-      });
-    } else {
-      // Update user name if different
-      if (user.name !== fullname) {
-        user.name = fullname;
-      }
-
-      // Check if this address already exists
-      const existingIndex = user.address.findIndex(
-        (addr) => addr.fullAddress === clientaddress.fullAddress
+    if (
+      typeof services !== "object" ||
+      services === null ||
+      Array.isArray(services)
+    ) {
+      return Response.json(
+        {
+          success: false,
+          message: "The services field must be an object.",
+        },
+        { status: 400 }
       );
+    }
 
-      if (existingIndex > -1) {
-        // Move existing address to top
-        const [existingAddress] = user.address.splice(existingIndex, 1);
-        user.address.unshift(existingAddress);
-      } else {
-        // Add new address to top
-        user.address.unshift({
-          fullAddress: clientaddress.fullAddress,
-          lat: clientaddress.lat,
-          lon: clientaddress.lon,
-          city: clientaddress.city || "",
-          state: clientaddress.state || "",
-        });
-      }
+    // 3. Find or create the user
+    let user = await User.findOne({ email: normalizedEmail });
 
+    if (user) {
+      user.name = normalizedFullname;
+      user.phone = normalizedPhone;
+      user.address = clientaddress.fullAddress.trim();
       await user.save();
+    } else {
+      user = await User.create({
+        name: normalizedFullname,
+        email: normalizedEmail,
+        phone: normalizedPhone,
+        address: clientaddress.fullAddress.trim(),
+      });
     }
 
-    // Convert services object to Map for MongoDB
-    const servicesMap = new Map(Object.entries(services));
+    console.log("[Booking POST] User resolved:", {
+      userId: String(user._id),
+      email: normalizedEmail,
+    });
 
-    // Create booking with dynamic services
-    const newBooking = await Booking.create({
-      fullname,
-      email,
-      phonenumber,
+    // 4. Normalize service data into a plain object
+    const servicesMap = { ...services };
+
+    // 5. Create the booking
+    const booking = await Booking.create({
+      fullname: normalizedFullname,
+      email: normalizedEmail,
+      phonenumber: normalizedPhone,
       provider,
       date,
       time,
-      clientaddress,
+      clientaddress: {
+        ...clientaddress,
+        fullAddress: clientaddress.fullAddress.trim(),
+        lat: Number(clientaddress.lat),
+        lon: Number(clientaddress.lon),
+      },
       services: servicesMap,
-      userId: user._id, // link booking to user
+      userId: user._id,
     });
 
-    // Convert Map back to object for response
-    const bookingResponse = newBooking.toObject();
-    bookingResponse.services = Object.fromEntries(servicesMap);
+    console.log("[Booking POST] Booking created successfully:", {
+      bookingId: String(booking._id),
+      database: Booking.db.name,
+      collection: Booking.collection.name,
+      email: normalizedEmail,
+      provider: String(provider),
+    });
 
-    return NextResponse.json(
+    // 6. Return the created booking
+    return Response.json(
       {
         success: true,
-        message: "Booking created successfully",
-        booking: bookingResponse,
+        message: "Booking created successfully.",
+        booking: booking.toObject(),
         user: {
-          id: user._id,
+          id: String(user._id),
           name: user.name,
           email: user.email,
         },
       },
-      { status: 200 }
+      { status: 201 }
     );
   } catch (error) {
-    console.error("Error creating booking:", error);
-     return NextResponse.json(
-      { success: false, data: [] },
-      { status: 200 }
+    console.error("[Booking POST] Failed to create booking:", {
+      message: error?.message,
+      name: error?.name,
+      stack: error?.stack,
+      database: Booking?.db?.name,
+      collection: Booking?.collection?.name,
+    });
+
+    return Response.json(
+      {
+        success: false,
+        message: "Failed to create booking.",
+        error:
+          process.env.NODE_ENV === "development"
+            ? error.message
+            : "An unexpected server error occurred.",
+      },
+      { status: 500 }
     );
   }
 }

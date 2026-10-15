@@ -44,7 +44,8 @@ export default function ProvidersSection({
   studioProvidersWithDistance = [],
 
   providerType,
-  setProviderType
+  setProviderType,
+  
 }) {
   const [blacklistingProvider, setBlacklistingProvider] = useState(null);
   const [activeProvider, setActiveProvider] = useState(null);

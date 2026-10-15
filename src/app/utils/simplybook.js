@@ -193,6 +193,7 @@ export async function getAdminToken() {
    GENERIC JSON-RPC HELPERS
 ------------------------------------------------------- */
 
+
 async function callSimplyBook(method, params = [], token) {
   if (!token) {
     throw new Error("SimplyBook API token is required");
@@ -214,19 +215,45 @@ async function callSimplyBook(method, params = [], token) {
     cache: "no-store",
   });
 
-  const data = await res.json();
+  // Read the response once, even if SimplyBook returns non-JSON text.
+  const responseText = await res.text();
 
-  if (!res.ok || data.error) {
+  let data;
+  try {
+    data = JSON.parse(responseText);
+  } catch {
+    data = null;
+  }
+
+  if (!res.ok || !data || data.error) {
+    const error = data?.error ?? null;
+
+    // Log diagnostic details, but never log the API token.
+    console.error("SimplyBook API failure:", {
+      method,
+      httpStatus: res.status,
+      params,
+      error,
+      response: data ?? responseText,
+    });
+
     const message =
-      data.error?.message ||
-      data.error?.data?.message ||
-      JSON.stringify(data);
+      (typeof error === "string" ? error : null) ||
+      error?.data?.message ||
+      error?.message ||
+      (typeof responseText === "string" && responseText.trim()
+        ? responseText.slice(0, 1000)
+        : null) ||
+      "Unknown SimplyBook API error";
 
-    throw new Error(`SimplyBook ${method} failed: ${message}`);
+    throw new Error(
+      `SimplyBook ${method} failed: ${message}`
+    );
   }
 
   return data.result;
 }
+
 
 async function callAdmin(method, params = [], token) {
   if (!token) {

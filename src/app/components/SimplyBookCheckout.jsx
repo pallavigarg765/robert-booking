@@ -308,6 +308,34 @@ export default function SimplyBookCheckout({
                             null,
                     })
                 ),
+
+
+clientaddress: {
+  fullAddress:
+    appointmentAddress ||
+    client?.fullAddress ||
+    client?.address ||
+    "",
+  lat:
+    appointmentLocation?.lat ??
+    client?.lat ??
+    null,
+  lon:
+    appointmentLocation?.lon ??
+    appointmentLocation?.lng ??
+    client?.lon ??
+    client?.lng ??
+    null,
+  city:
+    appointmentLocation?.city ??
+    client?.city ??
+    "",
+  state:
+    appointmentLocation?.state ??
+    client?.state ??
+    "",
+},
+
             };
 
             if (services.length === 1) {

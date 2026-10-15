@@ -123,6 +123,12 @@ export default function ScheduleServices({ providers, events, locations, clients
         zip: "",
     });
 
+    const [previousProviderBookings, setPreviousProviderBookings] = useState([]);
+const [loadingPreviousBookings, setLoadingPreviousBookings] = useState(false);
+const [previousBookingsLoaded, setPreviousBookingsLoaded] = useState(false);
+const [dismissedPreviousProviderIds, setDismissedPreviousProviderIds] = useState([]);
+const [pendingRebook, setPendingRebook] = useState(null);
+
     const [resendTimer, setResendTimer] = useState(30);
     const [canResend, setCanResend] = useState(false);
     const [registerLoading, setRegisterLoading] = useState(false);
@@ -130,6 +136,7 @@ export default function ScheduleServices({ providers, events, locations, clients
     const focusTrapRef = useRef(null);
     const createBtnRef = useRef(null);
     const backBtnRef = useRef(null);
+    
     useEffect(() => {
         const handleClickOutside = (event) => {
             if (
@@ -428,6 +435,135 @@ export default function ScheduleServices({ providers, events, locations, clients
         studioProvidersWithDistance,
     } = useBooking({ providers, events, locations, clients, categories, searchCategory });
 
+    const getBookingProviderId = (booking) => {
+    const provider = booking.provider;
+
+    return String(
+        booking.providerId ??
+        (typeof provider === "object" ? provider?.id : provider) ??
+        booking.unitId ??
+        ""
+    );
+};
+
+const getBookingDate = (booking) =>
+    booking.date ??
+    booking.bookingDate ??
+    booking.startDate ??
+    booking.createdAt ??
+    null;
+
+const getBookingServiceNames = (booking) => {
+    const rawServices =
+        booking.services ??
+        booking.serviceNames ??
+        booking.service ??
+        [];
+
+    const list = Array.isArray(rawServices)
+        ? rawServices
+        : typeof rawServices === "string"
+            ? [rawServices]
+            : Object.entries(rawServices || {})
+                .filter(([, selected]) => Boolean(selected))
+                .map(([name]) => name);
+
+    return list
+        .map((service) => {
+            if (typeof service === "string") return service;
+
+            return (
+                service?.name ??
+                service?.serviceName ??
+                service?.title ??
+                ""
+            );
+        })
+        .filter(Boolean);
+};
+
+useEffect(() => {
+    if (!otpVerified || !userEmail || clientType !== "returning") {
+        setPreviousProviderBookings([]);
+        setPreviousBookingsLoaded(false);
+        return;
+    }
+
+    let cancelled = false;
+
+    const loadPreviousProviderBookings = async () => {
+        setLoadingPreviousBookings(true);
+        setPreviousBookingsLoaded(false);
+
+        try {
+            const response = await fetch(
+                `/api/bookings?email=${encodeURIComponent(userEmail)}`,
+                { cache: "no-store" }
+            );
+
+            const result = await response.json();
+
+            if (!response.ok) {
+                throw new Error(
+                    result.message || "Unable to load previous bookings."
+                );
+            }
+
+            const bookings = Array.isArray(result)
+                ? result
+                : result.bookings ?? result.data ?? [];
+
+            // Sort newest first, so the first booking for each provider
+            // represents that provider's latest appointment.
+            const sortedBookings = [...bookings].sort(
+                (a, b) =>
+                    new Date(getBookingDate(b) || 0).getTime() -
+                    new Date(getBookingDate(a) || 0).getTime()
+            );
+
+            const latestByProvider = new Map();
+
+            for (const booking of sortedBookings) {
+                const providerId = getBookingProviderId(booking);
+
+                if (!providerId || latestByProvider.has(providerId)) {
+                    continue;
+                }
+
+                latestByProvider.set(providerId, {
+                    providerId,
+                    lastBookedAt: getBookingDate(booking),
+                    services: getBookingServiceNames(booking),
+                    booking,
+                });
+            }
+
+            if (!cancelled) {
+                setPreviousProviderBookings(
+                    Array.from(latestByProvider.values())
+                );
+            }
+        } catch (error) {
+            console.error("Failed to load previous bookings:", error);
+
+            if (!cancelled) {
+                setPreviousProviderBookings([]);
+            }
+        } finally {
+            if (!cancelled) {
+                setLoadingPreviousBookings(false);
+                setPreviousBookingsLoaded(true);
+            }
+        }
+    };
+
+    loadPreviousProviderBookings();
+
+    return () => {
+        cancelled = true;
+    };
+}, [otpVerified, userEmail, clientType]);
+
     // Custom handler for provider selection that automatically moves to next step
     const handleProviderSelect = (providerId) => {
         setSelectedProvider(providerId);
@@ -449,6 +585,123 @@ export default function ScheduleServices({ providers, events, locations, clients
         setSelectedTime("");
         setActiveStep(2); // Move to Services step
     };
+
+    const handleRemovePreviousProvider = (providerId) => {
+    setDismissedPreviousProviderIds((previous) =>
+        previous.includes(String(providerId))
+            ? previous
+            : [...previous, String(providerId)]
+    );
+};
+
+const normalizeServiceName = (name = "") =>
+    String(name)
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "_")
+        .replace(/^_+|_+$/g, "");
+
+const handleRebookPreviousProvider = (previousBooking, mode) => {
+    const providerId = String(previousBooking.providerId);
+
+    const providerExists = allProviders.some(
+        (provider) => String(provider.id) === providerId
+    );
+
+    if (!providerExists) {
+        alert(
+            "This provider is not available in the current provider data. Please refresh the provider list."
+        );
+        return;
+    }
+
+    // Save the desired rebooking action before changing the provider.
+    setPendingRebook({
+        providerId,
+        mode, // "same" or "new"
+        services: getBookingServiceNames({
+    services: previousBooking.services,
+}),
+    });
+
+    // Reuse the existing provider-selection flow.
+    handleProviderSelect(providerId);
+};
+
+
+useEffect(() => {
+    if (!pendingRebook) return;
+
+    if (
+        String(selectedProvider) !==
+        String(pendingRebook.providerId)
+    ) {
+        return;
+    }
+
+    // Wait until the events are available before processing
+    // the previous booking's services.
+    if (!Array.isArray(events) || events.length === 0) {
+        return;
+    }
+
+    const previousServices = pendingRebook.services || [];
+
+    // Match either the saved event ID or the saved service name.
+    const selectedServiceKeys =
+        pendingRebook.mode === "same"
+            ? events
+                  .filter((event) =>
+                      previousServices.some((savedService) => {
+                          const savedValue =
+                              typeof savedService === "object"
+                                  ? savedService.eventId ??
+                                    savedService.id ??
+                                    savedService.name ??
+                                    savedService.serviceName ??
+                                    ""
+                                  : savedService;
+
+                          return (
+                              String(savedValue) === String(event.id) ||
+                              normalizeServiceName(savedValue) ===
+                                  normalizeServiceName(event.name)
+                          );
+                      })
+                  )
+                  .map((event) =>
+                      normalizeServiceName(event.name)
+                  )
+            : [];
+
+    // Clear existing selections, then select the matching services.
+    Object.keys(services || {}).forEach((key) => {
+        if (services[key]) {
+            handleCheckboxChange({
+                target: {
+                    name: key,
+                    checked: false,
+                },
+            });
+        }
+    });
+
+    selectedServiceKeys.forEach((serviceKey) => {
+        handleCheckboxChange({
+            target: {
+                name: serviceKey,
+                checked: true,
+            },
+        });
+    });
+
+    setPendingRebook(null);
+    setActiveStep(2);
+}, [
+    pendingRebook,
+    selectedProvider,
+    events,
+]);
+
 
     const focusAndSelect = (ref) => {
         if (ref) {
@@ -3238,14 +3491,30 @@ export default function ScheduleServices({ providers, events, locations, clients
         }
     };
 
-    console.log("services are here: ", services);
-    console.log("selectedProvider is here: ", selectedProvider);
-    console.log("selectedDate: ", selectedDate);
-    console.log("selectedTime: ", selectedTime);
+//     console.log("services are here: ", services);
+//     console.log("selectedProvider is here: ", selectedProvider);
+//     console.log("selectedDate: ", selectedDate);
+//     console.log("selectedTime: ", selectedTime);
 
-    console.log("Selected provider:", selectedProvider);
-console.log("Available providers:", providers);
-console.log("Available events:", events);
+//     console.log("Selected provider:", selectedProvider);
+// console.log("Available providers:", providers);
+// console.log("Available events:", events);
+
+const visiblePreviousBookings = previousProviderBookings.filter(
+    (item) =>
+        !dismissedPreviousProviderIds.includes(
+            String(item.providerId)
+        )
+);
+
+const previousProviders = visiblePreviousBookings
+    .map((item) =>
+        allProviders.find(
+            (provider) =>
+                String(provider.id) === String(item.providerId)
+        )
+    )
+    .filter(Boolean);
 
     // Main horizontal flow content - FIXED VERSION
     const renderHorizontalFlow = () => {
@@ -4728,6 +4997,194 @@ console.log("Available events:", events);
                                         </button>
                                     </div>
 
+                                    {/* RECENTLY BOOKED PROVIDERS — SEPARATE FROM ProvidersSection */}
+{otpVerified &&
+    clientType === "returning" &&
+    previousBookingsLoaded &&
+    !loadingPreviousBookings &&
+    visiblePreviousBookings.length > 0 && (
+    <section className="mb-5 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+        <div className="mb-4 flex items-start justify-between gap-3">
+            <div>
+                <h3 className="text-base font-bold text-gray-900">
+                    Recently Booked Providers
+                </h3>
+                <p className="mt-1 text-sm text-gray-500">
+                    Quickly rebook a provider you have used before.
+                </p>
+            </div>
+
+            {!loadingPreviousBookings && (
+                <span className="rounded-full bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-700">
+                    {visiblePreviousBookings.length}{" "}
+                    {visiblePreviousBookings.length === 1
+                        ? "provider"
+                        : "providers"}
+                </span>
+            )}
+        </div>
+
+        {/* Loading state */}
+        {loadingPreviousBookings && (
+            <div className="flex items-center gap-3 py-5 text-sm text-gray-500">
+                <div className="h-5 w-5 animate-spin rounded-full border-2 border-indigo-600 border-t-transparent" />
+                Loading your previous bookings...
+            </div>
+        )}
+
+        {/* Empty state */}
+        {!loadingPreviousBookings &&
+            previousBookingsLoaded &&
+            visiblePreviousBookings.length === 0 && (
+                <div className="rounded-lg border border-dashed border-gray-200 bg-gray-50 px-4 py-6 text-center">
+                    <p className="text-sm font-medium text-gray-700">
+                        No previous providers found
+                    </p>
+                    <p className="mt-1 text-xs text-gray-500">
+                        Your previously booked providers will appear here.
+                    </p>
+                </div>
+            )}
+
+        {/* Previous provider cards */}
+        {!loadingPreviousBookings &&
+            visiblePreviousBookings.length > 0 && (
+                <div className="space-y-3">
+                    {visiblePreviousBookings.map((previousBooking) => {
+                        const previousServices = getBookingServiceNames({
+    services: previousBooking.services,
+});
+                        const previousProvider = allProviders.find(
+                            (provider) =>
+                                String(provider.id) ===
+                                String(previousBooking.providerId)
+                        );
+
+                        const providerName =
+                            previousProvider?.name ||
+                            previousBooking.booking?.provider?.name ||
+                            `Provider ${previousBooking.providerId}`;
+
+                        const lastBookedDate = previousBooking.lastBookedAt
+                            ? new Date(previousBooking.lastBookedAt)
+                            : null;
+
+                        const formattedLastBookedDate =
+                            lastBookedDate &&
+                            !Number.isNaN(lastBookedDate.getTime())
+                                ? lastBookedDate.toLocaleDateString(
+                                      "en-US",
+                                      {
+                                          month: "short",
+                                          day: "numeric",
+                                          year: "numeric",
+                                      }
+                                  )
+                                : "Date unavailable";
+
+                        return (
+                            <div
+                                key={previousBooking.providerId}
+                                className="rounded-xl border border-gray-200 p-4 transition hover:border-indigo-200 hover:shadow-sm"
+                            >
+                                {/* Provider details */}
+                                <div className="flex items-start gap-3">
+                                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-indigo-50 text-lg">
+                                        <User className="h-5 w-5 text-indigo-600" />
+                                    </div>
+
+                                    <div className="min-w-0 flex-1">
+                                        <h4 className="break-words text-sm font-semibold text-gray-900">
+                                            {cleanName(providerName)}
+                                        </h4>
+
+                                        <p className="mt-1 text-xs text-gray-500">
+                                            Last booked:{" "}
+                                            <span className="font-medium text-gray-700">
+                                                {formattedLastBookedDate}
+                                            </span>
+                                        </p>
+                                    </div>
+
+                                    <button
+                                        type="button"
+                                        onClick={() =>
+                                            handleRemovePreviousProvider(
+                                                previousBooking.providerId
+                                            )
+                                        }
+                                        className="shrink-0 rounded-md px-2 py-1 text-xs font-medium text-red-600 transition hover:bg-red-50"
+                                        aria-label={`Remove ${providerName} from recently booked providers`}
+                                    >
+                                        Remove
+                                    </button>
+                                </div>
+
+                                
+{/* Services from the most recent booking */}
+<div className="mt-3">
+    <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
+        Recently booked services
+    </p>
+
+    {previousServices.length > 0 ? (
+        <div className="flex flex-wrap gap-2">
+            {previousServices.map((service, index) => (
+                <span
+                    key={`${previousBooking.providerId}-${service}-${index}`}
+                    className="rounded-full bg-gray-100 px-2.5 py-1 text-xs text-gray-700"
+                >
+                    {service}
+                </span>
+            ))}
+        </div>
+    ) : (
+        <p className="text-xs text-gray-500">
+            No service details available for this booking.
+        </p>
+    )}
+</div>
+
+
+                                {/* Rebooking actions */}
+                                <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                                    <button
+                                        type="button"
+                                        onClick={() =>
+                                            handleRebookPreviousProvider(
+                                                previousBooking,
+                                                "same"
+                                            )
+                                        }
+                                        className="inline-flex items-center justify-center gap-2 rounded-lg bg-indigo-600 px-3 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-700"
+                                    >
+                                        <CalendarDays className="h-4 w-4" />
+                                        Rebook with same services
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        onClick={() =>
+                                            handleRebookPreviousProvider(
+                                                previousBooking,
+                                                "new"
+                                            )
+                                        }
+                                        className="inline-flex items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+                                    >
+                                        <Scissors className="h-4 w-4" />
+                                        Rebook with new services
+                                    </button>
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+            )}
+    </section>
+)}
+
+
                                     {/* ADDRESS */}
                                     {/* <div className="border rounded-xl p-4 space-y-2">
                                         <div className="font-semibold text-gray-800 mb-2">Service Location:</div>
@@ -4843,8 +5300,20 @@ console.log("Available events:", events);
 
                                 <div onWheel={handleServicesWheel}>
                                 <ProvidersSection
-                                    providers={filteredProviders}
-                                    allEligibleProviders={visibleProviders}
+                                    providers={
+    otpVerified &&
+    clientType === "returning" &&
+    previousBookingsLoaded
+        ? previousProviders
+        : filteredProviders
+}
+allEligibleProviders={
+    otpVerified &&
+    clientType === "returning" &&
+    previousBookingsLoaded
+        ? previousProviders
+        : visibleProviders
+}
                                     providerLimit={providerLimit}
                                     locations={locations}
                                     clientLocation={clientLocation}
@@ -4874,6 +5343,16 @@ console.log("Available events:", events);
                                     studioProvidersWithDistance={studioProvidersWithDistance}
                                     providerType={providerType}
                                     setProviderType={setProviderType}
+
+                                    previousProviderBookings={visiblePreviousBookings}
+loadingPreviousBookings={loadingPreviousBookings}
+showPreviousProvidersOnly={
+    otpVerified &&
+    previousBookingsLoaded &&
+    visiblePreviousBookings.length > 0
+}
+onRebookPreviousProvider={handleRebookPreviousProvider}
+onRemovePreviousProvider={handleRemovePreviousProvider}
                                 />
                                 </div>
 
@@ -5065,18 +5544,45 @@ console.log("Available events:", events);
 
   onBack={() => setActiveStep(4)}
 
-  onSuccess={(result) => {
+  
+onSuccess={(result) => {
     setSimplyBookResult(result);
 
+    const providerId = String(selectedProvider);
+    const bookedServices = getSelectedServiceNames();
+
     setBookingDetails({
-      provider: selectedProvider,
-      date: selectedDate,
-      time: selectedTime,
-      services: getSelectedServiceNames(),
+        provider: selectedProvider,
+        date: selectedDate,
+        time: selectedTime,
+        services: bookedServices,
     });
 
+    // Add the newly booked provider to Recent Providers.
+    // If already present, move them to the top and update their services.
+    setPreviousProviderBookings((previous) => [
+        {
+            providerId,
+            lastBookedAt: new Date().toISOString(),
+            services: bookedServices,
+            booking: result?.booking ?? result,
+        },
+        ...previous.filter(
+            (item) => String(item.providerId) !== providerId
+        ),
+    ]);
+
+    // Make sure the newly booked provider isn't hidden.
+    setDismissedPreviousProviderIds((previous) =>
+        previous.filter((id) => String(id) !== providerId)
+    );
+
+    // Allow the section to display immediately.
+    setPreviousBookingsLoaded(true);
+
     setShowSuccess(true);
-  }}
+}}
+
 />
 )}
                 </div>
