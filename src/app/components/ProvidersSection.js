@@ -554,7 +554,10 @@ const displayedProviders = showHiddenProviders
                   <ProviderCard
                     key={provider.id}
                     provider={provider}
-                    isSelected={selectedProvider === provider.id}
+                    isSelected={
+    selectedProvider != null &&
+    String(selectedProvider) === String(provider.id)
+}
                     selectedProvider={selectedProvider}
                     onSelect={onProviderSelect}
                     onBlacklist={handleBlacklist}
@@ -912,7 +915,10 @@ const displayedProviders = showHiddenProviders
                     providerIndex={index}
                     totalProviders={displayedProviders.length}
                     providerRefs={providerRefs}
-                    isSelected={selectedProvider === provider.id}
+                    isSelected={
+    selectedProvider != null &&
+    String(selectedProvider) === String(provider.id)
+}
                     selectedProvider={selectedProvider}
                     onSelect={onProviderSelect}
                     onBlacklist={handleBlacklist}
@@ -1081,9 +1087,11 @@ function ProviderCard({
           onHover?.(provider);
 
           // Select provider
-          if (selectedProvider !== provider.id) {
-            onSelect(provider.id);
-          }
+          if (
+    String(selectedProvider ?? "") !== String(provider.id)
+) {
+    onSelect(provider.id);
+}
 
           // Never auto-expand on hover
           setExpandedProvider(null);

@@ -129,6 +129,8 @@ const [previousBookingsLoaded, setPreviousBookingsLoaded] = useState(false);
 const [dismissedPreviousProviderIds, setDismissedPreviousProviderIds] = useState([]);
 const [pendingRebook, setPendingRebook] = useState(null);
 
+console.log("previousProviderBookings: ", previousProviderBookings);
+
     const [resendTimer, setResendTimer] = useState(30);
     const [canResend, setCanResend] = useState(false);
     const [registerLoading, setRegisterLoading] = useState(false);
@@ -242,15 +244,26 @@ const [pendingRebook, setPendingRebook] = useState(null);
     }, []);
 
     const handleChangeAddress = () => {
-        setOriginalAddress({
-            fullAddress: formData.fullAddress,
-            city: formData.city,
-            state: formData.state,
-            zip: formData.zip,
-        });
+    setOriginalAddress({
+        fullAddress: formData.fullAddress,
+        city: formData.city,
+        state: formData.state,
+        zip: formData.zip,
+    });
 
-        // setUserFlow("collect-address");
-    };
+    // Hide results belonging to the previous address.
+    setHasSearched(false);
+    setSearchCompleted(false);
+    setAddressReady(false);
+    setFilteredProviders([]);
+
+    // Reset the provider selection and downstream booking steps.
+    setSelectedProvider("");
+    setSelectedServices([]);
+    setSelectedDate(null);
+    setSelectedTime("");
+    setActiveStep(1);
+};
 
     const handleCancelLogin = () => {
         resetBooking();
@@ -374,7 +387,7 @@ const [pendingRebook, setPendingRebook] = useState(null);
     }
 };
 
-    console.log("providers from api: ", providers);
+    // console.log("providers from api: ", providers);
 
     // Get all hook functions FIRST
     const {
@@ -435,16 +448,20 @@ const [pendingRebook, setPendingRebook] = useState(null);
         studioProvidersWithDistance,
     } = useBooking({ providers, events, locations, clients, categories, searchCategory });
 
-    const getBookingProviderId = (booking) => {
-    const provider = booking.provider;
+    
+const getBookingProviderId = (booking) => {
+    const provider = booking?.provider;
 
-    return String(
-        booking.providerId ??
-        (typeof provider === "object" ? provider?.id : provider) ??
-        booking.unitId ??
-        ""
-    );
+    const id =
+        booking?.providerId ??
+        booking?.provider_id ??
+        booking?.unitId ??
+        booking?.unit_id ??
+        (typeof provider === "object" ? provider?.id : provider);
+
+    return id != null ? String(id) : "";
 };
+
 
 const getBookingDate = (booking) =>
     booking.date ??
@@ -452,6 +469,71 @@ const getBookingDate = (booking) =>
     booking.startDate ??
     booking.createdAt ??
     null;
+
+    const normalizeAddress = (value = "") =>
+    String(value)
+        .toLowerCase()
+        .replace(/[.,#]/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+
+const getSavedBookingAddress = (booking) =>
+    booking?.clientaddress ??
+    booking?.clientAddress ??
+    {};
+
+const bookingMatchesCurrentAddress = (booking) => {
+    const savedAddress = getSavedBookingAddress(booking);
+
+    const currentFullAddress = normalizeAddress(
+        formData?.fullAddress
+    );
+
+    const savedFullAddress = normalizeAddress(
+        savedAddress?.fullAddress
+    );
+
+    const currentZip = String(formData?.zip || "").trim().toLowerCase();
+    const savedZip = String(savedAddress?.zip || "").trim().toLowerCase();
+
+    const currentCity = normalizeAddress(formData?.city);
+    const savedCity = normalizeAddress(savedAddress?.city);
+
+    const currentState = normalizeAddress(formData?.state);
+    const savedState = normalizeAddress(savedAddress?.state);
+
+    // Don't show previous providers until a current address is available.
+    if (!currentFullAddress) {
+        return false;
+    }
+
+    // When both ZIP codes exist, different ZIP codes mean
+    // the booking belongs to another service address.
+    if (currentZip && savedZip && currentZip !== savedZip) {
+        return false;
+    }
+
+    // Match the actual address, not just the city or ZIP code.
+    if (currentFullAddress && savedFullAddress) {
+        return (
+            currentFullAddress === savedFullAddress &&
+            (!currentCity || !savedCity || currentCity === savedCity) &&
+            (!currentState || !savedState || currentState === savedState)
+        );
+    }
+
+    // For older records without a full address, use the available
+    // ZIP, city and state only when all the available fields agree.
+    if (currentZip && savedZip) {
+        return (
+            currentZip === savedZip &&
+            (!currentCity || !savedCity || currentCity === savedCity) &&
+            (!currentState || !savedState || currentState === savedState)
+        );
+    }
+
+    return false;
+};
 
 const getBookingServiceNames = (booking) => {
     const rawServices =
@@ -481,6 +563,91 @@ const getBookingServiceNames = (booking) => {
         })
         .filter(Boolean);
 };
+
+
+
+const getBookingCategoryNames = (booking) => {
+    const rawServices =
+        booking?.services ??
+        booking?.serviceNames ??
+        booking?.service ??
+        [];
+
+    // API format: { "18": true, "16": true }
+    const savedServices = Array.isArray(rawServices)
+        ? rawServices
+        : typeof rawServices === "string"
+            ? [rawServices]
+            : Object.entries(rawServices || {})
+                .filter(([, selected]) => Boolean(selected))
+                .map(([serviceId]) => serviceId);
+
+    if (!Array.isArray(events) || !Array.isArray(categories)) {
+        return [];
+    }
+
+    const bookedEventIds = new Set();
+
+    savedServices.forEach((service) => {
+        const serviceId =
+            typeof service === "object"
+                ? service?.eventId ??
+                  service?.serviceId ??
+                  service?.service_id ??
+                  service?.id
+                : service;
+
+        const serviceName =
+            typeof service === "object"
+                ? service?.name ??
+                  service?.serviceName ??
+                  service?.title ??
+                  ""
+                : "";
+
+        const matchedEvent = events.find((event) => {
+            const idMatches =
+                serviceId != null &&
+                String(event.id) === String(serviceId);
+
+            const nameMatches =
+                serviceName &&
+                normalizeServiceName(event.name) ===
+                    normalizeServiceName(serviceName);
+
+            return idMatches || nameMatches;
+        });
+
+        if (matchedEvent) {
+            bookedEventIds.add(String(matchedEvent.id));
+        }
+    });
+
+    const matchedCategories = categories
+        .filter((category) => {
+            if (!Array.isArray(category.events)) {
+                return false;
+            }
+
+            return category.events.some((item) => {
+                const eventId =
+                    typeof item === "object"
+                        ? item?.id ?? item?.eventId
+                        : item;
+
+                return (
+                    eventId != null &&
+                    bookedEventIds.has(String(eventId))
+                );
+            });
+        })
+        .map((category) => category.name ?? category.title)
+        .filter(Boolean);
+
+    return [...new Set(matchedCategories)];
+};
+
+
 
 useEffect(() => {
     if (!otpVerified || !userEmail || clientType !== "returning") {
@@ -515,34 +682,52 @@ useEffect(() => {
 
             // Sort newest first, so the first booking for each provider
             // represents that provider's latest appointment.
-            const sortedBookings = [...bookings].sort(
-                (a, b) =>
-                    new Date(getBookingDate(b) || 0).getTime() -
-                    new Date(getBookingDate(a) || 0).getTime()
-            );
+            const bookingsForCurrentAddress = bookings.filter(
+    bookingMatchesCurrentAddress
+);
 
-            const latestByProvider = new Map();
+const sortedBookings = [...bookingsForCurrentAddress].sort(
+    (a, b) =>
+        new Date(getBookingDate(b) || 0).getTime() -
+        new Date(getBookingDate(a) || 0).getTime()
+);
 
-            for (const booking of sortedBookings) {
-                const providerId = getBookingProviderId(booking);
+            
+const latestByProvider = new Map();
 
-                if (!providerId || latestByProvider.has(providerId)) {
-                    continue;
-                }
+for (const booking of sortedBookings) {
+    const providerId = getBookingProviderId(booking);
 
-                latestByProvider.set(providerId, {
-                    providerId,
-                    lastBookedAt: getBookingDate(booking),
-                    services: getBookingServiceNames(booking),
-                    booking,
-                });
-            }
+    if (!providerId) {
+        console.warn(
+            "Booking skipped because provider ID is missing:",
+            booking
+        );
+        continue;
+    }
 
-            if (!cancelled) {
-                setPreviousProviderBookings(
-                    Array.from(latestByProvider.values())
-                );
-            }
+    // Keep the most recent booking for each provider.
+    if (latestByProvider.has(providerId)) {
+        continue;
+    }
+
+    latestByProvider.set(providerId, {
+        providerId,
+        lastBookedAt: getBookingDate(booking),
+        services: getBookingServiceNames(booking),
+        categories: getBookingCategoryNames(booking),
+        booking,
+    });
+}
+
+
+if (!cancelled) {
+    setPreviousProviderBookings(
+        Array.from(latestByProvider.values())
+    );
+}
+
+
         } catch (error) {
             console.error("Failed to load previous bookings:", error);
 
@@ -562,29 +747,50 @@ useEffect(() => {
     return () => {
         cancelled = true;
     };
-}, [otpVerified, userEmail, clientType]);
+}, [
+    otpVerified,
+    userEmail,
+    clientType,
+    events,
+    categories,
+    formData?.fullAddress,
+    formData?.city,
+    formData?.state,
+    formData?.zip,
+]);
 
     // Custom handler for provider selection that automatically moves to next step
     const handleProviderSelect = (providerId) => {
-        setSelectedProvider(providerId);
-        setSelectedServices([]); // Reset selected services
+    console.log("[Provider selection]", {
+        requestedProviderId: providerId,
+        currentProviderId: selectedProvider,
+        pendingRebook,
+        activeStep,
+    });
 
-        Object.keys(services).forEach((key) => {
-            if (services[key]) {
-                handleCheckboxChange({
-                    target: {
-                        name: key,
-                        checked: false,
-                    },
-                });
-            }
-        });
+    // Log every attempt to clear the selection.
+    if (providerId == null || providerId === "") {
+        console.trace("[Provider selection cleared]");
+    }
 
-        // reset downstream steps
-        setSelectedDate(null);
-        setSelectedTime("");
-        setActiveStep(2); // Move to Services step
-    };
+    setSelectedProvider(providerId);
+    setSelectedServices([]);
+
+    Object.keys(services || {}).forEach((key) => {
+        if (services[key]) {
+            handleCheckboxChange({
+                target: {
+                    name: key,
+                    checked: false,
+                },
+            });
+        }
+    });
+
+    setSelectedDate(null);
+    setSelectedTime("");
+    setActiveStep(2);
+};
 
     const handleRemovePreviousProvider = (providerId) => {
     setDismissedPreviousProviderIds((previous) =>
@@ -600,6 +806,47 @@ const normalizeServiceName = (name = "") =>
         .replace(/[^a-z0-9]+/g, "_")
         .replace(/^_+|_+$/g, "");
 
+        const isProviderHiddenAtCurrentAddress = (providerId) => {
+    if (typeof window === "undefined" || !userEmail) {
+        return false;
+    }
+
+    // Match the storage key used by ProvidersSection.
+    const locationKey = address?.zip
+        ? String(address.zip)
+        : address?.state
+            ? String(address.state)
+            : "default";
+
+    const storageKey = `hiddenProviders_${userEmail}_${locationKey}`;
+
+    try {
+        const savedHiddenProviders = JSON.parse(
+            localStorage.getItem(storageKey) || "[]"
+        );
+
+        return savedHiddenProviders.some((item) => {
+            const hiddenProviderId =
+                typeof item === "object"
+                    ? item?.providerId ?? item?.id
+                    : item;
+
+            const sameProvider =
+                String(hiddenProviderId) === String(providerId);
+
+            const sameAddress =
+                typeof item !== "object" ||
+                !item?.zip ||
+                String(item.zip) === String(address?.zip || "");
+
+            return sameProvider && sameAddress;
+        });
+    } catch (error) {
+        console.error("Failed to check hidden provider:", error);
+        return false;
+    }
+};
+
 const handleRebookPreviousProvider = (previousBooking, mode) => {
     const providerId = String(previousBooking.providerId);
 
@@ -614,39 +861,51 @@ const handleRebookPreviousProvider = (previousBooking, mode) => {
         return;
     }
 
-    // Save the desired rebooking action before changing the provider.
+    const isHidden = isProviderHiddenAtCurrentAddress(providerId);
+
+    // Remember which list must be displayed before selecting the provider.
     setPendingRebook({
         providerId,
-        mode, // "same" or "new"
+        mode: isHidden ? "hidden" : mode,
+        showHiddenProviders: isHidden,
         services: getBookingServiceNames({
-    services: previousBooking.services,
-}),
+            services: previousBooking.services,
+        }),
     });
 
-    // Reuse the existing provider-selection flow.
-    handleProviderSelect(providerId);
-};
+    // Switch to the correct list.
+    setShowHiddenProviders(isHidden);
 
+    // Do not select the provider here.
+    // The pending-rebook effect below selects it after the list switches.
+};
 
 useEffect(() => {
     if (!pendingRebook) return;
 
+    // Wait until the correct provider list is displayed.
     if (
-        String(selectedProvider) !==
-        String(pendingRebook.providerId)
+        showHiddenProviders !== pendingRebook.showHiddenProviders
     ) {
         return;
     }
 
-    // Wait until the events are available before processing
-    // the previous booking's services.
+    const targetProviderId = String(pendingRebook.providerId);
+
+    // If another effect cleared or changed the selection while the
+    // provider list was switching, select the requested provider again.
+    if (String(selectedProvider ?? "") !== targetProviderId) {
+        handleProviderSelect(targetProviderId);
+        return;
+    }
+
+    // Wait until services are available before processing the booking.
     if (!Array.isArray(events) || events.length === 0) {
         return;
     }
 
     const previousServices = pendingRebook.services || [];
 
-    // Match either the saved event ID or the saved service name.
     const selectedServiceKeys =
         pendingRebook.mode === "same"
             ? events
@@ -673,7 +932,7 @@ useEffect(() => {
                   )
             : [];
 
-    // Clear existing selections, then select the matching services.
+    // Clear existing services before applying the requested selection.
     Object.keys(services || {}).forEach((key) => {
         if (services[key]) {
             handleCheckboxChange({
@@ -685,6 +944,7 @@ useEffect(() => {
         }
     });
 
+    // Only "same services" for a visible provider restores old services.
     selectedServiceKeys.forEach((serviceKey) => {
         handleCheckboxChange({
             target: {
@@ -694,11 +954,12 @@ useEffect(() => {
         });
     });
 
-    setPendingRebook(null);
     setActiveStep(2);
+    setPendingRebook(null);
 }, [
     pendingRebook,
     selectedProvider,
+    showHiddenProviders,
     events,
 ]);
 
@@ -728,12 +989,12 @@ useEffect(() => {
         } catch (err) {
             console.error(err);
         } finally {
-            console.log("SEARCH END");
+            // console.log("SEARCH END");
             setIsSearchingProviders(false);
         }
     };
 
-    console.log("categories: ", categories);
+    // console.log("categories: ", categories);
 
     const getSimplyBookServices = () => {
     // `services` is the object containing the selected
@@ -798,7 +1059,7 @@ useEffect(() => {
 
     const handleSaveAddress = async () => {
         try {
-            console.log("SAVE ADDRESS");
+            // console.log("SAVE ADDRESS");
             const res = await fetch("/api/auth/save-details", {
                 method: "POST",
                 headers: {
@@ -858,7 +1119,7 @@ useEffect(() => {
 
     const handleUseSavedAddress = async () => {
 
-        console.log("USE SAVED ADDRESS");
+        // console.log("USE SAVED ADDRESS");
 
         // 🔥 sync formData → address
         handleFieldChange({
@@ -884,7 +1145,7 @@ useEffect(() => {
     };
 
     const handleUseTempAddress = async () => {
-        console.log("TEMP ADDRESS");
+        // console.log("TEMP ADDRESS");
 
         // 🔥 same sync required here
         handleFieldChange({
@@ -928,7 +1189,7 @@ useEffect(() => {
     useEffect(() => {
         if (selectedServices.length > 0 && activeStep === 2) {
             // If services are selected and we're still on step 2, move to step 3
-            console.log('Services selected, moving to date step');
+            // console.log('Services selected, moving to date step');
             setActiveStep(3);
         }
     }, [selectedServices, activeStep]);
@@ -986,9 +1247,9 @@ useEffect(() => {
         // IMPORTANT:
         // Wait until useBooking has actually received the address.
         if (!address?.fullAddress?.trim()) {
-            console.log(
-                "⏳ Waiting for booking address before searching providers..."
-            );
+            // console.log(
+            //     "⏳ Waiting for booking address before searching providers..."
+            // );
             return;
         }
 
@@ -996,10 +1257,10 @@ useEffect(() => {
 
         const runSearch = async () => {
             try {
-                console.log(
-                    "🔎 Starting provider search with address:",
-                    address.fullAddress
-                );
+                // console.log(
+                //     "🔎 Starting provider search with address:",
+                //     address.fullAddress
+                // );
 
                 await triggerProviderSearch();
 
@@ -1033,7 +1294,7 @@ useEffect(() => {
             address.fullAddress &&
             !hasSearched
         ) {
-            console.log("AUTH EFFECT");
+            // console.log("AUTH EFFECT");
             setAddressReady(true);
         }
     }, [
@@ -1159,7 +1420,7 @@ useEffect(() => {
             return;
         }
 
-        console.log("here save to fields change")
+        // console.log("here save to fields change")
 
         handleFieldChange({
             target: {
@@ -1240,7 +1501,7 @@ useEffect(() => {
     // Listen for reset events from Header and NoProvidersSection
     useEffect(() => {
         const handleResetBookingForm = () => {
-            console.log('🔄 Received reset request from header/no-thanks');
+            // console.log('🔄 Received reset request from header/no-thanks');
             handleFullReset();
         };
 
@@ -1317,7 +1578,7 @@ useEffect(() => {
         setTimeout(() => setResetForm(false), 100);
         localStorage.removeItem('userAuth');
         localStorage.removeItem('bookingState');
-        console.log('🗑️ Cleared auth state from session storage');
+        // console.log('🗑️ Cleared auth state from session storage');
     };
 
     // Handler for "No Thanks" that goes back to ENTRY point
@@ -1328,7 +1589,7 @@ useEffect(() => {
         localStorage.removeItem('bookingState');
         // localStorage.clear();
         window.dispatchEvent(new CustomEvent('reset-booking-form'));
-        console.log('🔙 Resetting booking form');
+        // console.log('🔙 Resetting booking form');
     };
 
     const handleClientTypeContinue = () => {
@@ -1398,10 +1659,10 @@ useEffect(() => {
 
             const checkData = await checkRes.json();
 
-            console.log(
-                "Returning client check-user response:",
-                checkData
-            );
+            // console.log(
+            //     "Returning client check-user response:",
+            //     checkData
+            // );
 
             // ========================================================
             // EMAIL DOES NOT EXIST
@@ -1514,10 +1775,10 @@ useEffect(() => {
 
                 const otpData = await otpRes.json();
 
-                console.log(
-                    "Returning client send-otp response:",
-                    otpData
-                );
+                // console.log(
+                //     "Returning client send-otp response:",
+                //     otpData
+                // );
 
                 if (!otpRes.ok || !otpData.success) {
 
@@ -1564,7 +1825,7 @@ useEffect(() => {
         }
     };
 
-    console.log("otpError: ", otpError)
+    // console.log("otpError: ", otpError)
 
     const handleVerifyOTP = async (e) => {
         e.preventDefault();
@@ -1593,7 +1854,7 @@ useEffect(() => {
             });
 
             const result = await response.json();
-            console.log("OTP verification result:", result);
+            // console.log("OTP verification result:", result);
 
             if (result.success) {
 
@@ -1613,9 +1874,9 @@ useEffect(() => {
 
                 if (clientType === "new") {
 
-                    console.log(
-                        "✅ New client OTP verified. Waiting for profile/address."
-                    );
+                    // console.log(
+                    //     "✅ New client OTP verified. Waiting for profile/address."
+                    // );
 
                     setOtpVerified(true);
 
@@ -1840,10 +2101,10 @@ useEffect(() => {
         if (!email) return;
         setLoadingBlacklist(true);
         try {
-            console.log("Fetching blacklist for email:", email);
+            // console.log("Fetching blacklist for email:", email);
             const response = await fetch(`/api/blacklist?email=${email}`);
             const data = await response.json();
-            console.log("Blacklist API response:", data);
+            // console.log("Blacklist API response:", data);
             if (data.success) {
                 setBlacklistedProviders(data.hiddenProviders || []);
             } else {
@@ -1895,16 +2156,16 @@ useEffect(() => {
         if (!userEmail) return;
         setUnblacklisting(providerId);
         try {
-            console.log("Unblacklisting provider:", providerId);
+            // console.log("Unblacklisting provider:", providerId);
             const res = await fetch(`/api/blacklist?email=${userEmail}&providerId=${providerId}`, {
                 method: "DELETE",
             });
             const result = await res.json();
-            console.log("Unblacklist response:", result);
+            // console.log("Unblacklist response:", result);
             if (result.success) {
                 setBlacklistedProviders(prev => prev.filter(id => id !== providerId));
                 if (clientLocation && searchWithin) {
-                    console.log("Refreshing providers after unblacklist...");
+                    // console.log("Refreshing providers after unblacklist...");
                     getLatLngFromAddress();
                 }
                 alert("Provider has been unblacklisted successfully!");
@@ -2181,10 +2442,10 @@ useEffect(() => {
                 const checkResult =
                     await checkResponse.json();
 
-                console.log(
-                    "New client check-user response:",
-                    checkResult
-                );
+                // console.log(
+                //     "New client check-user response:",
+                //     checkResult
+                // );
 
                 // ====================================================
                 // EMAIL ALREADY EXISTS
@@ -2250,10 +2511,10 @@ useEffect(() => {
                     const pendingResult =
                         await pendingResponse.json();
 
-                    console.log(
-                        "New client register-pending response:",
-                        pendingResult
-                    );
+                    // console.log(
+                    //     "New client register-pending response:",
+                    //     pendingResult
+                    // );
 
                     if (
                         !pendingResponse.ok ||
@@ -2295,10 +2556,10 @@ useEffect(() => {
                     const otpResult =
                         await otpResponse.json();
 
-                    console.log(
-                        "New client send-otp response:",
-                        otpResult
-                    );
+                    // console.log(
+                    //     "New client send-otp response:",
+                    //     otpResult
+                    // );
 
                     if (
                         !otpResponse.ok ||
@@ -2538,10 +2799,10 @@ useEffect(() => {
             const result =
                 await response.json();
 
-            console.log(
-                "Complete registration response:",
-                result
-            );
+            // console.log(
+            //     "Complete registration response:",
+            //     result
+            // );
 
             if (
                 !response.ok ||
@@ -2775,9 +3036,9 @@ useEffect(() => {
 
             setShowOtpField(false);
 
-            console.log(
-                "✅ New client account created successfully"
-            );
+            // console.log(
+            //     "✅ New client account created successfully"
+            // );
 
         } catch (error) {
             console.error(
@@ -2801,12 +3062,12 @@ useEffect(() => {
         setLoadingBlacklist(true);
         try {
             for (const providerId of blacklistedProviders) {
-                console.log("Unblacklisting provider:", providerId);
+                // console.log("Unblacklisting provider:", providerId);
                 const res = await fetch(`/api/blacklist?email=${userEmail}&providerId=${providerId}`, {
                     method: "DELETE",
                 });
                 const result = await res.json();
-                console.log(`Unblacklist result for ${providerId}:`, result);
+                // console.log(`Unblacklist result for ${providerId}:`, result);
             }
             setBlacklistedProviders([]);
             alert("All providers have been unblacklisted successfully!");
@@ -2886,7 +3147,7 @@ useEffect(() => {
         let timeout;
 
         const logoutAfterInactivity = () => {
-            console.log("⏳ Auto logout (inactive)");
+            // console.log("⏳ Auto logout (inactive)");
             handleLogout();
             router.push("/find-services");
         };
@@ -2923,7 +3184,7 @@ useEffect(() => {
         const now = Date.now();
 
         if (lastActivity && now - lastActivity > 5 * 60 * 1000) {
-            console.log("⏳ Session expired (background)");
+            // console.log("⏳ Session expired (background)");
             handleLogout();
         }
     };
@@ -5051,9 +5312,7 @@ const previousProviders = visiblePreviousBookings
             visiblePreviousBookings.length > 0 && (
                 <div className="space-y-3">
                     {visiblePreviousBookings.map((previousBooking) => {
-                        const previousServices = getBookingServiceNames({
-    services: previousBooking.services,
-});
+                        const previousCategories = previousBooking.categories || [];
                         const previousProvider = allProviders.find(
                             (provider) =>
                                 String(provider.id) ===
@@ -5089,9 +5348,25 @@ const previousProviders = visiblePreviousBookings
                             >
                                 {/* Provider details */}
                                 <div className="flex items-start gap-3">
-                                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-indigo-50 text-lg">
-                                        <User className="h-5 w-5 text-indigo-600" />
-                                    </div>
+                                    
+<div className="h-14 w-14 shrink-0 overflow-hidden rounded-full bg-indigo-50">
+    <img
+        src={
+            previousProvider?.picture_path
+                ? `${process.env.NEXT_PUBLIC_BASE_URL_IMAGE || ""}${previousProvider.picture_path}`
+                : previousBooking.booking?.provider?.picture_path
+                    ? `${process.env.NEXT_PUBLIC_BASE_URL_IMAGE || ""}${previousBooking.booking.provider.picture_path}`
+                    : "/images/placeholder.jpg"
+        }
+        alt={providerName}
+        className="h-full w-full object-cover"
+        onError={(e) => {
+            e.currentTarget.onerror = null;
+            e.currentTarget.src = "/images/placeholder.jpg";
+        }}
+    />
+</div>
+
 
                                     <div className="min-w-0 flex-1">
                                         <h4 className="break-words text-sm font-semibold text-gray-900">
@@ -5121,29 +5396,31 @@ const previousProviders = visiblePreviousBookings
                                 </div>
 
                                 
-{/* Services from the most recent booking */}
+
+{/* Categories from the most recent booking */}
 <div className="mt-3">
     <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
-        Recently booked services
+        Previously booked categories
     </p>
 
-    {previousServices.length > 0 ? (
+    {previousCategories.length > 0 ? (
         <div className="flex flex-wrap gap-2">
-            {previousServices.map((service, index) => (
+            {previousCategories.map((category, index) => (
                 <span
-                    key={`${previousBooking.providerId}-${service}-${index}`}
+                    key={`${previousBooking.providerId}-${category}-${index}`}
                     className="rounded-full bg-gray-100 px-2.5 py-1 text-xs text-gray-700"
                 >
-                    {service}
+                    {category}
                 </span>
             ))}
         </div>
     ) : (
         <p className="text-xs text-gray-500">
-            No service details available for this booking.
+            No category details available for this booking.
         </p>
     )}
 </div>
+
 
 
                                 {/* Rebooking actions */}
@@ -5156,7 +5433,7 @@ const previousProviders = visiblePreviousBookings
                                                 "same"
                                             )
                                         }
-                                        className="inline-flex items-center justify-center gap-2 rounded-lg bg-indigo-600 px-3 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-700"
+                                        className="inline-flex items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm font-semibold text-gray-700 transition-colors hover:border-indigo-400 hover:bg-indigo-50 hover:text-indigo-700"
                                     >
                                         <CalendarDays className="h-4 w-4" />
                                         Rebook with same services
@@ -5170,7 +5447,7 @@ const previousProviders = visiblePreviousBookings
                                                 "new"
                                             )
                                         }
-                                        className="inline-flex items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+                                        className="inline-flex items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm font-semibold text-gray-700 transition-colors hover:border-indigo-400 hover:bg-indigo-50 hover:text-indigo-700"
                                     >
                                         <Scissors className="h-4 w-4" />
                                         Rebook with new services
@@ -5562,11 +5839,18 @@ onSuccess={(result) => {
     // If already present, move them to the top and update their services.
     setPreviousProviderBookings((previous) => [
         {
-            providerId,
-            lastBookedAt: new Date().toISOString(),
-            services: bookedServices,
-            booking: result?.booking ?? result,
+    providerId,
+    lastBookedAt: new Date().toISOString(),
+    services: bookedServices,
+    booking: {
+        clientaddress: {
+            fullAddress: formData.fullAddress || "",
+            city: formData.city || "",
+            state: formData.state || "",
+            zip: formData.zip || "",
         },
+    },
+},
         ...previous.filter(
             (item) => String(item.providerId) !== providerId
         ),

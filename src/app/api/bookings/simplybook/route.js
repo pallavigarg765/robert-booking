@@ -77,16 +77,17 @@ const savedServices = Array.isArray(services)
     time,
 
     clientaddress: {
-      fullAddress: clientaddress?.fullAddress || "",
-      ...(clientaddress?.lat != null
-        ? { lat: Number(clientaddress.lat) }
-        : {}),
-      ...(clientaddress?.lon != null
-        ? { lon: Number(clientaddress.lon) }
-        : {}),
-      city: clientaddress?.city || "",
-      state: clientaddress?.state || "",
-    },
+  fullAddress: clientaddress?.fullAddress?.trim() || "",
+  ...(clientaddress?.lat != null
+    ? { lat: Number(clientaddress.lat) }
+    : {}),
+  ...(clientaddress?.lon != null
+    ? { lon: Number(clientaddress.lon) }
+    : {}),
+  city: clientaddress?.city?.trim() || "",
+  state: clientaddress?.state?.trim() || "",
+  zip: clientaddress?.zip?.trim() || "",
+},
 
     services: savedServices,
     userId: user._id,

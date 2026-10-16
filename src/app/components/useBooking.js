@@ -539,7 +539,7 @@ export function useBooking({ providers, events, locations, clients, categories, 
       }
 
       const data = await res.json();
-      console.log("✅ Booking created:", data);
+      // console.log("✅ Booking created:", data);
 
       // Reset everything after successful booking
       resetBooking();
@@ -646,7 +646,7 @@ export function useBooking({ providers, events, locations, clients, categories, 
 
     // Extract state from the selected place
     const state = extractStateFromPlace(place);
-    console.log("Extracted state from place:", state);
+    // console.log("Extracted state from place:", state);
     setAddress(prev => ({
       ...prev,
       state: state
@@ -655,7 +655,7 @@ export function useBooking({ providers, events, locations, clients, categories, 
 
   const getLatLngFromAddress = async () => {
     setLoadingAddress(true);
-    console.log("address inside get lat lon: ", address);
+    // console.log("address inside get lat lon: ", address);
     try {
       const fullAddress = [
         address.fullAddress,
@@ -1021,7 +1021,7 @@ if (!cancelled) {
   ]);
 
   useEffect(() => {
-    console.log("🔎 Triggered provider filtering");
+    // console.log("🔎 Triggered provider filtering");
 
     // Clear results while required data is missing.
     if (!providerArray || providerArray.length === 0) {
@@ -1113,23 +1113,23 @@ if (!cancelled) {
           })
           .filter(Boolean);
 
-        console.log("🏢 PROVIDER LOCATION MAPPING", {
-          providerId: provider.id,
-          providerName: provider.name,
+        // console.log("🏢 PROVIDER LOCATION MAPPING", {
+        //   providerId: provider.id,
+        //   providerName: provider.name,
 
-          providerLocationIds: provider.locations,
+        //   providerLocationIds: provider.locations,
 
-          resolvedLocations: providerLocations.map((location) => ({
-            id: location.id,
-            title: location.title,
-            address2: location.address2,
-            lat: location.lat,
-            lng: location.lng,
-            lon: location.lon,
-            latitude: location.latitude,
-            longitude: location.longitude,
-          })),
-        });
+        //   resolvedLocations: providerLocations.map((location) => ({
+        //     id: location.id,
+        //     title: location.title,
+        //     address2: location.address2,
+        //     lat: location.lat,
+        //     lng: location.lng,
+        //     lon: location.lon,
+        //     latitude: location.latitude,
+        //     longitude: location.longitude,
+        //   })),
+        // });
 
         if (providerLocations.length === 0) {
           return null;
@@ -1156,9 +1156,9 @@ if (!cancelled) {
         );
 
         if (!hasMatchingState) {
-          console.log(
-            `❌ Provider ${provider.id} filtered - state mismatch`
-          );
+          // console.log(
+          //   `❌ Provider ${provider.id} filtered - state mismatch`
+          // );
 
           return null;
         }
@@ -1170,10 +1170,10 @@ if (!cancelled) {
       })
       .filter(Boolean);
 
-    console.log(
-      "📍 Providers after state filtering:",
-      stateFilteredProviders.length
-    );
+    // console.log(
+    //   "📍 Providers after state filtering:",
+    //   stateFilteredProviders.length
+    // );
 
     /*
      * ---------------------------------------------------------
@@ -1220,15 +1220,15 @@ if (!cancelled) {
          * becoming a Mobile provider.
          */
         if (!config.mode) {
-          console.log(
-            "⚠️ Ignoring invalid provider location configuration:",
-            {
-              providerId: provider.id,
-              locationId: location.id,
-              address2: location.address2,
-              title: location.title,
-            }
-          );
+          // console.log(
+          //   "⚠️ Ignoring invalid provider location configuration:",
+          //   {
+          //     providerId: provider.id,
+          //     locationId: location.id,
+          //     address2: location.address2,
+          //     title: location.title,
+          //   }
+          // );
 
           return;
         }
@@ -1242,22 +1242,22 @@ if (!cancelled) {
           !Number.isFinite(lat) ||
           !Number.isFinite(lng)
         ) {
-          console.log(
-            "⚠️ Ignoring provider location with invalid coordinates:",
-            {
-              providerId: provider.id,
-              providerName: provider.name,
-              locationId: location.id,
-              locationTitle: location.title,
-              address2: location.address2,
+          // console.log(
+          //   "⚠️ Ignoring provider location with invalid coordinates:",
+          //   {
+          //     providerId: provider.id,
+          //     providerName: provider.name,
+          //     locationId: location.id,
+          //     locationTitle: location.title,
+          //     address2: location.address2,
 
-              rawLat: location.lat,
-              rawLng: location.lng,
-              rawLon: location.lon,
-              rawLatitude: location.latitude,
-              rawLongitude: location.longitude,
-            }
-          );
+          //     rawLat: location.lat,
+          //     rawLng: location.lng,
+          //     rawLon: location.lon,
+          //     rawLatitude: location.latitude,
+          //     rawLongitude: location.longitude,
+          //   }
+          // );
 
           return;
         }
@@ -1273,26 +1273,26 @@ if (!cancelled) {
           lng
         );
 
-        console.log("📍 DISTANCE CALCULATION", {
-          providerId: provider.id,
-          providerName: provider.name,
+        // console.log("📍 DISTANCE CALCULATION", {
+        //   providerId: provider.id,
+        //   providerName: provider.name,
 
-          locationId: location.id,
-          locationTitle: location.title,
-          address2: location.address2,
+        //   locationId: location.id,
+        //   locationTitle: location.title,
+        //   address2: location.address2,
 
-          customer: {
-            lat: userLat,
-            lng: userLng,
-          },
+        //   customer: {
+        //     lat: userLat,
+        //     lng: userLng,
+        //   },
 
-          providerLocation: {
-            lat,
-            lng,
-          },
+        //   providerLocation: {
+        //     lat,
+        //     lng,
+        //   },
 
-          distance,
-        });
+        //   distance,
+        // });
 
         /*
          * Customer search radius applies to BOTH Mobile
@@ -1301,10 +1301,10 @@ if (!cancelled) {
         const withinCustomerRadius =
           distance <= customerSearchRadius;
 
-        console.log("location: ", location);
-        console.log("distance: ", distance);
-        console.log("customerSearchRadius: ", customerSearchRadius);
-        console.log("withinCustomerRadius: ", withinCustomerRadius);
+        // console.log("location: ", location);
+        // console.log("distance: ", distance);
+        // console.log("customerSearchRadius: ", customerSearchRadius);
+        // console.log("withinCustomerRadius: ", withinCustomerRadius);
 
         /*
          * Studio:
@@ -1350,29 +1350,29 @@ if (!cancelled) {
        * appear in either Mobile or Studio.
        */
       if (eligibleLocations.length === 0) {
-        console.log(
-          `❌ Provider ${provider.id} filtered - no eligible location`,
-          {
-            providerId: provider.id,
-            searchWithin: customerSearchRadius,
-            locations: configuredLocations.map(
-              (record) => ({
-                locationId: record.location?.id,
-                address2: record.location?.address2,
-                type: record.config.mode,
-                distance: Number(
-                  record.distance.toFixed(2)
-                ),
-                providerLimit:
-                  record.config.distanceLimit,
-                withinCustomerRadius:
-                  record.withinCustomerRadius,
-                withinProviderTravelLimit:
-                  record.withinProviderTravelLimit,
-              })
-            ),
-          }
-        );
+        // console.log(
+        //   `❌ Provider ${provider.id} filtered - no eligible location`,
+        //   {
+        //     providerId: provider.id,
+        //     searchWithin: customerSearchRadius,
+        //     locations: configuredLocations.map(
+        //       (record) => ({
+        //         locationId: record.location?.id,
+        //         address2: record.location?.address2,
+        //         type: record.config.mode,
+        //         distance: Number(
+        //           record.distance.toFixed(2)
+        //         ),
+        //         providerLimit:
+        //           record.config.distanceLimit,
+        //         withinCustomerRadius:
+        //           record.withinCustomerRadius,
+        //         withinProviderTravelLimit:
+        //           record.withinProviderTravelLimit,
+        //       })
+        //     ),
+        //   }
+        // );
 
         return;
       }
@@ -1505,25 +1505,25 @@ if (!cancelled) {
           a.distance - b.distance
       );
 
-    console.log(
-      "✅ Providers after location-based distance filtering:",
-      providersWithDistance.map((provider) => ({
-        id: provider.id,
-        name: provider.name,
-        type: provider.providerMode,
-        distance: Number(
-          provider.distance.toFixed(2)
-        ),
-        providerLimit:
-          provider.distanceLimit,
-        locationId:
-          provider.nearestLocation?.id,
-        location:
-          provider.nearestLocation?.title,
-        address2:
-          provider.nearestLocation?.address2,
-      }))
-    );
+    // console.log(
+    //   "✅ Providers after location-based distance filtering:",
+    //   providersWithDistance.map((provider) => ({
+    //     id: provider.id,
+    //     name: provider.name,
+    //     type: provider.providerMode,
+    //     distance: Number(
+    //       provider.distance.toFixed(2)
+    //     ),
+    //     providerLimit:
+    //       provider.distanceLimit,
+    //     locationId:
+    //       provider.nearestLocation?.id,
+    //     location:
+    //       provider.nearestLocation?.title,
+    //     address2:
+    //       provider.nearestLocation?.address2,
+    //   }))
+    // );
 
     setProvidersWithDistanceState(
       providersWithDistance

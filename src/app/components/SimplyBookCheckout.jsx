@@ -334,6 +334,10 @@ clientaddress: {
     appointmentLocation?.state ??
     client?.state ??
     "",
+  zip:
+    appointmentLocation?.zip ??
+    client?.zip ??
+    "",
 },
 
             };
