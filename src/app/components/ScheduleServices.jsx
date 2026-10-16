@@ -5349,7 +5349,8 @@ const previousProviders = visiblePreviousBookings
                                 {/* Provider details */}
                                 <div className="flex items-start gap-3">
                                     
-<div className="h-14 w-14 shrink-0 overflow-hidden rounded-full bg-indigo-50">
+
+<div className="h-12 w-12 shrink-0 overflow-hidden rounded-2xl border border-gray-200 bg-indigo-50 shadow-sm">
     <img
         src={
             previousProvider?.picture_path
@@ -5361,11 +5362,11 @@ const previousProviders = visiblePreviousBookings
         alt={providerName}
         className="h-full w-full object-cover"
         onError={(e) => {
-            e.currentTarget.onerror = null;
             e.currentTarget.src = "/images/placeholder.jpg";
         }}
     />
 </div>
+
 
 
                                     <div className="min-w-0 flex-1">
