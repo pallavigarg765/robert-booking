@@ -182,25 +182,48 @@ console.log("previousProviderBookings: ", previousProviderBookings);
     };
 
     const handleProviderUnhide = (providerId) => {
-        const providerToRestore = allProviders.find(
-            (provider) =>
-                String(provider.id) === String(providerId)
-        );
+    const providerIdString = String(providerId);
 
-        if (!providerToRestore) return;
+    const providerToRestore = allProviders.find(
+        (provider) =>
+            String(provider.id) === providerIdString
+    );
 
+    if (providerToRestore) {
         setFilteredProviders((prev) => {
-
             const alreadyExists = prev.some(
                 (provider) =>
-                    String(provider.id) === String(providerId)
+                    String(provider.id) === providerIdString
             );
 
-            if (alreadyExists) return prev;
-
-            return [...prev, providerToRestore];
+            return alreadyExists
+                ? prev
+                : [...prev, providerToRestore];
         });
-    };
+    }
+
+    // Unhiding makes the provider eligible for the recent list again.
+    // Remove its ID from the dismissed list and persist the change.
+    setDismissedPreviousProviderIds((previous) => {
+        const updated = previous.filter(
+            (id) => String(id) !== providerIdString
+        );
+
+        try {
+            localStorage.setItem(
+                dismissedPreviousStorageKey,
+                JSON.stringify(updated)
+            );
+        } catch (error) {
+            console.error(
+                "Failed to update dismissed providers:",
+                error
+            );
+        }
+
+        return updated;
+    });
+};
 
     useEffect(() => {
         const savedEmail = localStorage.getItem("rememberedEmail");
@@ -589,21 +612,23 @@ const getBookingCategoryNames = (booking) => {
     const bookedEventIds = new Set();
 
     savedServices.forEach((service) => {
-        const serviceId =
-            typeof service === "object"
-                ? service?.eventId ??
-                  service?.serviceId ??
-                  service?.service_id ??
-                  service?.id
-                : service;
+        
+const serviceId =
+    typeof service === "object" && service !== null
+        ? service.eventId ??
+          service.serviceId ??
+          service.service_id ??
+          service.id
+        : service;
 
-        const serviceName =
-            typeof service === "object"
-                ? service?.name ??
-                  service?.serviceName ??
-                  service?.title ??
-                  ""
-                : "";
+const serviceName =
+    typeof service === "object" && service !== null
+        ? service.name ??
+          service.serviceName ??
+          service.title ??
+          ""
+        : String(service ?? "").trim();
+
 
         const matchedEvent = events.find((event) => {
             const idMatches =
@@ -792,13 +817,28 @@ if (!cancelled) {
     setActiveStep(2);
 };
 
-    const handleRemovePreviousProvider = (providerId) => {
-    setDismissedPreviousProviderIds((previous) =>
-        previous.includes(String(providerId))
+    
+const handleRemovePreviousProvider = (providerId) => {
+    const id = String(providerId);
+
+    setDismissedPreviousProviderIds((previous) => {
+        const updated = previous.includes(id)
             ? previous
-            : [...previous, String(providerId)]
-    );
+            : [...previous, id];
+
+        try {
+            localStorage.setItem(
+                dismissedPreviousStorageKey,
+                JSON.stringify(updated)
+            );
+        } catch (error) {
+            console.error("Failed to save dismissed providers:", error);
+        }
+
+        return updated;
+    });
 };
+
 
 const normalizeServiceName = (name = "") =>
     String(name)
@@ -3762,11 +3802,49 @@ useEffect(() => {
 // console.log("Available events:", events);
 
 const visiblePreviousBookings = previousProviderBookings.filter(
-    (item) =>
-        !dismissedPreviousProviderIds.includes(
-            String(item.providerId)
-        )
+    (item) => {
+        const providerId = String(item.providerId);
+
+        const isDismissed =
+            dismissedPreviousProviderIds.includes(providerId);
+
+        // Also hide providers that were already hidden before
+        // the recent-provider removal callback was introduced.
+        const isCurrentlyHidden =
+            isProviderHiddenAtCurrentAddress(providerId);
+
+        return !isDismissed && !isCurrentlyHidden;
+    }
 );
+
+
+const dismissedPreviousStorageKey =
+    `dismissedPreviousProviders_${userEmail}_${address?.zip
+        ? String(address.zip)
+        : address?.state
+            ? String(address.state)
+            : "default"}`;
+
+useEffect(() => {
+    if (!userEmail) {
+        setDismissedPreviousProviderIds([]);
+        return;
+    }
+
+    try {
+        const saved = JSON.parse(
+            localStorage.getItem(dismissedPreviousStorageKey) || "[]"
+        );
+
+        setDismissedPreviousProviderIds(
+            Array.isArray(saved) ? saved.map(String) : []
+        );
+    } catch (error) {
+        console.error("Failed to load dismissed providers:", error);
+        setDismissedPreviousProviderIds([]);
+    }
+}, [userEmail, dismissedPreviousStorageKey]);
+
 
 const previousProviders = visiblePreviousBookings
     .map((item) =>
@@ -5827,40 +5905,61 @@ onSuccess={(result) => {
     setSimplyBookResult(result);
 
     const providerId = String(selectedProvider);
-    const bookedServices = getSelectedServiceNames();
-
-    setBookingDetails({
-        provider: selectedProvider,
-        date: selectedDate,
-        time: selectedTime,
-        services: bookedServices,
-    });
-
-    // Add the newly booked provider to Recent Providers.
-    // If already present, move them to the top and update their services.
-    setPreviousProviderBookings((previous) => [
-        {
-    providerId,
-    lastBookedAt: new Date().toISOString(),
+    
+const bookedServices = getSelectedServiceNames();
+const bookedCategories = getBookingCategoryNames({
     services: bookedServices,
-    booking: {
-        clientaddress: {
-            fullAddress: formData.fullAddress || "",
-            city: formData.city || "",
-            state: formData.state || "",
-            zip: formData.zip || "",
+});
+
+setBookingDetails({
+    provider: selectedProvider,
+    date: selectedDate,
+    time: selectedTime,
+    services: bookedServices,
+});
+
+// Add/update the provider immediately in Recently Booked Providers.
+setPreviousProviderBookings((previous) => [
+    {
+        providerId,
+        lastBookedAt: new Date().toISOString(),
+        services: bookedServices,
+        categories: bookedCategories,
+        booking: {
+            services: bookedServices,
+            clientaddress: {
+                fullAddress: formData.fullAddress || "",
+                city: formData.city || "",
+                state: formData.state || "",
+                zip: formData.zip || "",
+            },
         },
     },
-},
-        ...previous.filter(
-            (item) => String(item.providerId) !== providerId
-        ),
-    ]);
+    ...previous.filter(
+        (item) => String(item.providerId) !== providerId
+    ),
+]);
+
 
     // Make sure the newly booked provider isn't hidden.
-    setDismissedPreviousProviderIds((previous) =>
-        previous.filter((id) => String(id) !== providerId)
+    
+setDismissedPreviousProviderIds((previous) => {
+    const updated = previous.filter(
+        (id) => String(id) !== String(providerId)
     );
+
+    try {
+        localStorage.setItem(
+            dismissedPreviousStorageKey,
+            JSON.stringify(updated)
+        );
+    } catch (error) {
+        console.error("Failed to update dismissed providers:", error);
+    }
+
+    return updated;
+});
+
 
     // Allow the section to display immediately.
     setPreviousBookingsLoaded(true);

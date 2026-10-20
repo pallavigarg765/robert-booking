@@ -45,6 +45,7 @@ export default function ProvidersSection({
 
   providerType,
   setProviderType,
+  onRemovePreviousProvider
   
 }) {
   const [blacklistingProvider, setBlacklistingProvider] = useState(null);
@@ -291,6 +292,10 @@ const displayedProviders = showHiddenProviders
         hiddenStorageKey,
         JSON.stringify(updatedHidden)
       );
+
+
+onRemovePreviousProvider?.(providerId);
+
 
       // Clear selected provider
       onProviderSelect?.(null);
