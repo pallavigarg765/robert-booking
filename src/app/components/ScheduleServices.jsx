@@ -181,7 +181,8 @@ console.log("previousProviderBookings: ", previousProviderBookings);
         }
     };
 
-    const handleProviderUnhide = (providerId) => {
+    
+const handleProviderUnhide = (providerId) => {
     const providerIdString = String(providerId);
 
     const providerToRestore = allProviders.find(
@@ -202,28 +203,12 @@ console.log("previousProviderBookings: ", previousProviderBookings);
         });
     }
 
-    // Unhiding makes the provider eligible for the recent list again.
-    // Remove its ID from the dismissed list and persist the change.
-    setDismissedPreviousProviderIds((previous) => {
-        const updated = previous.filter(
-            (id) => String(id) !== providerIdString
-        );
-
-        try {
-            localStorage.setItem(
-                dismissedPreviousStorageKey,
-                JSON.stringify(updated)
-            );
-        } catch (error) {
-            console.error(
-                "Failed to update dismissed providers:",
-                error
-            );
-        }
-
-        return updated;
-    });
+    // Important:
+    // Do NOT remove this provider from dismissedPreviousProviderIds.
+    // Unhiding should restore the provider to the main list only.
+    // The provider can return to the short list after a new booking.
 };
+
 
     useEffect(() => {
         const savedEmail = localStorage.getItem("rememberedEmail");
