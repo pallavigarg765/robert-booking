@@ -5891,10 +5891,32 @@ onSuccess={(result) => {
 
     const providerId = String(selectedProvider);
     
-const bookedServices = getSelectedServiceNames();
+
+// Use the exact event objects passed to SimplyBook.
+const bookedServiceDetails = getSimplyBookServices();
+
+const bookedServices = bookedServiceDetails
+    .map((service) => service.name)
+    .filter(Boolean);
+
 const bookedCategories = getBookingCategoryNames({
-    services: bookedServices,
+    services: bookedServiceDetails,
 });
+
+console.log("[Booking category debug]", {
+    selectedServices,
+    bookedServiceDetails,
+    events: events.map((event) => ({
+        id: event.id,
+        name: event.name,
+    })),
+    categories: categories.map((category) => ({
+        name: category.name,
+        events: category.events,
+    })),
+    bookedCategories,
+});
+
 
 setBookingDetails({
     provider: selectedProvider,
