@@ -345,29 +345,51 @@ export function useBooking({ providers, events, locations, clients, categories, 
   // Make services state dynamic based on events
   const [services, setServices] = useState({});
 
-  const providerMatchesSearchCategory = (provider) => {
+  
+const providerMatchesSearchCategory = (provider) => {
+    const selectedCategoryIds = Array.isArray(searchCategory)
+        ? searchCategory.map(String).filter((id) => id !== "ALL")
+        : searchCategory && searchCategory !== "ALL"
+            ? [String(searchCategory)]
+            : [];
 
-    if (
-      !searchCategory ||
-      searchCategory === "ALL"
-    ) {
-      return true;
+    // All Categories selected: do not filter.
+    if (selectedCategoryIds.length === 0) {
+        return true;
     }
 
-    const category = categories.find(
-      c => String(c.id) === String(searchCategory)
+    const providerServiceIds = new Set(
+        (provider?.services || []).map((service) =>
+            String(
+                typeof service === "object"
+                    ? service.id
+                    : service
+            )
+        )
     );
 
-    if (!category)
-      return true;
+    // Provider must match EVERY selected category.
+    return selectedCategoryIds.every((categoryId) => {
+        const category = (Array.isArray(categories) ? categories : []).find(
+            (item) => String(item.id) === categoryId
+        );
 
-    return provider.services?.some(serviceId =>
-      category.events
-        .map(Number)
-        .includes(Number(serviceId))
-    );
+        if (!category || !Array.isArray(category.events)) {
+            return false;
+        }
 
-  };
+        return category.events.some((event) =>
+            providerServiceIds.has(
+                String(
+                    typeof event === "object"
+                        ? event.id
+                        : event
+                )
+            )
+        );
+    });
+};
+
 
   const generateWorkingSlots = (dayInfo) => {
     if (!dayInfo?.from || !dayInfo?.to) {
@@ -697,20 +719,27 @@ export function useBooking({ providers, events, locations, clients, categories, 
     }
   };
 
-  const providerHasServices = (provider) => {
-    if (
-      !Array.isArray(provider?.services) ||
-      provider.services.length === 0
-    ) {
-      return false;
+  
+const providerHasServices = (provider) => {
+    if (!Array.isArray(provider?.services) || provider.services.length === 0) {
+        return false;
     }
 
-    return provider.services.some((serviceId) =>
-      eventArray.some(
-        (event) => String(event.id) === String(serviceId)
-      )
+    const providerServiceIds = new Set(
+        provider.services.map((service) =>
+            String(
+                typeof service === "object"
+                    ? service.id
+                    : service
+            )
+        )
     );
-  };
+
+    return eventArray.some((event) =>
+        providerServiceIds.has(String(event.id))
+    );
+};
+
 
   const handleNotFoundSubmit = async () => {
     if (address.email === "" || address.phone === "") {

@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 export default function AvailabilitySection({
     scrollContainerRef,
+    selectedProviderId,
     workCalandar,
     selectedDate,
     selectedTime,
@@ -21,10 +22,18 @@ export default function AvailabilitySection({
     const [currentWeekIndex, setCurrentWeekIndex] = useState(0);
     const [currentMonth, setCurrentMonth] = useState(new Date());
     const [expandedDateKey, setExpandedDateKey] = useState(null);
-    const [timePreference, setTimePreference] = useState("");
+    const [timePreference, setTimePreference] = useState(() => {
+        const hour = new Date().getHours();
+
+        if (hour < 12) return "morning";
+        if (hour < 17) return "afternoon";
+
+        return "evening";
+    });
     const [dayTimeRanges, setDayTimeRanges] = useState({});
     const dayRefs = useRef({});
     const initializedTodayRef = useRef(false);
+    const previousProviderIdRef = useRef(selectedProviderId);
     const SLOT_INTERVAL = 30;
     const [viewMode, setViewMode] = useState("weekNav");
 
@@ -51,104 +60,104 @@ export default function AvailabilitySection({
     }, [today]);
 
     const normalizeSlot = (slot) => {
-  if (!slot) return "";
+        if (!slot) return "";
 
-  return String(slot).substring(0, 5);
-};
+        return String(slot).substring(0, 5);
+    };
 
-const timeToMinutes = (time) => {
-  if (!time) return null;
+    const timeToMinutes = (time) => {
+        if (!time) return null;
 
-  const [hours, minutes] = String(time)
-    .substring(0, 5)
-    .split(":")
-    .map(Number);
+        const [hours, minutes] = String(time)
+            .substring(0, 5)
+            .split(":")
+            .map(Number);
 
-  if (
-    !Number.isFinite(hours) ||
-    !Number.isFinite(minutes)
-  ) {
-    return null;
-  }
+        if (
+            !Number.isFinite(hours) ||
+            !Number.isFinite(minutes)
+        ) {
+            return null;
+        }
 
-  return hours * 60 + minutes;
-};
+        return hours * 60 + minutes;
+    };
 
-const isSlotInsideAvailableInterval = (slot) => {
-  const slotStart = timeToMinutes(slot);
+    const isSlotInsideAvailableInterval = (slot) => {
+        const slotStart = timeToMinutes(slot);
 
-  if (slotStart === null) {
-    return false;
-  }
+        if (slotStart === null) {
+            return false;
+        }
 
-  /*
-   * totalDuration is in minutes.
-   *
-   * Example:
-   * 1 service  = 60
-   * 2 services = 120
-   */
-  const duration = Number(totalDuration);
+        /*
+         * totalDuration is in minutes.
+         *
+         * Example:
+         * 1 service  = 60
+         * 2 services = 120
+         */
+        const duration = Number(totalDuration);
 
-  if (!Number.isFinite(duration) || duration <= 0) {
-    return false;
-  }
+        if (!Number.isFinite(duration) || duration <= 0) {
+            return false;
+        }
 
-  const slotEnd = slotStart + duration;
+        const slotEnd = slotStart + duration;
 
-  if (!Array.isArray(availableSlots)) {
-    return false;
-  }
+        if (!Array.isArray(availableSlots)) {
+            return false;
+        }
 
-  return availableSlots.some((interval) => {
-    const intervalStart = timeToMinutes(
-      interval?.from
-    );
+        return availableSlots.some((interval) => {
+            const intervalStart = timeToMinutes(
+                interval?.from
+            );
 
-    const intervalEnd = timeToMinutes(
-      interval?.to
-    );
+            const intervalEnd = timeToMinutes(
+                interval?.to
+            );
 
-    if (
-      intervalStart === null ||
-      intervalEnd === null
-    ) {
-      return false;
-    }
+            if (
+                intervalStart === null ||
+                intervalEnd === null
+            ) {
+                return false;
+            }
 
-    /*
-     * The entire appointment must fit inside
-     * the same continuously available interval.
-     *
-     * Example:
-     *
-     * Available: 09:00 - 13:00
-     * Duration: 60
-     *
-     * 09:00 -> 10:00  YES
-     * 09:30 -> 10:30  YES
-     * 10:00 -> 11:00  YES
-     * 12:00 -> 13:00  YES
-     * 12:30 -> 13:30  NO
-     */
-    return (
-      slotStart >= intervalStart &&
-      slotEnd <= intervalEnd
-    );
-  });
-};
+            /*
+             * The entire appointment must fit inside
+             * the same continuously available interval.
+             *
+             * Example:
+             *
+             * Available: 09:00 - 13:00
+             * Duration: 60
+             *
+             * 09:00 -> 10:00  YES
+             * 09:30 -> 10:30  YES
+             * 10:00 -> 11:00  YES
+             * 12:00 -> 13:00  YES
+             * 12:30 -> 13:30  NO
+             */
+            return (
+                slotStart >= intervalStart &&
+                slotEnd <= intervalEnd
+            );
+        });
+    };
 
-const canFitAppointment = (slot) => {
-  if (!slot) {
-    return false;
-  }
+    const canFitAppointment = (slot) => {
+        if (!slot) {
+            return false;
+        }
 
-  return isSlotInsideAvailableInterval(slot);
-};
+        return isSlotInsideAvailableInterval(slot);
+    };
 
-const isSlotBookable = (slot) => {
-  return canFitAppointment(slot);
-};
+    const isSlotBookable = (slot) => {
+        return canFitAppointment(slot);
+    };
 
     const getDefaultTimePreference = () => {
         const hour = new Date().getHours();
@@ -157,6 +166,23 @@ const isSlotBookable = (slot) => {
         if (hour < 17) return "afternoon";
         return "evening";
     };
+
+    useEffect(() => {
+        if (
+            String(previousProviderIdRef.current ?? "") ===
+            String(selectedProviderId ?? "")
+        ) {
+            return;
+        }
+
+        previousProviderIdRef.current = selectedProviderId;
+
+        // Reset the timeframe only when the provider changes.
+        setTimePreference(getDefaultTimePreference());
+
+        // Clear the previously selected exact time.
+        onTimeSelect(null);
+    }, [selectedProviderId]);
 
     const getLocalDateKey = (date) => {
         const y = date.getFullYear();
@@ -544,16 +570,10 @@ const isSlotBookable = (slot) => {
         // Clear previously selected exact time
         onTimeSelect(null);
 
-        // Reset preference so it is recalculated
-        // after the new day's slots load.
-        setTimePreference("");
-
         // Expand the selected day
-        if (day.isAvailable) {
-            setExpandedDateKey(key);
-        } else {
-            setExpandedDateKey(null);
-        }
+        // Expand the selected day, including off days,
+        // so the appropriate status message can be displayed.
+        setExpandedDateKey(key);
 
         // Keep calendar on selected date's month
         setCurrentMonth(
@@ -601,7 +621,6 @@ const isSlotBookable = (slot) => {
     useEffect(() => {
         initializedTodayRef.current = false;
 
-        setTimePreference("");
         setExpandedDateKey(null);
         onTimeSelect(null);
     }, [workCalandar]);
@@ -632,11 +651,7 @@ const isSlotBookable = (slot) => {
         onDateSelect(todayDate);
 
         // Behave exactly like clicking today's date.
-        if (!isDayOff) {
-            setExpandedDateKey(todayKey);
-        } else {
-            setExpandedDateKey(null);
-        }
+        setExpandedDateKey(todayKey);
 
         setCurrentMonth(
             new Date(
@@ -647,10 +662,6 @@ const isSlotBookable = (slot) => {
         );
 
         setViewMode("day");
-
-        // Reset old time/preference state.
-        setTimePreference("");
-        onTimeSelect(null);
     }, [workCalandar, today]);
 
     // useEffect(() => {
@@ -747,35 +758,26 @@ const isSlotBookable = (slot) => {
     })();
 
     useEffect(() => {
-        if (!selectedDate || !workCalandar) {
-            setExpandedDateKey(null);
-            return;
-        }
+    if (!selectedDate || !workCalandar) {
+        setExpandedDateKey(null);
+        return;
+    }
 
-        const selectedDay = new Date(selectedDate);
-        selectedDay.setHours(0, 0, 0, 0);
+    const selectedDay = new Date(selectedDate);
+    selectedDay.setHours(0, 0, 0, 0);
 
-        const selectedKey = getLocalDateKey(selectedDay);
-        const dayInfo = workCalandar[selectedKey];
+    const selectedKey = getLocalDateKey(selectedDay);
 
-        const isDayOff =
-            !dayInfo ||
-            dayInfo.is_day_off === 1 ||
-            dayInfo.is_day_off === "1" ||
-            dayInfo.is_day_off === true;
+    const isPast = selectedDay < today;
 
-        const isPast = selectedDay < today;
+    if (isPast) {
+        setExpandedDateKey(null);
+        return;
+    }
 
-        if (isPast) {
-            setExpandedDateKey(null);
-            return;
-        }
-
-        // Always expand the currently selected available day.
-        setExpandedDateKey(
-            isDayOff ? null : selectedKey
-        );
-    }, [selectedDate, workCalandar, today]);
+    // Expand off days too, so their status message is visible.
+    setExpandedDateKey(selectedKey);
+}, [selectedDate, workCalandar, today]);
 
     const goToPreviousDay = () => {
         if (!selectedDate) return;
@@ -881,7 +883,14 @@ const isSlotBookable = (slot) => {
             : [...slots];
 
     const filteredSlots = workingSlots.filter((slot) => {
-        if (!timePreference) return true;
+        // Do not display booked or unavailable slots.
+        if (!isSlotBookable(slot)) {
+            return false;
+        }
+
+        if (!timePreference) {
+            return true;
+        }
 
         const hour = Number(slot.split(":")[0]);
 
@@ -929,6 +938,39 @@ const isSlotBookable = (slot) => {
     const hasAnyAvailableSlot =
         slotsLoaded &&
         (morningAvailable || afternoonAvailable || eveningAvailable);
+
+    const selectedDayInfo = selectedDate
+        ? workCalandar?.[getLocalDateKey(selectedDate)]
+        : null;
+
+    const selectedDayIsOff =
+        !selectedDayInfo ||
+        selectedDayInfo.is_day_off === 1 ||
+        selectedDayInfo.is_day_off === "1" ||
+        selectedDayInfo.is_day_off === true;
+
+    const selectedDayIsToday =
+        selectedDate && isSameDay(selectedDate, today);
+
+    const businessEndMinutes = timeToMinutes(selectedDayInfo?.to);
+
+    const currentTime = new Date();
+
+    const currentTimeMinutes =
+        currentTime.getHours() * 60 + currentTime.getMinutes();
+
+    const businessDayHasEnded =
+        selectedDayIsToday &&
+        businessEndMinutes !== null &&
+        currentTimeMinutes >= businessEndMinutes;
+
+    const availabilityStatus = selectedDayIsOff
+        ? "Service Provider is off today"
+        : businessDayHasEnded
+            ? "Business day of Provider has ended"
+            : slotsLoaded && !hasAnyAvailableSlot
+                ? "Provider Booked for the Day"
+                : null;
 
     const hasPreviousAvailableDay = (() => {
         if (!selectedDate) return false;
@@ -989,93 +1031,93 @@ const isSlotBookable = (slot) => {
         timePreference,
     ]);
 
-    useEffect(() => {
-        // Wait until SimplyBook has finished loading slots.
-        if (loadingTimeSlots) return;
+    // useEffect(() => {
+    //     // Wait until SimplyBook has finished loading slots.
+    //     if (loadingTimeSlots) return;
 
-        if (!selectedDate) return;
+    //     if (!selectedDate) return;
 
-        // There are no valid appointment slots.
-        if (!hasAnyAvailableSlot) {
-            setTimePreference("");
-            onTimeSelect(null);
-            return;
-        }
+    //     // There are no valid appointment slots.
+    //     if (!hasAnyAvailableSlot) {
+    //         setTimePreference("");
+    //         onTimeSelect(null);
+    //         return;
+    //     }
 
-        // Keep the current preference if it is still valid
-        // for the newly selected date.
-        if (
-            timePreference === "morning" &&
-            morningAvailable
-        ) {
-            return;
-        }
+    //     // Keep the current preference if it is still valid
+    //     // for the newly selected date.
+    //     if (
+    //         timePreference === "morning" &&
+    //         morningAvailable
+    //     ) {
+    //         return;
+    //     }
 
-        if (
-            timePreference === "afternoon" &&
-            afternoonAvailable
-        ) {
-            return;
-        }
+    //     if (
+    //         timePreference === "afternoon" &&
+    //         afternoonAvailable
+    //     ) {
+    //         return;
+    //     }
 
-        if (
-            timePreference === "evening" &&
-            eveningAvailable
-        ) {
-            return;
-        }
+    //     if (
+    //         timePreference === "evening" &&
+    //         eveningAvailable
+    //     ) {
+    //         return;
+    //     }
 
-        const currentPreference = getDefaultTimePreference();
+    //     const currentPreference = getDefaultTimePreference();
 
-        let preferred = "";
+    //     let preferred = "";
 
-        if (currentPreference === "morning") {
-            if (morningAvailable) {
-                preferred = "morning";
-            } else if (afternoonAvailable) {
-                preferred = "afternoon";
-            } else if (eveningAvailable) {
-                preferred = "evening";
-            }
-        }
+    //     if (currentPreference === "morning") {
+    //         if (morningAvailable) {
+    //             preferred = "morning";
+    //         } else if (afternoonAvailable) {
+    //             preferred = "afternoon";
+    //         } else if (eveningAvailable) {
+    //             preferred = "evening";
+    //         }
+    //     }
 
-        if (currentPreference === "afternoon") {
-            if (afternoonAvailable) {
-                preferred = "afternoon";
-            } else if (eveningAvailable) {
-                preferred = "evening";
-            } else if (morningAvailable) {
-                preferred = "morning";
-            }
-        }
+    //     if (currentPreference === "afternoon") {
+    //         if (afternoonAvailable) {
+    //             preferred = "afternoon";
+    //         } else if (eveningAvailable) {
+    //             preferred = "evening";
+    //         } else if (morningAvailable) {
+    //             preferred = "morning";
+    //         }
+    //     }
 
-        if (currentPreference === "evening") {
-            if (eveningAvailable) {
-                preferred = "evening";
-            } else if (morningAvailable) {
-                preferred = "morning";
-            } else if (afternoonAvailable) {
-                preferred = "afternoon";
-            }
-        }
+    //     if (currentPreference === "evening") {
+    //         if (eveningAvailable) {
+    //             preferred = "evening";
+    //         } else if (morningAvailable) {
+    //             preferred = "morning";
+    //         } else if (afternoonAvailable) {
+    //             preferred = "afternoon";
+    //         }
+    //     }
 
-        if (!preferred) {
-            setTimePreference("");
-            onTimeSelect(null);
-            return;
-        }
+    //     if (!preferred) {
+    //         setTimePreference("");
+    //         onTimeSelect(null);
+    //         return;
+    //     }
 
-        setTimePreference(preferred);
-        onTimeSelect(null);
-    }, [
-        loadingTimeSlots,
-        selectedDate,
-        hasAnyAvailableSlot,
-        morningAvailable,
-        afternoonAvailable,
-        eveningAvailable,
-        timePreference,
-    ]);
+    //     setTimePreference(preferred);
+    //     onTimeSelect(null);
+    // }, [
+    //     loadingTimeSlots,
+    //     selectedDate,
+    //     hasAnyAvailableSlot,
+    //     morningAvailable,
+    //     afternoonAvailable,
+    //     eveningAvailable,
+    //     timePreference,
+    // ]);
 
     /* =========================
        RENDER
@@ -1289,17 +1331,13 @@ const isSlotBookable = (slot) => {
 
                         <button
                             type="button"
-                            disabled={!hasAnyAvailableSlot || !morningAvailable}
                             onClick={() => setTimePreference("morning")}
-                            className={`
-        py-2 rounded-lg border transition
-        ${!morningAvailable
-                                    ? "opacity-50 cursor-not-allowed bg-gray-100"
-                                    : ""
-                                }
-        ${timePreference === "morning" && hasAnyAvailableSlot
-                                    ? "bg-orange-500 text-white border-orange-500"
-                                    : "bg-white border-gray-300 hover:bg-gray-50"
+                            className={`py-2 rounded-lg border-2 transition
+        ${timePreference === "morning"
+                                    ? "border-purple-600 bg-purple-50 text-purple-700"
+                                    : morningAvailable
+                                        ? "border-orange-400 bg-orange-50 text-orange-700 hover:bg-orange-100"
+                                        : "border-orange-200 bg-orange-50/40 text-orange-300"
                                 }
     `}
                         >
@@ -1311,17 +1349,13 @@ const isSlotBookable = (slot) => {
 
                         <button
                             type="button"
-                            disabled={!hasAnyAvailableSlot || !afternoonAvailable}
                             onClick={() => setTimePreference("afternoon")}
-                            className={`
-        py-2 rounded-lg border transition
-        ${!afternoonAvailable
-                                    ? "opacity-50 cursor-not-allowed bg-gray-100"
-                                    : ""
-                                }
-        ${timePreference === "afternoon" && hasAnyAvailableSlot
-                                    ? "bg-orange-500 text-white border-orange-500"
-                                    : "bg-white border-gray-300 hover:bg-gray-50"
+                            className={`py-2 rounded-lg border-2 transition
+        ${timePreference === "afternoon"
+                                    ? "border-purple-600 bg-purple-50 text-purple-700"
+                                    : afternoonAvailable
+                                        ? "border-orange-400 bg-orange-50 text-orange-700 hover:bg-orange-100"
+                                        : "border-orange-200 bg-orange-50/40 text-orange-300"
                                 }
     `}
                         >
@@ -1333,17 +1367,13 @@ const isSlotBookable = (slot) => {
 
                         <button
                             type="button"
-                            disabled={!hasAnyAvailableSlot || !eveningAvailable}
                             onClick={() => setTimePreference("evening")}
-                            className={`
-        py-2 rounded-lg border transition
-        ${!eveningAvailable
-                                    ? "opacity-50 cursor-not-allowed bg-gray-100"
-                                    : ""
-                                }
-        ${timePreference === "evening" && hasAnyAvailableSlot
-                                    ? "bg-orange-500 text-white border-orange-500"
-                                    : "bg-white border-gray-300 hover:bg-gray-50"
+                            className={`py-2 rounded-lg border-2 transition
+        ${timePreference === "evening"
+                                    ? "border-purple-600 bg-purple-50 text-purple-700"
+                                    : eveningAvailable
+                                        ? "border-orange-400 bg-orange-50 text-orange-700 hover:bg-orange-100"
+                                        : "border-orange-200 bg-orange-50/40 text-orange-300"
                                 }
     `}
                         >
@@ -1429,51 +1459,37 @@ const isSlotBookable = (slot) => {
                                     ) : (
                                         <>
 
-                                            {!hasAnyAvailableSlot ? (
-                                                <div className="text-center text-sm text-gray-500 py-4">
-                                                    No appointments are available for this day.
-                                                </div>
-                                            ) : !timePreference ? (
-                                                <div className="text-center text-sm text-gray-500 py-4">
-                                                    Please select Morning, Afternoon, or Evening.
-                                                </div>
-                                            ) : filteredSlots.length > 0 ? (
-                                                <div className="grid grid-cols-2 gap-2">
-                                                    {filteredSlots.map((slot) => {
-  const isValid = isSlotBookable(slot);
-
-  return (
-    <button
-      key={slot}
-      type="button"
-      disabled={!isValid}
-      onClick={() => {
-        if (isValid) {
-          onTimeSelect(slot);
-        }
-      }}
-      className={`
-        p-2 text-xs rounded-lg transition-colors
-        ${
-          !isValid
-            ? "bg-gray-200 text-gray-400 border border-gray-200 cursor-not-allowed"
-            : selectedTime === slot
-              ? "bg-orange-500 text-white"
-              : "bg-white border hover:bg-orange-50 hover:border-orange-300"
-        }
-      `}
-    >
-      {formatTime(slot)}
-    </button>
-  );
-})}
-                                                </div>
-                                            ) : (
-                                                <div className="flex items-center gap-2 text-xs text-gray-500">
-                                                    <Clock className="w-4 h-4" />
-                                                    No {timePreference.toLowerCase()} appointments available.
-                                                </div>
-                                            )}
+                                            {availabilityStatus ? (
+    <div className="text-center text-sm font-medium text-gray-500 py-4">
+        {availabilityStatus}
+    </div>
+) : !timePreference ? (
+    <div className="text-center text-sm text-gray-500 py-4">
+        Please select Morning, Afternoon, or Evening.
+    </div>
+) : filteredSlots.length > 0 ? (
+    <div className="grid grid-cols-2 gap-2">
+        {filteredSlots.map((slot) => (
+            <button
+                key={slot}
+                type="button"
+                onClick={() => onTimeSelect(slot)}
+                className={`p-2 text-xs rounded-lg border transition-colors ${
+                    selectedTime === slot
+                        ? "bg-orange-500 text-white border-orange-500"
+                        : "bg-white border-gray-200 hover:bg-orange-50 hover:border-orange-300"
+                }`}
+            >
+                {formatTime(slot)}
+            </button>
+        ))}
+    </div>
+) : (
+    <div className="flex items-center gap-2 text-xs text-gray-500">
+        <Clock className="w-4 h-4" />
+        No {timePreference.toLowerCase()} appointments available.
+    </div>
+)}
                                         </>
                                     )}
                                 </div>

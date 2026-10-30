@@ -1,139 +1,136 @@
+
+"use client";
+
 import { useEffect, useState } from "react";
+
+function getCategoryIcon(name = "") {
+    const icons = {
+        nails: "💅",
+        hair: "💇",
+        massage: "💆",
+        spa: "✨",
+        skin: "🌟",
+        makeup: "💄",
+        eyelash: "👁️",
+        eyebrow: "✏️",
+        waxing: "🔥",
+    };
+
+    const lower = String(name).toLowerCase();
+    const key = Object.keys(icons).find((item) => lower.includes(item));
+
+    return key ? icons[key] : "🔧";
+}
 
 export default function ServiceCategorySection({
     selectedProvider,
-    providers,
-    events,
+    providers = [],
+    events = [],
     categories = [],
-    selectedCategory,
-    onCategorySelect,
-    loading = false,
-    onCategoriesReady
+    // loading = false,
+    onCategoriesReady,
 }) {
     const [serviceCategories, setServiceCategories] = useState([]);
 
     useEffect(() => {
-        // Always clear previous provider categories first.
+        // Clear categories belonging to the previously selected provider.
         setServiceCategories([]);
         onCategoriesReady?.([]);
 
-        console.log("selectedProvider is here: ", selectedProvider);
-
-        if (!selectedProvider || !providers || !events || !categories) {
-            return;
-        }
-
-        // selectedProvider can be either an ID or a provider object.
-        const provider =
-    typeof selectedProvider === "object"
-        ? selectedProvider
-        : providers.find(
-            p => String(p.id) === String(selectedProvider)
-        );
-
-if (
-    !provider ||
-    !Array.isArray(provider.services) ||
-    provider.services.length === 0
+        if (
+    !selectedProvider ||
+    !Array.isArray(providers) ||
+    !Array.isArray(events) ||
+    !Array.isArray(categories)
 ) {
+    onCategoriesReady?.([]);
     return;
 }
 
-console.log("🔍 ServiceCategorySection selectedProvider:", selectedProvider);
-console.log("🔍 ServiceCategorySection resolved provider:", provider);
-console.log("🔍 Provider services:", provider?.services);
-console.log("🔍 Events count:", events?.length);
-console.log(
-    "🔍 Matching services:",
-    provider?.services?.filter(serviceId =>
-        events.some(
-            event => String(event.id) === String(serviceId)
-        )
-    )
-);
-
-        const providerServices = provider.services
-            .map(serviceId => {
-                const service = events.find(
-                    event => String(event.id) === String(serviceId)
+        // selectedProvider can be either a provider object or an ID.
+        const provider =
+            typeof selectedProvider === "object"
+                ? selectedProvider
+                : providers.find(
+                    (item) =>
+                        String(item.id) === String(selectedProvider)
                 );
 
-                if (!service) return null;
+        if (!provider || !Array.isArray(provider.services)) {
+            return;
+        }
 
-                const serviceKey = service.name
+        // Normalize provider service IDs to strings.
+        const providerServiceIds = new Set(
+            provider.services.map((service) =>
+                String(
+                    typeof service === "object"
+                        ? service.id
+                        : service
+                )
+            )
+        );
+
+        // Resolve the provider's service IDs against the events list.
+        const providerServices = events
+            .filter((event) => providerServiceIds.has(String(event.id)))
+            .map((service) => ({
+                ...service,
+                key: String(service.name || "")
                     .toLowerCase()
                     .replace(/[^a-z0-9]+/g, "_")
-                    .replace(/(^_+|_+$)/g, "");
+                    .replace(/^_+|_+$/g, ""),
+                duration: Number(service.duration) || 60,
+                price: service.price ?? "0.00",
+            }));
 
-                return {
-                    ...service,
-                    key: serviceKey,
-                    duration: service.duration || 60,
-                    price: service.price || "0.00",
-                };
-            })
-            .filter(Boolean);
-
-        // Provider has service IDs, but none matched the events API.
         if (providerServices.length === 0) {
             return;
         }
 
-        const grouped = {};
+        const grouped = categories
+            .filter((category) => Array.isArray(category.events))
+            .map((category) => {
+                const categoryEventIds = new Set(
+                    category.events.map((id) =>
+                        String(
+                            typeof id === "object" ? id.id : id
+                        )
+                    )
+                );
 
-        categories.forEach(category => {
-            if (!Array.isArray(category.events)) return;
+                const categoryServices = providerServices.filter(
+                    (service) =>
+                        categoryEventIds.has(String(service.id))
+                );
 
-            const categoryServices = providerServices.filter(service =>
-                category.events
-                    .map(Number)
-                    .includes(Number(service.id))
-            );
+                if (categoryServices.length === 0) {
+                    return null;
+                }
 
-            if (categoryServices.length) {
-                grouped[category.id] = {
+                return {
                     ...category,
                     services: categoryServices,
                     icon: getCategoryIcon(category.name),
                 };
-            }
-        });
+            })
+            .filter(Boolean)
+            .sort((a, b) =>
+                String(a.name || "").localeCompare(
+                    String(b.name || "")
+                )
+            );
 
-        const result = Object.values(grouped).sort((a, b) =>
-            a.name.localeCompare(b.name)
-        );
-
-        setServiceCategories(result);
-        onCategoriesReady?.(result);
+        setServiceCategories(grouped);
+        onCategoriesReady?.(grouped);
     }, [
         selectedProvider,
         providers,
         events,
         categories,
-        onCategoriesReady
+        // loading,
+        onCategoriesReady,
     ]);
-
-    const getCategoryIcon = (name = "") => {
-        const map = {
-            nails: "💅",
-            hair: "💇",
-            massage: "💆",
-            spa: "✨",
-            skin: "🌟",
-            makeup: "💄",
-            eyelash: "👁️",
-            eyebrow: "✏️",
-            waxing: "🔥",
-        };
-
-        const lower = name.toLowerCase();
-
-        const key = Object.keys(map).find(k =>
-            lower.includes(k)
-        );
-
-        return key ? map[key] : "🔧";
-    };
 
     return null;
 }

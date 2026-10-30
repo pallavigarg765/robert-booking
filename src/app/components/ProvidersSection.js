@@ -459,13 +459,13 @@ onRemovePreviousProvider?.(providerId);
           {!showHiddenProviders && (
             <>
               <SearchCategorySection
-                providers={filteredProviders}
-                blacklistedProviders={blacklistedProviders}
-                categories={categories}
-                value={searchCategory}
-                onChange={setSearchCategory}
-                setSelectedProvider={setSelectedProvider}
-              />
+    providers={filteredProviders}
+    blacklistedProviders={blacklistedProviders}
+    categories={categories}
+    value={searchCategory}
+    onChange={setSearchCategory}
+    setSelectedProvider={setSelectedProvider}
+/>
 
               {/* PROVIDER TYPE TABS */}
               <div className="mb-4">

@@ -66,7 +66,7 @@ export default function ScheduleServices({ providers, events, locations, clients
     const [verifyLoading, setVerifyLoading] = useState(false);
     const [resendLoading, setResendLoading] = useState(false);
     const availabilityScrollRef = useRef(null);
-    const [searchCategory, setSearchCategory] = useState("ALL");
+    const [searchCategory, setSearchCategory] = useState(["ALL"]);
     const [providerCategories, setProviderCategories] = useState([]);
     const [providerType, setProviderType] = useState("mobile");
     const [hoveredProvider, setHoveredProvider] = useState(null);
@@ -3105,15 +3105,36 @@ useEffect(() => {
     };
 
 
-    const availableCategories = categories.filter((category) => {
-        if (!category.events || category.events.length === 0) return false;
+    
+const availableCategories = (Array.isArray(categories) ? categories : [])
+    .filter((category) => {
+        if (!Array.isArray(category.events) || category.events.length === 0) {
+            return false;
+        }
 
-        return providers.some((provider) =>
-            category.events.some((eventId) =>
-                provider.services?.includes(Number(eventId))
-            )
-        );
+        return providers.some((provider) => {
+            const providerServiceIds = new Set(
+                (provider.services || []).map((service) =>
+                    String(
+                        typeof service === "object"
+                            ? service.id
+                            : service
+                    )
+                )
+            );
+
+            return category.events.some((eventId) =>
+                providerServiceIds.has(
+                    String(
+                        typeof eventId === "object"
+                            ? eventId.id
+                            : eventId
+                    )
+                )
+            );
+        });
     });
+
     // useEffect(() => {
     //   if (!selectedCategory) return;
 
@@ -5731,7 +5752,6 @@ onRemovePreviousProvider={handleRemovePreviousProvider}
     }
     events={events}
     categories={categories}
-    loading={loadingServices}
     onCategoriesReady={setProviderCategories}
 />
 

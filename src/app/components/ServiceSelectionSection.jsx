@@ -33,12 +33,19 @@ export default function ServiceSelectionSection({
     onCheckboxChange(service);
   };
 
-  const toggleCategory = (catId) => {
-    setCollapsed(prev => ({
-      ...prev,
-      [catId]: !prev[catId]
-    }));
-  };
+  const toggleCategory = (catId, defaultOpen = false) => {
+    setCollapsed((prev) => {
+        const currentlyOpen =
+            prev[catId] !== undefined
+                ? !prev[catId]
+                : defaultOpen;
+
+        return {
+            ...prev,
+            [catId]: currentlyOpen,
+        };
+    });
+};
 
   const providerName = provider?.name || "";
   const cleanName = (name = "") =>
@@ -56,20 +63,25 @@ export default function ServiceSelectionSection({
             category.services.length > 0
     );
 
-  // const visibleServices = collapsed[category.id]
-  //   ? category.services.filter(s => services?.[s.key])
-  //   : category.services;
+    const selectedCategoryIds = Array.isArray(selectedCategory)
+    ? selectedCategory.map(String).filter((id) => id !== "ALL")
+    : selectedCategory && selectedCategory !== "ALL"
+        ? [String(selectedCategory)]
+        : [];
 
+const selectedCategorySet = new Set(selectedCategoryIds);
 
-  // if (!selectedCategory) {
-  //   return (
-  //     <div className="flex items-center justify-center h-full text-sm text-gray-500">
-  //       Select a service type first
-  //     </div>
-  //   );
-  // }
+const sortedCategories = [...categories].sort((a, b) => {
+    const aSelected = selectedCategorySet.has(String(a.id));
+    const bSelected = selectedCategorySet.has(String(b.id));
 
-  console.log("hoveredCategory: ", hoveredCategory);
+    if (aSelected && !bSelected) return -1;
+    if (!aSelected && bSelected) return 1;
+
+    return String(a.name || "").localeCompare(
+        String(b.name || "")
+    );
+});
 
   return (
     <>
@@ -154,23 +166,30 @@ export default function ServiceSelectionSection({
 
           <div>
 
-            {[...categories]
-              .sort((a, b) => {
-                if (a.id === selectedCategory) return -1;
-                if (b.id === selectedCategory) return 1;
-                return 0;
-              })
-              .map(category => {
+            {sortedCategories.map((category) => {
+    const selectedServices = (category.services || []).filter(
+        (service) => services?.[service.key]
+    );
 
-                const isCollapsed = collapsed[category.id];
-                const selectedServices = category.services.filter(s => services?.[s.key]);
+    const hasSelection = selectedServices.length > 0;
 
-                const hasSelection = selectedServices.length > 0;
+    const isSearchCategorySelected = selectedCategorySet.has(
+        String(category.id)
+    );
 
-                const visibleServices =
-                  hoveredCategory === category.id
-                    ? category.services
-                    : selectedServices;
+    const defaultOpen = isSearchCategorySelected || hasSelection;
+
+    const isCollapsed =
+        collapsed[category.id] !== undefined
+            ? collapsed[category.id]
+            : !defaultOpen;
+
+    const isCategoryOpen =
+        hoveredCategory === category.id || !isCollapsed;
+
+    const visibleServices = isCategoryOpen
+        ? category.services || []
+        : selectedServices;
 
                 return (
                   <div key={category.id} className="py-1">
@@ -203,7 +222,9 @@ export default function ServiceSelectionSection({
                       <div className="absolute left-0 right-0 h-3 bottom-[-12px]" />
                       {/* CATEGORY HEADER */}
                       <div
-                        onClick={() => toggleCategory(category.id)}
+                        onClick={() =>
+    toggleCategory(category.id, defaultOpen)
+}
                         className="flex items-center justify-between px-3 py-2 cursor-pointer bg-gray-50 rounded-t-xl"
                       >
                         <div className="flex items-center gap-2">
@@ -212,10 +233,7 @@ export default function ServiceSelectionSection({
                         </div>
 
                         <svg
-                          className={`w-4 h-4 transition-transform ${hoveredCategory === category.id || hasSelection
-                            ? "rotate-180"
-                            : ""
-                            }`}
+                          className={`w-4 h-4 transition-transform ${isCategoryOpen ? "rotate-180" : ""}`}
                           fill="none"
                           stroke="currentColor"
                           viewBox="0 0 24 24"
@@ -226,10 +244,7 @@ export default function ServiceSelectionSection({
 
                       {/* SERVICES */}
                       <div
-                        className={`p-2 space-y-2 transition-all ${hoveredCategory === category.id || hasSelection
-                          ? "block"
-                          : "hidden"
-                          }`}
+                        className={`p-2 space-y-2 transition-all ${isCategoryOpen ? "block" : "hidden"}`}
                       >
                         {visibleServices.length === 0 && isCollapsed && (
                           <div className="text-xs text-gray-400">No selected services</div>
@@ -263,20 +278,8 @@ export default function ServiceSelectionSection({
                                 });
 
                                 setTimeout(() => {
-                                  const updatedSelected = category.services.filter(s => {
-                                    if (s.key === service.key) return willSelect;
-                                    return services?.[s.key];
-                                  });
-
-                                  if (updatedSelected.length === 0) {
-                                    setPreHoverSelection(prev => ({
-                                      ...prev,
-                                      [category.id]: false
-                                    }));
-                                  }
-
-                                  isClickingRef.current = false;
-                                }, 0);
+    isClickingRef.current = false;
+}, 0);
                               }}
                               className={`flex items-center gap-2 p-2 rounded-lg border transition
 ${isProviderHidden
