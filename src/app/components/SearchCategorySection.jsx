@@ -65,7 +65,7 @@ export default function SearchCategorySection({
     const handleCategoryChange = (categoryId) => {
         const id = String(categoryId);
 
-        // Selecting All Categories clears every individual selection.
+        // Selecting any Categories clears every individual selection.
         if (id === "ALL") {
             onChange?.(["ALL"]);
             setSelectedProvider?.(null);
@@ -111,7 +111,7 @@ export default function SearchCategorySection({
                     }`}
                 >
                     <span className="text-base">✨</span>
-                    <span>All Categories</span>
+                    <span>Any Categories</span>
                 </button>
 
                 {availableCategories.map((category) => {

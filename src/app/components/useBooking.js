@@ -1680,36 +1680,9 @@ if (!cancelled) {
           providerHasServices
         );
 
-        setVisibleProviders(providersWithServices);
-
-        /*
-         * Apply the selected category filter after the service filter.
-         */
-        const categoryFilteredProviders =
-          providersWithServices.filter(
-            providerMatchesSearchCategory
-          );
-
-        setFilteredProviders(categoryFilteredProviders);
-
-        /*
-         * Split the same filtered list into Mobile and Studio.
-         */
-        const mobileProvidersList =
-          categoryFilteredProviders.filter(
-            (provider) => provider.providerMode === "mobile"
-          );
-
-        const studioProvidersList =
-          categoryFilteredProviders.filter(
-            (provider) => provider.providerMode === "studio"
-          );
-
-        setMobileProviders(mobileProvidersList);
-        setStudioProviders(studioProvidersList);
-
-        setMobileProvidersWithDistance(mobileProvidersList);
-        setStudioProvidersWithDistance(studioProvidersList);
+        // Keep all location-eligible providers here.
+// Category filtering is handled separately in a lightweight effect.
+setVisibleProviders(providersWithServices);
 
       } catch (err) {
         console.error(
@@ -1717,33 +1690,12 @@ if (!cancelled) {
           err
         );
         const providersWithServices = limitedProviders.filter(
-          providerHasServices
-        );
+    providerHasServices
+);
 
-        setVisibleProviders(providersWithServices);
-
-        const categoryFilteredProviders =
-          providersWithServices.filter(
-            providerMatchesSearchCategory
-          );
-
-        setFilteredProviders(categoryFilteredProviders);
-
-        const mobileProvidersList =
-          categoryFilteredProviders.filter(
-            (provider) => provider.providerMode === "mobile"
-          );
-
-        const studioProvidersList =
-          categoryFilteredProviders.filter(
-            (provider) => provider.providerMode === "studio"
-          );
-
-        setMobileProviders(mobileProvidersList);
-        setStudioProviders(studioProvidersList);
-
-        setMobileProvidersWithDistance(mobileProvidersList);
-        setStudioProvidersWithDistance(studioProvidersList);
+// Preserve the location-eligible providers.
+// The separate category effect will filter these.
+setVisibleProviders(providersWithServices);
       } finally {
         setLoadingProviders(false);
       }
@@ -1757,10 +1709,36 @@ if (!cancelled) {
     locationArray,
     userEmail,
     address.state,
-    searchCategory,
-    categories,
-    providerLimit,
-  ]);
+]);
+
+// Apply category filtering independently of location filtering.
+// This keeps category changes immediate and avoids showing the
+// full provider-search loading spinner.
+useEffect(() => {
+    const baseProviders = Array.isArray(visibleProviders)
+        ? visibleProviders
+        : [];
+
+    const categoryFilteredProviders = baseProviders.filter(
+        providerMatchesSearchCategory
+    );
+
+    setFilteredProviders(categoryFilteredProviders);
+
+    const mobileProvidersList = categoryFilteredProviders.filter(
+        (provider) => provider.providerMode === "mobile"
+    );
+
+    const studioProvidersList = categoryFilteredProviders.filter(
+        (provider) => provider.providerMode === "studio"
+    );
+
+    setMobileProviders(mobileProvidersList);
+    setStudioProviders(studioProvidersList);
+
+    setMobileProvidersWithDistance(mobileProvidersList);
+    setStudioProvidersWithDistance(studioProvidersList);
+}, [visibleProviders, searchCategory, categories]);
 
   return {
     // State

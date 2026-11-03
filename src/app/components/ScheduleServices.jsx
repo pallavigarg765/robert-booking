@@ -7,7 +7,7 @@ import { useBooking } from "./useBooking";
 import ServiceCategorySection from "./ServiceCategorySection";
 import ServiceSelectionSection from "./ServiceSelectionSection";
 import AvailabilitySection from "./AvailabilitySection";
-import NoProvidersModal from "./NoProvidersModal";
+// import NoProvidersModal from "./NoProvidersModal";
 import SearchCategorySection from "./SearchCategorySection";
 import SimplyBookCheckout from "./SimplyBookCheckout";
 import { Calendar, Clock, CheckCircle, ChevronRight, User, Scissors, CalendarDays, Clock4, FileText } from "lucide-react";
@@ -112,7 +112,7 @@ export default function ScheduleServices({ providers, events, locations, clients
     const rememberMeRef = useRef(null);
 
     const [highlightIndex, setHighlightIndex] = useState(-1);
-    const [showNoProvidersModal, setShowNoProvidersModal] = useState(false);
+    // const [showNoProvidersModal, setShowNoProvidersModal] = useState(false);
     const cancelBtnRef = useRef(null);
     const router = useRouter();
 
@@ -124,12 +124,12 @@ export default function ScheduleServices({ providers, events, locations, clients
     });
 
     const [previousProviderBookings, setPreviousProviderBookings] = useState([]);
-const [loadingPreviousBookings, setLoadingPreviousBookings] = useState(false);
-const [previousBookingsLoaded, setPreviousBookingsLoaded] = useState(false);
-const [dismissedPreviousProviderIds, setDismissedPreviousProviderIds] = useState([]);
-const [pendingRebook, setPendingRebook] = useState(null);
+    const [loadingPreviousBookings, setLoadingPreviousBookings] = useState(false);
+    const [previousBookingsLoaded, setPreviousBookingsLoaded] = useState(false);
+    const [dismissedPreviousProviderIds, setDismissedPreviousProviderIds] = useState([]);
+    const [pendingRebook, setPendingRebook] = useState(null);
 
-console.log("previousProviderBookings: ", previousProviderBookings);
+    console.log("previousProviderBookings: ", previousProviderBookings);
 
     const [resendTimer, setResendTimer] = useState(30);
     const [canResend, setCanResend] = useState(false);
@@ -138,7 +138,7 @@ console.log("previousProviderBookings: ", previousProviderBookings);
     const focusTrapRef = useRef(null);
     const createBtnRef = useRef(null);
     const backBtnRef = useRef(null);
-    
+
     useEffect(() => {
         const handleClickOutside = (event) => {
             if (
@@ -181,33 +181,33 @@ console.log("previousProviderBookings: ", previousProviderBookings);
         }
     };
 
-    
-const handleProviderUnhide = (providerId) => {
-    const providerIdString = String(providerId);
 
-    const providerToRestore = allProviders.find(
-        (provider) =>
-            String(provider.id) === providerIdString
-    );
+    const handleProviderUnhide = (providerId) => {
+        const providerIdString = String(providerId);
 
-    if (providerToRestore) {
-        setFilteredProviders((prev) => {
-            const alreadyExists = prev.some(
-                (provider) =>
-                    String(provider.id) === providerIdString
-            );
+        const providerToRestore = allProviders.find(
+            (provider) =>
+                String(provider.id) === providerIdString
+        );
 
-            return alreadyExists
-                ? prev
-                : [...prev, providerToRestore];
-        });
-    }
+        if (providerToRestore) {
+            setFilteredProviders((prev) => {
+                const alreadyExists = prev.some(
+                    (provider) =>
+                        String(provider.id) === providerIdString
+                );
 
-    // Important:
-    // Do NOT remove this provider from dismissedPreviousProviderIds.
-    // Unhiding should restore the provider to the main list only.
-    // The provider can return to the short list after a new booking.
-};
+                return alreadyExists
+                    ? prev
+                    : [...prev, providerToRestore];
+            });
+        }
+
+        // Important:
+        // Do NOT remove this provider from dismissedPreviousProviderIds.
+        // Unhiding should restore the provider to the main list only.
+        // The provider can return to the short list after a new booking.
+    };
 
 
     useEffect(() => {
@@ -252,26 +252,26 @@ const handleProviderUnhide = (providerId) => {
     }, []);
 
     const handleChangeAddress = () => {
-    setOriginalAddress({
-        fullAddress: formData.fullAddress,
-        city: formData.city,
-        state: formData.state,
-        zip: formData.zip,
-    });
+        setOriginalAddress({
+            fullAddress: formData.fullAddress,
+            city: formData.city,
+            state: formData.state,
+            zip: formData.zip,
+        });
 
-    // Hide results belonging to the previous address.
-    setHasSearched(false);
-    setSearchCompleted(false);
-    setAddressReady(false);
-    setFilteredProviders([]);
+        // Hide results belonging to the previous address.
+        setHasSearched(false);
+        setSearchCompleted(false);
+        setAddressReady(false);
+        setFilteredProviders([]);
 
-    // Reset the provider selection and downstream booking steps.
-    setSelectedProvider("");
-    setSelectedServices([]);
-    setSelectedDate(null);
-    setSelectedTime("");
-    setActiveStep(1);
-};
+        // Reset the provider selection and downstream booking steps.
+        setSelectedProvider("");
+        setSelectedServices([]);
+        setSelectedDate(null);
+        setSelectedTime("");
+        setActiveStep(1);
+    };
 
     const handleCancelLogin = () => {
         resetBooking();
@@ -347,11 +347,11 @@ const handleProviderUnhide = (providerId) => {
     };
 
     const cleanName = (name = "") =>
-    name
-        // Remove everything from the first comma onward
-        .split(",")[0]
-        .replace(/^\d+[a-z]\),?\s*/i, "")
-        .trim();
+        name
+            // Remove everything from the first comma onward
+            .split(",")[0]
+            .replace(/^\d+[a-z]\),?\s*/i, "")
+            .trim();
     const [activeStep, setActiveStep] = useState(1); // 1: Providers, 2: Services, 3: Date, 4: Time, 5: Booking
 
     const saveBookingState = () => {
@@ -374,26 +374,26 @@ const handleProviderUnhide = (providerId) => {
     };
 
     const handleServicesWheel = (e) => {
-    const container = e.currentTarget;
+        const container = e.currentTarget;
 
-    const isAtTop = container.scrollTop <= 0;
+        const isAtTop = container.scrollTop <= 0;
 
-    const isAtBottom =
-        container.scrollTop + container.clientHeight >=
-        container.scrollHeight - 1;
+        const isAtBottom =
+            container.scrollTop + container.clientHeight >=
+            container.scrollHeight - 1;
 
-    // Forward the scroll to the page when the inner
-    // services container reaches either boundary.
-    if (
-        (e.deltaY > 0 && isAtBottom) ||
-        (e.deltaY < 0 && isAtTop)
-    ) {
-        window.scrollBy({
-            top: e.deltaY,
-            behavior: "auto",
-        });
-    }
-};
+        // Forward the scroll to the page when the inner
+        // services container reaches either boundary.
+        if (
+            (e.deltaY > 0 && isAtBottom) ||
+            (e.deltaY < 0 && isAtTop)
+        ) {
+            window.scrollBy({
+                top: e.deltaY,
+                behavior: "auto",
+            });
+        }
+    };
 
     // console.log("providers from api: ", providers);
 
@@ -456,537 +456,537 @@ const handleProviderUnhide = (providerId) => {
         studioProvidersWithDistance,
     } = useBooking({ providers, events, locations, clients, categories, searchCategory });
 
-    
-const getBookingProviderId = (booking) => {
-    const provider = booking?.provider;
 
-    const id =
-        booking?.providerId ??
-        booking?.provider_id ??
-        booking?.unitId ??
-        booking?.unit_id ??
-        (typeof provider === "object" ? provider?.id : provider);
+    const getBookingProviderId = (booking) => {
+        const provider = booking?.provider;
 
-    return id != null ? String(id) : "";
-};
+        const id =
+            booking?.providerId ??
+            booking?.provider_id ??
+            booking?.unitId ??
+            booking?.unit_id ??
+            (typeof provider === "object" ? provider?.id : provider);
+
+        return id != null ? String(id) : "";
+    };
 
 
-const getBookingDate = (booking) =>
-    booking.date ??
-    booking.bookingDate ??
-    booking.startDate ??
-    booking.createdAt ??
-    null;
+    const getBookingDate = (booking) =>
+        booking.date ??
+        booking.bookingDate ??
+        booking.startDate ??
+        booking.createdAt ??
+        null;
 
     const normalizeAddress = (value = "") =>
-    String(value)
-        .toLowerCase()
-        .replace(/[.,#]/g, " ")
-        .replace(/\s+/g, " ")
-        .trim();
+        String(value)
+            .toLowerCase()
+            .replace(/[.,#]/g, " ")
+            .replace(/\s+/g, " ")
+            .trim();
 
-const getSavedBookingAddress = (booking) =>
-    booking?.clientaddress ??
-    booking?.clientAddress ??
-    {};
+    const getSavedBookingAddress = (booking) =>
+        booking?.clientaddress ??
+        booking?.clientAddress ??
+        {};
 
-const bookingMatchesCurrentAddress = (booking) => {
-    const savedAddress = getSavedBookingAddress(booking);
+    const bookingMatchesCurrentAddress = (booking) => {
+        const savedAddress = getSavedBookingAddress(booking);
 
-    const currentFullAddress = normalizeAddress(
-        formData?.fullAddress
-    );
-
-    const savedFullAddress = normalizeAddress(
-        savedAddress?.fullAddress
-    );
-
-    const currentZip = String(formData?.zip || "").trim().toLowerCase();
-    const savedZip = String(savedAddress?.zip || "").trim().toLowerCase();
-
-    const currentCity = normalizeAddress(formData?.city);
-    const savedCity = normalizeAddress(savedAddress?.city);
-
-    const currentState = normalizeAddress(formData?.state);
-    const savedState = normalizeAddress(savedAddress?.state);
-
-    // Don't show previous providers until a current address is available.
-    if (!currentFullAddress) {
-        return false;
-    }
-
-    // When both ZIP codes exist, different ZIP codes mean
-    // the booking belongs to another service address.
-    if (currentZip && savedZip && currentZip !== savedZip) {
-        return false;
-    }
-
-    // Match the actual address, not just the city or ZIP code.
-    if (currentFullAddress && savedFullAddress) {
-        return (
-            currentFullAddress === savedFullAddress &&
-            (!currentCity || !savedCity || currentCity === savedCity) &&
-            (!currentState || !savedState || currentState === savedState)
+        const currentFullAddress = normalizeAddress(
+            formData?.fullAddress
         );
-    }
 
-    // For older records without a full address, use the available
-    // ZIP, city and state only when all the available fields agree.
-    if (currentZip && savedZip) {
-        return (
-            currentZip === savedZip &&
-            (!currentCity || !savedCity || currentCity === savedCity) &&
-            (!currentState || !savedState || currentState === savedState)
+        const savedFullAddress = normalizeAddress(
+            savedAddress?.fullAddress
         );
-    }
 
-    return false;
-};
+        const currentZip = String(formData?.zip || "").trim().toLowerCase();
+        const savedZip = String(savedAddress?.zip || "").trim().toLowerCase();
 
-const getBookingServiceNames = (booking) => {
-    const rawServices =
-        booking.services ??
-        booking.serviceNames ??
-        booking.service ??
-        [];
+        const currentCity = normalizeAddress(formData?.city);
+        const savedCity = normalizeAddress(savedAddress?.city);
 
-    const list = Array.isArray(rawServices)
-        ? rawServices
-        : typeof rawServices === "string"
-            ? [rawServices]
-            : Object.entries(rawServices || {})
-                .filter(([, selected]) => Boolean(selected))
-                .map(([name]) => name);
+        const currentState = normalizeAddress(formData?.state);
+        const savedState = normalizeAddress(savedAddress?.state);
 
-    return list
-        .map((service) => {
-            if (typeof service === "string") return service;
-
-            return (
-                service?.name ??
-                service?.serviceName ??
-                service?.title ??
-                ""
-            );
-        })
-        .filter(Boolean);
-};
-
-
-
-const getBookingCategoryNames = (booking) => {
-    const rawServices =
-        booking?.services ??
-        booking?.serviceNames ??
-        booking?.service ??
-        [];
-
-    // API format: { "18": true, "16": true }
-    const savedServices = Array.isArray(rawServices)
-        ? rawServices
-        : typeof rawServices === "string"
-            ? [rawServices]
-            : Object.entries(rawServices || {})
-                .filter(([, selected]) => Boolean(selected))
-                .map(([serviceId]) => serviceId);
-
-    if (!Array.isArray(events) || !Array.isArray(categories)) {
-        return [];
-    }
-
-    const bookedEventIds = new Set();
-
-    savedServices.forEach((service) => {
-        
-const serviceId =
-    typeof service === "object" && service !== null
-        ? service.eventId ??
-          service.serviceId ??
-          service.service_id ??
-          service.id
-        : service;
-
-const serviceName =
-    typeof service === "object" && service !== null
-        ? service.name ??
-          service.serviceName ??
-          service.title ??
-          ""
-        : String(service ?? "").trim();
-
-
-        const matchedEvent = events.find((event) => {
-            const idMatches =
-                serviceId != null &&
-                String(event.id) === String(serviceId);
-
-            const nameMatches =
-                serviceName &&
-                normalizeServiceName(event.name) ===
-                    normalizeServiceName(serviceName);
-
-            return idMatches || nameMatches;
-        });
-
-        if (matchedEvent) {
-            bookedEventIds.add(String(matchedEvent.id));
+        // Don't show previous providers until a current address is available.
+        if (!currentFullAddress) {
+            return false;
         }
-    });
 
-    const matchedCategories = categories
-        .filter((category) => {
-            if (!Array.isArray(category.events)) {
-                return false;
-            }
+        // When both ZIP codes exist, different ZIP codes mean
+        // the booking belongs to another service address.
+        if (currentZip && savedZip && currentZip !== savedZip) {
+            return false;
+        }
 
-            return category.events.some((item) => {
-                const eventId =
-                    typeof item === "object"
-                        ? item?.id ?? item?.eventId
-                        : item;
+        // Match the actual address, not just the city or ZIP code.
+        if (currentFullAddress && savedFullAddress) {
+            return (
+                currentFullAddress === savedFullAddress &&
+                (!currentCity || !savedCity || currentCity === savedCity) &&
+                (!currentState || !savedState || currentState === savedState)
+            );
+        }
+
+        // For older records without a full address, use the available
+        // ZIP, city and state only when all the available fields agree.
+        if (currentZip && savedZip) {
+            return (
+                currentZip === savedZip &&
+                (!currentCity || !savedCity || currentCity === savedCity) &&
+                (!currentState || !savedState || currentState === savedState)
+            );
+        }
+
+        return false;
+    };
+
+    const getBookingServiceNames = (booking) => {
+        const rawServices =
+            booking.services ??
+            booking.serviceNames ??
+            booking.service ??
+            [];
+
+        const list = Array.isArray(rawServices)
+            ? rawServices
+            : typeof rawServices === "string"
+                ? [rawServices]
+                : Object.entries(rawServices || {})
+                    .filter(([, selected]) => Boolean(selected))
+                    .map(([name]) => name);
+
+        return list
+            .map((service) => {
+                if (typeof service === "string") return service;
 
                 return (
-                    eventId != null &&
-                    bookedEventIds.has(String(eventId))
+                    service?.name ??
+                    service?.serviceName ??
+                    service?.title ??
+                    ""
                 );
-            });
-        })
-        .map((category) => category.name ?? category.title)
-        .filter(Boolean);
-
-    return [...new Set(matchedCategories)];
-};
+            })
+            .filter(Boolean);
+    };
 
 
 
-useEffect(() => {
-    if (!otpVerified || !userEmail || clientType !== "returning") {
-        setPreviousProviderBookings([]);
-        setPreviousBookingsLoaded(false);
-        return;
-    }
+    const getBookingCategoryNames = (booking) => {
+        const rawServices =
+            booking?.services ??
+            booking?.serviceNames ??
+            booking?.service ??
+            [];
 
-    let cancelled = false;
+        // API format: { "18": true, "16": true }
+        const savedServices = Array.isArray(rawServices)
+            ? rawServices
+            : typeof rawServices === "string"
+                ? [rawServices]
+                : Object.entries(rawServices || {})
+                    .filter(([, selected]) => Boolean(selected))
+                    .map(([serviceId]) => serviceId);
 
-    const loadPreviousProviderBookings = async () => {
-        setLoadingPreviousBookings(true);
-        setPreviousBookingsLoaded(false);
-
-        try {
-            const response = await fetch(
-                `/api/bookings?email=${encodeURIComponent(userEmail)}`,
-                { cache: "no-store" }
-            );
-
-            const result = await response.json();
-
-            if (!response.ok) {
-                throw new Error(
-                    result.message || "Unable to load previous bookings."
-                );
-            }
-
-            const bookings = Array.isArray(result)
-                ? result
-                : result.bookings ?? result.data ?? [];
-
-            // Sort newest first, so the first booking for each provider
-            // represents that provider's latest appointment.
-            const bookingsForCurrentAddress = bookings.filter(
-    bookingMatchesCurrentAddress
-);
-
-const sortedBookings = [...bookingsForCurrentAddress].sort(
-    (a, b) =>
-        new Date(getBookingDate(b) || 0).getTime() -
-        new Date(getBookingDate(a) || 0).getTime()
-);
-
-            
-const latestByProvider = new Map();
-
-for (const booking of sortedBookings) {
-    const providerId = getBookingProviderId(booking);
-
-    if (!providerId) {
-        console.warn(
-            "Booking skipped because provider ID is missing:",
-            booking
-        );
-        continue;
-    }
-
-    // Keep the most recent booking for each provider.
-    if (latestByProvider.has(providerId)) {
-        continue;
-    }
-
-    latestByProvider.set(providerId, {
-        providerId,
-        lastBookedAt: getBookingDate(booking),
-        services: getBookingServiceNames(booking),
-        categories: getBookingCategoryNames(booking),
-        booking,
-    });
-}
-
-
-if (!cancelled) {
-    setPreviousProviderBookings(
-        Array.from(latestByProvider.values())
-    );
-}
-
-
-        } catch (error) {
-            console.error("Failed to load previous bookings:", error);
-
-            if (!cancelled) {
-                setPreviousProviderBookings([]);
-            }
-        } finally {
-            if (!cancelled) {
-                setLoadingPreviousBookings(false);
-                setPreviousBookingsLoaded(true);
-            }
+        if (!Array.isArray(events) || !Array.isArray(categories)) {
+            return [];
         }
+
+        const bookedEventIds = new Set();
+
+        savedServices.forEach((service) => {
+
+            const serviceId =
+                typeof service === "object" && service !== null
+                    ? service.eventId ??
+                    service.serviceId ??
+                    service.service_id ??
+                    service.id
+                    : service;
+
+            const serviceName =
+                typeof service === "object" && service !== null
+                    ? service.name ??
+                    service.serviceName ??
+                    service.title ??
+                    ""
+                    : String(service ?? "").trim();
+
+
+            const matchedEvent = events.find((event) => {
+                const idMatches =
+                    serviceId != null &&
+                    String(event.id) === String(serviceId);
+
+                const nameMatches =
+                    serviceName &&
+                    normalizeServiceName(event.name) ===
+                    normalizeServiceName(serviceName);
+
+                return idMatches || nameMatches;
+            });
+
+            if (matchedEvent) {
+                bookedEventIds.add(String(matchedEvent.id));
+            }
+        });
+
+        const matchedCategories = categories
+            .filter((category) => {
+                if (!Array.isArray(category.events)) {
+                    return false;
+                }
+
+                return category.events.some((item) => {
+                    const eventId =
+                        typeof item === "object"
+                            ? item?.id ?? item?.eventId
+                            : item;
+
+                    return (
+                        eventId != null &&
+                        bookedEventIds.has(String(eventId))
+                    );
+                });
+            })
+            .map((category) => category.name ?? category.title)
+            .filter(Boolean);
+
+        return [...new Set(matchedCategories)];
     };
 
-    loadPreviousProviderBookings();
 
-    return () => {
-        cancelled = true;
-    };
-}, [
-    otpVerified,
-    userEmail,
-    clientType,
-    events,
-    categories,
-    formData?.fullAddress,
-    formData?.city,
-    formData?.state,
-    formData?.zip,
-]);
+
+    useEffect(() => {
+        if (!otpVerified || !userEmail || clientType !== "returning") {
+            setPreviousProviderBookings([]);
+            setPreviousBookingsLoaded(false);
+            return;
+        }
+
+        let cancelled = false;
+
+        const loadPreviousProviderBookings = async () => {
+            setLoadingPreviousBookings(true);
+            setPreviousBookingsLoaded(false);
+
+            try {
+                const response = await fetch(
+                    `/api/bookings?email=${encodeURIComponent(userEmail)}`,
+                    { cache: "no-store" }
+                );
+
+                const result = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(
+                        result.message || "Unable to load previous bookings."
+                    );
+                }
+
+                const bookings = Array.isArray(result)
+                    ? result
+                    : result.bookings ?? result.data ?? [];
+
+                // Sort newest first, so the first booking for each provider
+                // represents that provider's latest appointment.
+                const bookingsForCurrentAddress = bookings.filter(
+                    bookingMatchesCurrentAddress
+                );
+
+                const sortedBookings = [...bookingsForCurrentAddress].sort(
+                    (a, b) =>
+                        new Date(getBookingDate(b) || 0).getTime() -
+                        new Date(getBookingDate(a) || 0).getTime()
+                );
+
+
+                const latestByProvider = new Map();
+
+                for (const booking of sortedBookings) {
+                    const providerId = getBookingProviderId(booking);
+
+                    if (!providerId) {
+                        console.warn(
+                            "Booking skipped because provider ID is missing:",
+                            booking
+                        );
+                        continue;
+                    }
+
+                    // Keep the most recent booking for each provider.
+                    if (latestByProvider.has(providerId)) {
+                        continue;
+                    }
+
+                    latestByProvider.set(providerId, {
+                        providerId,
+                        lastBookedAt: getBookingDate(booking),
+                        services: getBookingServiceNames(booking),
+                        categories: getBookingCategoryNames(booking),
+                        booking,
+                    });
+                }
+
+
+                if (!cancelled) {
+                    setPreviousProviderBookings(
+                        Array.from(latestByProvider.values())
+                    );
+                }
+
+
+            } catch (error) {
+                console.error("Failed to load previous bookings:", error);
+
+                if (!cancelled) {
+                    setPreviousProviderBookings([]);
+                }
+            } finally {
+                if (!cancelled) {
+                    setLoadingPreviousBookings(false);
+                    setPreviousBookingsLoaded(true);
+                }
+            }
+        };
+
+        loadPreviousProviderBookings();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [
+        otpVerified,
+        userEmail,
+        clientType,
+        events,
+        categories,
+        formData?.fullAddress,
+        formData?.city,
+        formData?.state,
+        formData?.zip,
+    ]);
 
     // Custom handler for provider selection that automatically moves to next step
     const handleProviderSelect = (providerId) => {
-    console.log("[Provider selection]", {
-        requestedProviderId: providerId,
-        currentProviderId: selectedProvider,
-        pendingRebook,
-        activeStep,
-    });
+        console.log("[Provider selection]", {
+            requestedProviderId: providerId,
+            currentProviderId: selectedProvider,
+            pendingRebook,
+            activeStep,
+        });
 
-    // Log every attempt to clear the selection.
-    if (providerId == null || providerId === "") {
-        console.trace("[Provider selection cleared]");
-    }
-
-    setSelectedProvider(providerId);
-    setSelectedServices([]);
-
-    Object.keys(services || {}).forEach((key) => {
-        if (services[key]) {
-            handleCheckboxChange({
-                target: {
-                    name: key,
-                    checked: false,
-                },
-            });
+        // Log every attempt to clear the selection.
+        if (providerId == null || providerId === "") {
+            console.trace("[Provider selection cleared]");
         }
-    });
 
-    setSelectedDate(null);
-    setSelectedTime("");
-    setActiveStep(2);
-};
+        setSelectedProvider(providerId);
+        setSelectedServices([]);
 
-    
-const handleRemovePreviousProvider = (providerId) => {
-    const id = String(providerId);
+        Object.keys(services || {}).forEach((key) => {
+            if (services[key]) {
+                handleCheckboxChange({
+                    target: {
+                        name: key,
+                        checked: false,
+                    },
+                });
+            }
+        });
 
-    setDismissedPreviousProviderIds((previous) => {
-        const updated = previous.includes(id)
-            ? previous
-            : [...previous, id];
+        setSelectedDate(null);
+        setSelectedTime("");
+        setActiveStep(2);
+    };
+
+
+    const handleRemovePreviousProvider = (providerId) => {
+        const id = String(providerId);
+
+        setDismissedPreviousProviderIds((previous) => {
+            const updated = previous.includes(id)
+                ? previous
+                : [...previous, id];
+
+            try {
+                localStorage.setItem(
+                    dismissedPreviousStorageKey,
+                    JSON.stringify(updated)
+                );
+            } catch (error) {
+                console.error("Failed to save dismissed providers:", error);
+            }
+
+            return updated;
+        });
+    };
+
+
+    const normalizeServiceName = (name = "") =>
+        String(name)
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, "_")
+            .replace(/^_+|_+$/g, "");
+
+    const isProviderHiddenAtCurrentAddress = (providerId) => {
+        if (typeof window === "undefined" || !userEmail) {
+            return false;
+        }
+
+        // Match the storage key used by ProvidersSection.
+        const locationKey = address?.zip
+            ? String(address.zip)
+            : address?.state
+                ? String(address.state)
+                : "default";
+
+        const storageKey = `hiddenProviders_${userEmail}_${locationKey}`;
 
         try {
-            localStorage.setItem(
-                dismissedPreviousStorageKey,
-                JSON.stringify(updated)
+            const savedHiddenProviders = JSON.parse(
+                localStorage.getItem(storageKey) || "[]"
             );
+
+            return savedHiddenProviders.some((item) => {
+                const hiddenProviderId =
+                    typeof item === "object"
+                        ? item?.providerId ?? item?.id
+                        : item;
+
+                const sameProvider =
+                    String(hiddenProviderId) === String(providerId);
+
+                const sameAddress =
+                    typeof item !== "object" ||
+                    !item?.zip ||
+                    String(item.zip) === String(address?.zip || "");
+
+                return sameProvider && sameAddress;
+            });
         } catch (error) {
-            console.error("Failed to save dismissed providers:", error);
+            console.error("Failed to check hidden provider:", error);
+            return false;
+        }
+    };
+
+    const handleRebookPreviousProvider = (previousBooking, mode) => {
+        const providerId = String(previousBooking.providerId);
+
+        const providerExists = allProviders.some(
+            (provider) => String(provider.id) === providerId
+        );
+
+        if (!providerExists) {
+            alert(
+                "This provider is not available in the current provider data. Please refresh the provider list."
+            );
+            return;
         }
 
-        return updated;
-    });
-};
+        const isHidden = isProviderHiddenAtCurrentAddress(providerId);
 
-
-const normalizeServiceName = (name = "") =>
-    String(name)
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, "_")
-        .replace(/^_+|_+$/g, "");
-
-        const isProviderHiddenAtCurrentAddress = (providerId) => {
-    if (typeof window === "undefined" || !userEmail) {
-        return false;
-    }
-
-    // Match the storage key used by ProvidersSection.
-    const locationKey = address?.zip
-        ? String(address.zip)
-        : address?.state
-            ? String(address.state)
-            : "default";
-
-    const storageKey = `hiddenProviders_${userEmail}_${locationKey}`;
-
-    try {
-        const savedHiddenProviders = JSON.parse(
-            localStorage.getItem(storageKey) || "[]"
-        );
-
-        return savedHiddenProviders.some((item) => {
-            const hiddenProviderId =
-                typeof item === "object"
-                    ? item?.providerId ?? item?.id
-                    : item;
-
-            const sameProvider =
-                String(hiddenProviderId) === String(providerId);
-
-            const sameAddress =
-                typeof item !== "object" ||
-                !item?.zip ||
-                String(item.zip) === String(address?.zip || "");
-
-            return sameProvider && sameAddress;
+        // Remember which list must be displayed before selecting the provider.
+        setPendingRebook({
+            providerId,
+            mode: isHidden ? "hidden" : mode,
+            showHiddenProviders: isHidden,
+            services: getBookingServiceNames({
+                services: previousBooking.services,
+            }),
         });
-    } catch (error) {
-        console.error("Failed to check hidden provider:", error);
-        return false;
-    }
-};
 
-const handleRebookPreviousProvider = (previousBooking, mode) => {
-    const providerId = String(previousBooking.providerId);
+        // Switch to the correct list.
+        setShowHiddenProviders(isHidden);
 
-    const providerExists = allProviders.some(
-        (provider) => String(provider.id) === providerId
-    );
+        // Do not select the provider here.
+        // The pending-rebook effect below selects it after the list switches.
+    };
 
-    if (!providerExists) {
-        alert(
-            "This provider is not available in the current provider data. Please refresh the provider list."
-        );
-        return;
-    }
+    useEffect(() => {
+        if (!pendingRebook) return;
 
-    const isHidden = isProviderHiddenAtCurrentAddress(providerId);
+        // Wait until the correct provider list is displayed.
+        if (
+            showHiddenProviders !== pendingRebook.showHiddenProviders
+        ) {
+            return;
+        }
 
-    // Remember which list must be displayed before selecting the provider.
-    setPendingRebook({
-        providerId,
-        mode: isHidden ? "hidden" : mode,
-        showHiddenProviders: isHidden,
-        services: getBookingServiceNames({
-            services: previousBooking.services,
-        }),
-    });
+        const targetProviderId = String(pendingRebook.providerId);
 
-    // Switch to the correct list.
-    setShowHiddenProviders(isHidden);
+        // If another effect cleared or changed the selection while the
+        // provider list was switching, select the requested provider again.
+        if (String(selectedProvider ?? "") !== targetProviderId) {
+            handleProviderSelect(targetProviderId);
+            return;
+        }
 
-    // Do not select the provider here.
-    // The pending-rebook effect below selects it after the list switches.
-};
+        // Wait until services are available before processing the booking.
+        if (!Array.isArray(events) || events.length === 0) {
+            return;
+        }
 
-useEffect(() => {
-    if (!pendingRebook) return;
+        const previousServices = pendingRebook.services || [];
 
-    // Wait until the correct provider list is displayed.
-    if (
-        showHiddenProviders !== pendingRebook.showHiddenProviders
-    ) {
-        return;
-    }
-
-    const targetProviderId = String(pendingRebook.providerId);
-
-    // If another effect cleared or changed the selection while the
-    // provider list was switching, select the requested provider again.
-    if (String(selectedProvider ?? "") !== targetProviderId) {
-        handleProviderSelect(targetProviderId);
-        return;
-    }
-
-    // Wait until services are available before processing the booking.
-    if (!Array.isArray(events) || events.length === 0) {
-        return;
-    }
-
-    const previousServices = pendingRebook.services || [];
-
-    const selectedServiceKeys =
-        pendingRebook.mode === "same"
-            ? events
-                  .filter((event) =>
-                      previousServices.some((savedService) => {
-                          const savedValue =
-                              typeof savedService === "object"
-                                  ? savedService.eventId ??
+        const selectedServiceKeys =
+            pendingRebook.mode === "same"
+                ? events
+                    .filter((event) =>
+                        previousServices.some((savedService) => {
+                            const savedValue =
+                                typeof savedService === "object"
+                                    ? savedService.eventId ??
                                     savedService.id ??
                                     savedService.name ??
                                     savedService.serviceName ??
                                     ""
-                                  : savedService;
+                                    : savedService;
 
-                          return (
-                              String(savedValue) === String(event.id) ||
-                              normalizeServiceName(savedValue) ===
-                                  normalizeServiceName(event.name)
-                          );
-                      })
-                  )
-                  .map((event) =>
-                      normalizeServiceName(event.name)
-                  )
-            : [];
+                            return (
+                                String(savedValue) === String(event.id) ||
+                                normalizeServiceName(savedValue) ===
+                                normalizeServiceName(event.name)
+                            );
+                        })
+                    )
+                    .map((event) =>
+                        normalizeServiceName(event.name)
+                    )
+                : [];
 
-    // Clear existing services before applying the requested selection.
-    Object.keys(services || {}).forEach((key) => {
-        if (services[key]) {
+        // Clear existing services before applying the requested selection.
+        Object.keys(services || {}).forEach((key) => {
+            if (services[key]) {
+                handleCheckboxChange({
+                    target: {
+                        name: key,
+                        checked: false,
+                    },
+                });
+            }
+        });
+
+        // Only "same services" for a visible provider restores old services.
+        selectedServiceKeys.forEach((serviceKey) => {
             handleCheckboxChange({
                 target: {
-                    name: key,
-                    checked: false,
+                    name: serviceKey,
+                    checked: true,
                 },
             });
-        }
-    });
-
-    // Only "same services" for a visible provider restores old services.
-    selectedServiceKeys.forEach((serviceKey) => {
-        handleCheckboxChange({
-            target: {
-                name: serviceKey,
-                checked: true,
-            },
         });
-    });
 
-    setActiveStep(2);
-    setPendingRebook(null);
-}, [
-    pendingRebook,
-    selectedProvider,
-    showHiddenProviders,
-    events,
-]);
+        setActiveStep(2);
+        setPendingRebook(null);
+    }, [
+        pendingRebook,
+        selectedProvider,
+        showHiddenProviders,
+        events,
+    ]);
 
 
     const focusAndSelect = (ref) => {
@@ -1022,50 +1022,50 @@ useEffect(() => {
     // console.log("categories: ", categories);
 
     const getSimplyBookServices = () => {
-    // `services` is the object containing the selected
-    // service keys and their true/false values.
-    const selectedServiceKeys = Object.entries(services || {})
-        .filter(([, isSelected]) => isSelected)
-        .map(([serviceKey]) => serviceKey);
+        // `services` is the object containing the selected
+        // service keys and their true/false values.
+        const selectedServiceKeys = Object.entries(services || {})
+            .filter(([, isSelected]) => isSelected)
+            .map(([serviceKey]) => serviceKey);
 
-    // Match each selected key with its actual SimplyBook event.
-    return selectedServiceKeys.map((serviceKey) => {
-        const event = events?.find((item) => {
-            const eventKey = item.name
-                ?.toLowerCase()
-                .replace(/[^a-z0-9]+/g, "_")
-                .replace(/^_+|_+$/g, "");
+        // Match each selected key with its actual SimplyBook event.
+        return selectedServiceKeys.map((serviceKey) => {
+            const event = events?.find((item) => {
+                const eventKey = item.name
+                    ?.toLowerCase()
+                    .replace(/[^a-z0-9]+/g, "_")
+                    .replace(/^_+|_+$/g, "");
 
-            return eventKey === serviceKey;
+                return eventKey === serviceKey;
+            });
+
+            if (!event) {
+                throw new Error(
+                    `Could not find a SimplyBook event for selected service: ${serviceKey}`
+                );
+            }
+
+            return {
+                eventId: String(event.id),
+                name: event.name,
+
+                duration: Number(
+                    event.duration ||
+                    event.duration_minutes ||
+                    event.length ||
+                    60
+                ),
+
+                price:
+                    event.price ??
+                    event.price_amount ??
+                    event.priceAmount ??
+                    event.cost ??
+                    event.amount ??
+                    null,
+            };
         });
-
-        if (!event) {
-            throw new Error(
-                `Could not find a SimplyBook event for selected service: ${serviceKey}`
-            );
-        }
-
-        return {
-  eventId: String(event.id),
-  name: event.name,
-
-  duration: Number(
-    event.duration ||
-      event.duration_minutes ||
-      event.length ||
-      60
-  ),
-
-  price:
-    event.price ??
-    event.price_amount ??
-    event.priceAmount ??
-    event.cost ??
-    event.amount ??
-    null,
-};
-    });
-};
+    };
 
     useEffect(() => {
         if (
@@ -1221,33 +1221,33 @@ useEffect(() => {
 
 
 
-    const shouldShowNoProviders =
-        otpVerified &&
-        hasSearched &&
-        searchCompleted &&
-        clientLocation &&
-        !isSearchingProviders &&
-        !loadingProviders &&
-        filteredProviders.length === 0;
+    // const shouldShowNoProviders =
+    //     otpVerified &&
+    //     hasSearched &&
+    //     searchCompleted &&
+    //     clientLocation &&
+    //     !isSearchingProviders &&
+    //     !loadingProviders &&
+    //     filteredProviders.length === 0;
 
 
-    useEffect(() => {
-        let timeout;
+    // useEffect(() => {
+    //     let timeout;
 
-        if (shouldShowNoProviders) {
-            timeout = setTimeout(() => {
-                setShowNoProvidersModal(true);
-            }, 1500);
-        } else {
-            setShowNoProvidersModal(false);
-        }
+    //     if (shouldShowNoProviders) {
+    //         timeout = setTimeout(() => {
+    //             setShowNoProvidersModal(true);
+    //         }, 1500);
+    //     } else {
+    //         setShowNoProvidersModal(false);
+    //     }
 
-        return () => {
-            if (timeout) {
-                clearTimeout(timeout);
-            }
-        };
-    }, [shouldShowNoProviders]);
+    //     return () => {
+    //         if (timeout) {
+    //             clearTimeout(timeout);
+    //         }
+    //     };
+    // }, [shouldShowNoProviders]);
 
     useEffect(() => {
         if (userFlow === "phone-exists-different-email") {
@@ -1259,11 +1259,11 @@ useEffect(() => {
         // }
     }, [userFlow]);
 
-    useEffect(() => {
-        if (filteredProviders.length > 0) {
-            setShowNoProvidersModal(false);
-        }
-    }, [filteredProviders]);
+    // useEffect(() => {
+    //     if (filteredProviders.length > 0) {
+    //         setShowNoProvidersModal(false);
+    //     }
+    // }, [filteredProviders]);
 
     useEffect(() => {
         // Do nothing until we explicitly request a provider search
@@ -1572,20 +1572,20 @@ useEffect(() => {
 
     // Enhanced handleSubmit that shows success notification
     const handleSubmitWithNotification = async (e) => {
-  const result = await handleSubmit(e);
+        const result = await handleSubmit(e);
 
-  if (result && result.success) {
-    setBookingDetails({
-      provider: selectedProvider,
-      date: selectedDate,
-      time: selectedTime,
-      services: getSelectedServiceNames(),
-    });
+        if (result && result.success) {
+            setBookingDetails({
+                provider: selectedProvider,
+                date: selectedDate,
+                time: selectedTime,
+                services: getSelectedServiceNames(),
+            });
 
-    // Keep confirmation open until the user closes it.
-    setShowSuccess(true);
-  }
-};
+            // Keep confirmation open until the user closes it.
+            setShowSuccess(true);
+        }
+    };
 
     const handleCloseSuccess = () => {
         setShowSuccess(false);
@@ -3105,35 +3105,35 @@ useEffect(() => {
     };
 
 
-    
-const availableCategories = (Array.isArray(categories) ? categories : [])
-    .filter((category) => {
-        if (!Array.isArray(category.events) || category.events.length === 0) {
-            return false;
-        }
 
-        return providers.some((provider) => {
-            const providerServiceIds = new Set(
-                (provider.services || []).map((service) =>
-                    String(
-                        typeof service === "object"
-                            ? service.id
-                            : service
-                    )
-                )
-            );
+    const availableCategories = (Array.isArray(categories) ? categories : [])
+        .filter((category) => {
+            if (!Array.isArray(category.events) || category.events.length === 0) {
+                return false;
+            }
 
-            return category.events.some((eventId) =>
-                providerServiceIds.has(
-                    String(
-                        typeof eventId === "object"
-                            ? eventId.id
-                            : eventId
+            return providers.some((provider) => {
+                const providerServiceIds = new Set(
+                    (provider.services || []).map((service) =>
+                        String(
+                            typeof service === "object"
+                                ? service.id
+                                : service
+                        )
                     )
-                )
-            );
+                );
+
+                return category.events.some((eventId) =>
+                    providerServiceIds.has(
+                        String(
+                            typeof eventId === "object"
+                                ? eventId.id
+                                : eventId
+                        )
+                    )
+                );
+            });
         });
-    });
 
     // useEffect(() => {
     //   if (!selectedCategory) return;
@@ -3798,68 +3798,68 @@ const availableCategories = (Array.isArray(categories) ? categories : [])
         }
     };
 
-//     console.log("services are here: ", services);
-//     console.log("selectedProvider is here: ", selectedProvider);
-//     console.log("selectedDate: ", selectedDate);
-//     console.log("selectedTime: ", selectedTime);
+    //     console.log("services are here: ", services);
+    //     console.log("selectedProvider is here: ", selectedProvider);
+    //     console.log("selectedDate: ", selectedDate);
+    //     console.log("selectedTime: ", selectedTime);
 
-//     console.log("Selected provider:", selectedProvider);
-// console.log("Available providers:", providers);
-// console.log("Available events:", events);
+    //     console.log("Selected provider:", selectedProvider);
+    // console.log("Available providers:", providers);
+    // console.log("Available events:", events);
 
-const visiblePreviousBookings = previousProviderBookings.filter(
-    (item) => {
-        const providerId = String(item.providerId);
+    const visiblePreviousBookings = previousProviderBookings.filter(
+        (item) => {
+            const providerId = String(item.providerId);
 
-        const isDismissed =
-            dismissedPreviousProviderIds.includes(providerId);
+            const isDismissed =
+                dismissedPreviousProviderIds.includes(providerId);
 
-        // Also hide providers that were already hidden before
-        // the recent-provider removal callback was introduced.
-        const isCurrentlyHidden =
-            isProviderHiddenAtCurrentAddress(providerId);
+            // Also hide providers that were already hidden before
+            // the recent-provider removal callback was introduced.
+            const isCurrentlyHidden =
+                isProviderHiddenAtCurrentAddress(providerId);
 
-        return !isDismissed && !isCurrentlyHidden;
-    }
-);
-
-
-const dismissedPreviousStorageKey =
-    `dismissedPreviousProviders_${userEmail}_${address?.zip
-        ? String(address.zip)
-        : address?.state
-            ? String(address.state)
-            : "default"}`;
-
-useEffect(() => {
-    if (!userEmail) {
-        setDismissedPreviousProviderIds([]);
-        return;
-    }
-
-    try {
-        const saved = JSON.parse(
-            localStorage.getItem(dismissedPreviousStorageKey) || "[]"
-        );
-
-        setDismissedPreviousProviderIds(
-            Array.isArray(saved) ? saved.map(String) : []
-        );
-    } catch (error) {
-        console.error("Failed to load dismissed providers:", error);
-        setDismissedPreviousProviderIds([]);
-    }
-}, [userEmail, dismissedPreviousStorageKey]);
+            return !isDismissed && !isCurrentlyHidden;
+        }
+    );
 
 
-const previousProviders = visiblePreviousBookings
-    .map((item) =>
-        allProviders.find(
-            (provider) =>
-                String(provider.id) === String(item.providerId)
+    const dismissedPreviousStorageKey =
+        `dismissedPreviousProviders_${userEmail}_${address?.zip
+            ? String(address.zip)
+            : address?.state
+                ? String(address.state)
+                : "default"}`;
+
+    useEffect(() => {
+        if (!userEmail) {
+            setDismissedPreviousProviderIds([]);
+            return;
+        }
+
+        try {
+            const saved = JSON.parse(
+                localStorage.getItem(dismissedPreviousStorageKey) || "[]"
+            );
+
+            setDismissedPreviousProviderIds(
+                Array.isArray(saved) ? saved.map(String) : []
+            );
+        } catch (error) {
+            console.error("Failed to load dismissed providers:", error);
+            setDismissedPreviousProviderIds([]);
+        }
+    }, [userEmail, dismissedPreviousStorageKey]);
+
+
+    const previousProviders = visiblePreviousBookings
+        .map((item) =>
+            allProviders.find(
+                (provider) =>
+                    String(provider.id) === String(item.providerId)
+            )
         )
-    )
-    .filter(Boolean);
+        .filter(Boolean);
 
     // Main horizontal flow content - FIXED VERSION
     const renderHorizontalFlow = () => {
@@ -5343,208 +5343,208 @@ const previousProviders = visiblePreviousBookings
                                     </div>
 
                                     {/* RECENTLY BOOKED PROVIDERS — SEPARATE FROM ProvidersSection */}
-{otpVerified &&
-    clientType === "returning" &&
-    previousBookingsLoaded &&
-    !loadingPreviousBookings &&
-    visiblePreviousBookings.length > 0 && (
-    <section className="mb-5 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-        <div className="mb-4 flex items-start justify-between gap-3">
-            <div>
-                <h3 className="text-base font-bold text-gray-900">
-                    Recently Booked Providers
-                </h3>
-                <p className="mt-1 text-sm text-gray-500">
-                    Quickly rebook a provider you have used before.
-                </p>
-            </div>
+                                    {otpVerified &&
+                                        clientType === "returning" &&
+                                        previousBookingsLoaded &&
+                                        !loadingPreviousBookings &&
+                                        visiblePreviousBookings.length > 0 && (
+                                            <section className="mb-5 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+                                                <div className="mb-4 flex items-start justify-between gap-3">
+                                                    <div>
+                                                        <h3 className="text-base font-bold text-gray-900">
+                                                            Recently Booked Providers
+                                                        </h3>
+                                                        <p className="mt-1 text-sm text-gray-500">
+                                                            Quickly rebook a provider you have used before.
+                                                        </p>
+                                                    </div>
 
-            {!loadingPreviousBookings && (
-                <span className="rounded-full bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-700">
-                    {visiblePreviousBookings.length}{" "}
-                    {visiblePreviousBookings.length === 1
-                        ? "provider"
-                        : "providers"}
-                </span>
-            )}
-        </div>
+                                                    {!loadingPreviousBookings && (
+                                                        <span className="rounded-full bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-700">
+                                                            {visiblePreviousBookings.length}{" "}
+                                                            {visiblePreviousBookings.length === 1
+                                                                ? "provider"
+                                                                : "providers"}
+                                                        </span>
+                                                    )}
+                                                </div>
 
-        {/* Loading state */}
-        {loadingPreviousBookings && (
-            <div className="flex items-center gap-3 py-5 text-sm text-gray-500">
-                <div className="h-5 w-5 animate-spin rounded-full border-2 border-indigo-600 border-t-transparent" />
-                Loading your previous bookings...
-            </div>
-        )}
+                                                {/* Loading state */}
+                                                {loadingPreviousBookings && (
+                                                    <div className="flex items-center gap-3 py-5 text-sm text-gray-500">
+                                                        <div className="h-5 w-5 animate-spin rounded-full border-2 border-indigo-600 border-t-transparent" />
+                                                        Loading your previous bookings...
+                                                    </div>
+                                                )}
 
-        {/* Empty state */}
-        {!loadingPreviousBookings &&
-            previousBookingsLoaded &&
-            visiblePreviousBookings.length === 0 && (
-                <div className="rounded-lg border border-dashed border-gray-200 bg-gray-50 px-4 py-6 text-center">
-                    <p className="text-sm font-medium text-gray-700">
-                        No previous providers found
-                    </p>
-                    <p className="mt-1 text-xs text-gray-500">
-                        Your previously booked providers will appear here.
-                    </p>
-                </div>
-            )}
+                                                {/* Empty state */}
+                                                {!loadingPreviousBookings &&
+                                                    previousBookingsLoaded &&
+                                                    visiblePreviousBookings.length === 0 && (
+                                                        <div className="rounded-lg border border-dashed border-gray-200 bg-gray-50 px-4 py-6 text-center">
+                                                            <p className="text-sm font-medium text-gray-700">
+                                                                No previous providers found
+                                                            </p>
+                                                            <p className="mt-1 text-xs text-gray-500">
+                                                                Your previously booked providers will appear here.
+                                                            </p>
+                                                        </div>
+                                                    )}
 
-        {/* Previous provider cards */}
-        {!loadingPreviousBookings &&
-            visiblePreviousBookings.length > 0 && (
-                <div className="space-y-3">
-                    {visiblePreviousBookings.map((previousBooking) => {
-                        const previousCategories = previousBooking.categories || [];
-                        const previousProvider = allProviders.find(
-                            (provider) =>
-                                String(provider.id) ===
-                                String(previousBooking.providerId)
-                        );
+                                                {/* Previous provider cards */}
+                                                {!loadingPreviousBookings &&
+                                                    visiblePreviousBookings.length > 0 && (
+                                                        <div className="space-y-3">
+                                                            {visiblePreviousBookings.map((previousBooking) => {
+                                                                const previousCategories = previousBooking.categories || [];
+                                                                const previousProvider = allProviders.find(
+                                                                    (provider) =>
+                                                                        String(provider.id) ===
+                                                                        String(previousBooking.providerId)
+                                                                );
 
-                        const providerName =
-                            previousProvider?.name ||
-                            previousBooking.booking?.provider?.name ||
-                            `Provider ${previousBooking.providerId}`;
+                                                                const providerName =
+                                                                    previousProvider?.name ||
+                                                                    previousBooking.booking?.provider?.name ||
+                                                                    `Provider ${previousBooking.providerId}`;
 
-                        const lastBookedDate = previousBooking.lastBookedAt
-                            ? new Date(previousBooking.lastBookedAt)
-                            : null;
+                                                                const lastBookedDate = previousBooking.lastBookedAt
+                                                                    ? new Date(previousBooking.lastBookedAt)
+                                                                    : null;
 
-                        const formattedLastBookedDate =
-                            lastBookedDate &&
-                            !Number.isNaN(lastBookedDate.getTime())
-                                ? lastBookedDate.toLocaleDateString(
-                                      "en-US",
-                                      {
-                                          month: "short",
-                                          day: "numeric",
-                                          year: "numeric",
-                                      }
-                                  )
-                                : "Date unavailable";
+                                                                const formattedLastBookedDate =
+                                                                    lastBookedDate &&
+                                                                        !Number.isNaN(lastBookedDate.getTime())
+                                                                        ? lastBookedDate.toLocaleDateString(
+                                                                            "en-US",
+                                                                            {
+                                                                                month: "short",
+                                                                                day: "numeric",
+                                                                                year: "numeric",
+                                                                            }
+                                                                        )
+                                                                        : "Date unavailable";
 
-                        return (
-                            <div
-                                key={previousBooking.providerId}
-                                className="rounded-xl border border-gray-200 p-4 transition hover:border-indigo-200 hover:shadow-sm"
-                            >
-                                {/* Provider details */}
-                                <div className="flex items-start gap-3">
-                                    
-
-<div className="h-12 w-12 shrink-0 overflow-hidden rounded-2xl border border-gray-200 bg-indigo-50 shadow-sm">
-    <img
-        src={
-            previousProvider?.picture_path
-                ? `${process.env.NEXT_PUBLIC_BASE_URL_IMAGE || ""}${previousProvider.picture_path}`
-                : previousBooking.booking?.provider?.picture_path
-                    ? `${process.env.NEXT_PUBLIC_BASE_URL_IMAGE || ""}${previousBooking.booking.provider.picture_path}`
-                    : "/images/placeholder.jpg"
-        }
-        alt={providerName}
-        className="h-full w-full object-cover"
-        onError={(e) => {
-            e.currentTarget.src = "/images/placeholder.jpg";
-        }}
-    />
-</div>
+                                                                return (
+                                                                    <div
+                                                                        key={previousBooking.providerId}
+                                                                        className="rounded-xl border border-gray-200 p-4 transition hover:border-indigo-200 hover:shadow-sm"
+                                                                    >
+                                                                        {/* Provider details */}
+                                                                        <div className="flex items-start gap-3">
 
 
-
-                                    <div className="min-w-0 flex-1">
-                                        <h4 className="break-words text-sm font-semibold text-gray-900">
-                                            {cleanName(providerName)}
-                                        </h4>
-
-                                        <p className="mt-1 text-xs text-gray-500">
-                                            Last booked:{" "}
-                                            <span className="font-medium text-gray-700">
-                                                {formattedLastBookedDate}
-                                            </span>
-                                        </p>
-                                    </div>
-
-                                    <button
-                                        type="button"
-                                        onClick={() =>
-                                            handleRemovePreviousProvider(
-                                                previousBooking.providerId
-                                            )
-                                        }
-                                        className="shrink-0 rounded-md px-2 py-1 text-xs font-medium text-red-600 transition hover:bg-red-50"
-                                        aria-label={`Remove ${providerName} from recently booked providers`}
-                                    >
-                                        Remove
-                                    </button>
-                                </div>
-
-                                
-
-{/* Categories from the most recent booking */}
-<div className="mt-3">
-    <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
-        Previously booked categories
-    </p>
-
-    {previousCategories.length > 0 ? (
-        <div className="flex flex-wrap gap-2">
-            {previousCategories.map((category, index) => (
-                <span
-                    key={`${previousBooking.providerId}-${category}-${index}`}
-                    className="rounded-full bg-gray-100 px-2.5 py-1 text-xs text-gray-700"
-                >
-                    {category}
-                </span>
-            ))}
-        </div>
-    ) : (
-        <p className="text-xs text-gray-500">
-            No category details available for this booking.
-        </p>
-    )}
-</div>
+                                                                            <div className="h-12 w-12 shrink-0 overflow-hidden rounded-2xl border border-gray-200 bg-indigo-50 shadow-sm">
+                                                                                <img
+                                                                                    src={
+                                                                                        previousProvider?.picture_path
+                                                                                            ? `${process.env.NEXT_PUBLIC_BASE_URL_IMAGE || ""}${previousProvider.picture_path}`
+                                                                                            : previousBooking.booking?.provider?.picture_path
+                                                                                                ? `${process.env.NEXT_PUBLIC_BASE_URL_IMAGE || ""}${previousBooking.booking.provider.picture_path}`
+                                                                                                : "/images/placeholder.jpg"
+                                                                                    }
+                                                                                    alt={providerName}
+                                                                                    className="h-full w-full object-cover"
+                                                                                    onError={(e) => {
+                                                                                        e.currentTarget.src = "/images/placeholder.jpg";
+                                                                                    }}
+                                                                                />
+                                                                            </div>
 
 
 
-                                {/* Rebooking actions */}
-                                <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                                    <button
-                                        type="button"
-                                        onClick={() =>
-                                            handleRebookPreviousProvider(
-                                                previousBooking,
-                                                "same"
-                                            )
-                                        }
-                                        className="inline-flex items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm font-semibold text-gray-700 transition-colors hover:border-indigo-400 hover:bg-indigo-50 hover:text-indigo-700"
-                                    >
-                                        <CalendarDays className="h-4 w-4" />
-                                        Rebook with same services
-                                    </button>
+                                                                            <div className="min-w-0 flex-1">
+                                                                                <h4 className="break-words text-sm font-semibold text-gray-900">
+                                                                                    {cleanName(providerName)}
+                                                                                </h4>
 
-                                    <button
-                                        type="button"
-                                        onClick={() =>
-                                            handleRebookPreviousProvider(
-                                                previousBooking,
-                                                "new"
-                                            )
-                                        }
-                                        className="inline-flex items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm font-semibold text-gray-700 transition-colors hover:border-indigo-400 hover:bg-indigo-50 hover:text-indigo-700"
-                                    >
-                                        <Scissors className="h-4 w-4" />
-                                        Rebook with new services
-                                    </button>
-                                </div>
-                            </div>
-                        );
-                    })}
-                </div>
-            )}
-    </section>
-)}
+                                                                                <p className="mt-1 text-xs text-gray-500">
+                                                                                    Last booked:{" "}
+                                                                                    <span className="font-medium text-gray-700">
+                                                                                        {formattedLastBookedDate}
+                                                                                    </span>
+                                                                                </p>
+                                                                            </div>
+
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={() =>
+                                                                                    handleRemovePreviousProvider(
+                                                                                        previousBooking.providerId
+                                                                                    )
+                                                                                }
+                                                                                className="shrink-0 rounded-md px-2 py-1 text-xs font-medium text-red-600 transition hover:bg-red-50"
+                                                                                aria-label={`Remove ${providerName} from recently booked providers`}
+                                                                            >
+                                                                                Remove
+                                                                            </button>
+                                                                        </div>
+
+
+
+                                                                        {/* Categories from the most recent booking */}
+                                                                        <div className="mt-3">
+                                                                            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
+                                                                                Previously booked categories
+                                                                            </p>
+
+                                                                            {previousCategories.length > 0 ? (
+                                                                                <div className="flex flex-wrap gap-2">
+                                                                                    {previousCategories.map((category, index) => (
+                                                                                        <span
+                                                                                            key={`${previousBooking.providerId}-${category}-${index}`}
+                                                                                            className="rounded-full bg-gray-100 px-2.5 py-1 text-xs text-gray-700"
+                                                                                        >
+                                                                                            {category}
+                                                                                        </span>
+                                                                                    ))}
+                                                                                </div>
+                                                                            ) : (
+                                                                                <p className="text-xs text-gray-500">
+                                                                                    No category details available for this booking.
+                                                                                </p>
+                                                                            )}
+                                                                        </div>
+
+
+
+                                                                        {/* Rebooking actions */}
+                                                                        <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={() =>
+                                                                                    handleRebookPreviousProvider(
+                                                                                        previousBooking,
+                                                                                        "same"
+                                                                                    )
+                                                                                }
+                                                                                className="inline-flex items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm font-semibold text-gray-700 transition-colors hover:border-indigo-400 hover:bg-indigo-50 hover:text-indigo-700"
+                                                                            >
+                                                                                <CalendarDays className="h-4 w-4" />
+                                                                                Rebook with same services
+                                                                            </button>
+
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={() =>
+                                                                                    handleRebookPreviousProvider(
+                                                                                        previousBooking,
+                                                                                        "new"
+                                                                                    )
+                                                                                }
+                                                                                className="inline-flex items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm font-semibold text-gray-700 transition-colors hover:border-indigo-400 hover:bg-indigo-50 hover:text-indigo-700"
+                                                                            >
+                                                                                <Scissors className="h-4 w-4" />
+                                                                                Rebook with new services
+                                                                            </button>
+                                                                        </div>
+                                                                    </div>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    )}
+                                            </section>
+                                        )}
 
 
                                     {/* ADDRESS */}
@@ -5661,61 +5661,61 @@ const previousProviders = visiblePreviousBookings
                             ) : (
 
                                 <div onWheel={handleServicesWheel}>
-                                <ProvidersSection
-                                    providers={
-    otpVerified &&
-    clientType === "returning" &&
-    previousBookingsLoaded
-        ? previousProviders
-        : filteredProviders
-}
-allEligibleProviders={
-    otpVerified &&
-    clientType === "returning" &&
-    previousBookingsLoaded
-        ? previousProviders
-        : visibleProviders
-}
-                                    providerLimit={providerLimit}
-                                    locations={locations}
-                                    clientLocation={clientLocation}
-                                    searchWithin={searchWithin}
-                                    selectedProvider={selectedProvider}
-                                    userEmail={userEmail}
-                                    onProviderSelect={handleProviderSelect}
-                                    onBlacklist={handleBlacklist}
-                                    events={events}
-                                    categories={availableCategories}
-                                    compactMode
-                                    setHoveredProvider={setHoveredProvider}
-                                    allProviders={allProviders}
-                                    onProviderUnhide={handleProviderUnhide}
-                                    userAddress={address}
-                                    showHiddenProviders={showHiddenProviders}
-                                    providersWithDistance={providersWithDistance}
-                                    setBlacklistedProviders={setBlacklistedProviders}
-                                    blacklistedProviders={blacklistedProviders}
-                                    searchCategory={searchCategory}
-                                    setSearchCategory={setSearchCategory}
-                                    setSelectedProvider={setSelectedProvider}
+                                    <ProvidersSection
+                                        providers={
+                                            otpVerified &&
+                                                clientType === "returning" &&
+                                                previousBookingsLoaded
+                                                ? previousProviders
+                                                : filteredProviders
+                                        }
+                                        allEligibleProviders={
+                                            otpVerified &&
+                                                clientType === "returning" &&
+                                                previousBookingsLoaded
+                                                ? previousProviders
+                                                : visibleProviders
+                                        }
+                                        providerLimit={providerLimit}
+                                        locations={locations}
+                                        clientLocation={clientLocation}
+                                        searchWithin={searchWithin}
+                                        selectedProvider={selectedProvider}
+                                        userEmail={userEmail}
+                                        onProviderSelect={handleProviderSelect}
+                                        onBlacklist={handleBlacklist}
+                                        events={events}
+                                        categories={availableCategories}
+                                        compactMode
+                                        setHoveredProvider={setHoveredProvider}
+                                        allProviders={allProviders}
+                                        onProviderUnhide={handleProviderUnhide}
+                                        userAddress={address}
+                                        showHiddenProviders={showHiddenProviders}
+                                        providersWithDistance={providersWithDistance}
+                                        setBlacklistedProviders={setBlacklistedProviders}
+                                        blacklistedProviders={blacklistedProviders}
+                                        searchCategory={searchCategory}
+                                        setSearchCategory={setSearchCategory}
+                                        setSelectedProvider={setSelectedProvider}
 
-                                    mobileProviders={mobileProviders}
-                                    studioProviders={studioProviders}
-                                    mobileProvidersWithDistance={mobileProvidersWithDistance}
-                                    studioProvidersWithDistance={studioProvidersWithDistance}
-                                    providerType={providerType}
-                                    setProviderType={setProviderType}
+                                        mobileProviders={mobileProviders}
+                                        studioProviders={studioProviders}
+                                        mobileProvidersWithDistance={mobileProvidersWithDistance}
+                                        studioProvidersWithDistance={studioProvidersWithDistance}
+                                        providerType={providerType}
+                                        setProviderType={setProviderType}
 
-                                    previousProviderBookings={visiblePreviousBookings}
-loadingPreviousBookings={loadingPreviousBookings}
-showPreviousProvidersOnly={
-    otpVerified &&
-    previousBookingsLoaded &&
-    visiblePreviousBookings.length > 0
-}
-onRebookPreviousProvider={handleRebookPreviousProvider}
-onRemovePreviousProvider={handleRemovePreviousProvider}
-                                />
+                                        previousProviderBookings={visiblePreviousBookings}
+                                        loadingPreviousBookings={loadingPreviousBookings}
+                                        showPreviousProvidersOnly={
+                                            otpVerified &&
+                                            previousBookingsLoaded &&
+                                            visiblePreviousBookings.length > 0
+                                        }
+                                        onRebookPreviousProvider={handleRebookPreviousProvider}
+                                        onRemovePreviousProvider={handleRemovePreviousProvider}
+                                    />
                                 </div>
 
                             )
@@ -5744,16 +5744,16 @@ onRemovePreviousProvider={handleRemovePreviousProvider}
                             {otpVerified && activeProvider ? (<>
                                 {/* ⭐ Hidden data loader */}
                                 <ServiceCategorySection
-    selectedProvider={finalProvider}
-    providers={
-        providerType === "studio"
-            ? studioProviders
-            : mobileProviders
-    }
-    events={events}
-    categories={categories}
-    onCategoriesReady={setProviderCategories}
-/>
+                                    selectedProvider={finalProvider}
+                                    providers={
+                                        providerType === "studio"
+                                            ? studioProviders
+                                            : mobileProviders
+                                    }
+                                    events={events}
+                                    categories={categories}
+                                    onCategoriesReady={setProviderCategories}
+                                />
 
                                 {/* ⭐ Actual UI */}
                                 <ServiceSelectionSection
@@ -5813,20 +5813,20 @@ onRemovePreviousProvider={handleRemovePreviousProvider}
                         <div ref={availabilityScrollRef} onWheel={handleServicesWheel} className="flex-1 overflow-y-auto p-4">
                             {Object.values(services).some(Boolean) ? (
                                 <AvailabilitySection
-    workCalandar={workCalandar}
-    selectedDate={selectedDate}
-    selectedTime={selectedTime}
-    slots={slots}
-    availableSlots={availableSlots}
-    onDateSelect={(date) => {
-        setSelectedDate(date);
-        setSelectedTime("");
-    }}
-    onTimeSelect={setSelectedTime}
-    loadingCalendar={loadingCalendar}
-    loadingTimeSlots={loadingTimeSlots}
-    totalDuration={totalDuration}
-/>
+                                    workCalandar={workCalandar}
+                                    selectedDate={selectedDate}
+                                    selectedTime={selectedTime}
+                                    slots={slots}
+                                    availableSlots={availableSlots}
+                                    onDateSelect={(date) => {
+                                        setSelectedDate(date);
+                                        setSelectedTime("");
+                                    }}
+                                    onTimeSelect={setSelectedTime}
+                                    loadingCalendar={loadingCalendar}
+                                    loadingTimeSlots={loadingTimeSlots}
+                                    totalDuration={totalDuration}
+                                />
                             ) : (
                                 <StepLocked
                                     title="Select Time Slot"
@@ -5837,195 +5837,195 @@ onRemovePreviousProvider={handleRemovePreviousProvider}
                     </div>
 
                     {selectedTime && (
-  <SimplyBookCheckout
-  provider={allProviders.find(
-    (item) =>
-      String(item.id) === String(selectedProvider)
-  )}
+                        <SimplyBookCheckout
+                            provider={allProviders.find(
+                                (item) =>
+                                    String(item.id) === String(selectedProvider)
+                            )}
 
-  services={getSimplyBookServices()}
+                            services={getSimplyBookServices()}
 
-  selectedDate={selectedDate}
+                            selectedDate={selectedDate}
 
-  selectedTime={selectedTime}
+                            selectedTime={selectedTime}
 
-  client={{
-    name:
-      formData.name ||
-      loginData.name ||
-      userName,
+                            client={{
+                                name:
+                                    formData.name ||
+                                    loginData.name ||
+                                    userName,
 
-    email:
-      userEmail ||
-      loginData.email ||
-      formData.email,
+                                email:
+                                    userEmail ||
+                                    loginData.email ||
+                                    formData.email,
 
-    phone:
-      loginData.phonenumber ||
-      formData.phonenumber ||
-      formData.phone,
+                                phone:
+                                    loginData.phonenumber ||
+                                    formData.phonenumber ||
+                                    formData.phone,
 
-    fullAddress:
-      formData.fullAddress,
+                                fullAddress:
+                                    formData.fullAddress,
 
-    city:
-      formData.city,
+                                city:
+                                    formData.city,
 
-    state:
-      formData.state,
+                                state:
+                                    formData.state,
 
-    zip:
-      formData.zip,
-  }}
+                                zip:
+                                    formData.zip,
+                            }}
 
-  appointmentLocation={{
-    type:
-      String(
-        allProviders.find(
-          (item) =>
-            String(item.id) ===
-            String(selectedProvider)
-        )?.providerMode || ""
-      ).toLowerCase() === "studio"
-        ? "Studio"
-        : "Home",
+                            appointmentLocation={{
+                                type:
+                                    String(
+                                        allProviders.find(
+                                            (item) =>
+                                                String(item.id) ===
+                                                String(selectedProvider)
+                                        )?.providerMode || ""
+                                    ).toLowerCase() === "studio"
+                                        ? "Studio"
+                                        : "Home",
 
-    fullAddress:
-      formData.fullAddress,
+                                fullAddress:
+                                    formData.fullAddress,
 
-    city:
-      formData.city,
+                                city:
+                                    formData.city,
 
-    state:
-      formData.state,
+                                state:
+                                    formData.state,
 
-    zip:
-      formData.zip,
-  }}
+                                zip:
+                                    formData.zip,
+                            }}
 
-  onBack={() => setActiveStep(4)}
-
-  
-onSuccess={(result) => {
-    setSimplyBookResult(result);
-
-    const providerId = String(selectedProvider);
-    
-
-// Use the exact event objects passed to SimplyBook.
-const bookedServiceDetails = getSimplyBookServices();
-
-const bookedServices = bookedServiceDetails
-    .map((service) => service.name)
-    .filter(Boolean);
-
-const bookedCategories = getBookingCategoryNames({
-    services: bookedServiceDetails,
-});
-
-console.log("[Booking category debug]", {
-    selectedServices,
-    bookedServiceDetails,
-    events: events.map((event) => ({
-        id: event.id,
-        name: event.name,
-    })),
-    categories: categories.map((category) => ({
-        name: category.name,
-        events: category.events,
-    })),
-    bookedCategories,
-});
+                            onBack={() => setActiveStep(4)}
 
 
-setBookingDetails({
-    provider: selectedProvider,
-    date: selectedDate,
-    time: selectedTime,
-    services: bookedServices,
-});
+                            onSuccess={(result) => {
+                                setSimplyBookResult(result);
 
-// Add/update the provider immediately in Recently Booked Providers.
-setPreviousProviderBookings((previous) => [
-    {
-        providerId,
-        lastBookedAt: new Date().toISOString(),
-        services: bookedServices,
-        categories: bookedCategories,
-        booking: {
-            services: bookedServices,
-            clientaddress: {
-                fullAddress: formData.fullAddress || "",
-                city: formData.city || "",
-                state: formData.state || "",
-                zip: formData.zip || "",
-            },
-        },
-    },
-    ...previous.filter(
-        (item) => String(item.providerId) !== providerId
-    ),
-]);
+                                const providerId = String(selectedProvider);
 
 
-    // Make sure the newly booked provider isn't hidden.
-    
-setDismissedPreviousProviderIds((previous) => {
-    const updated = previous.filter(
-        (id) => String(id) !== String(providerId)
-    );
+                                // Use the exact event objects passed to SimplyBook.
+                                const bookedServiceDetails = getSimplyBookServices();
 
-    try {
-        localStorage.setItem(
-            dismissedPreviousStorageKey,
-            JSON.stringify(updated)
-        );
-    } catch (error) {
-        console.error("Failed to update dismissed providers:", error);
-    }
+                                const bookedServices = bookedServiceDetails
+                                    .map((service) => service.name)
+                                    .filter(Boolean);
 
-    return updated;
-});
+                                const bookedCategories = getBookingCategoryNames({
+                                    services: bookedServiceDetails,
+                                });
+
+                                console.log("[Booking category debug]", {
+                                    selectedServices,
+                                    bookedServiceDetails,
+                                    events: events.map((event) => ({
+                                        id: event.id,
+                                        name: event.name,
+                                    })),
+                                    categories: categories.map((category) => ({
+                                        name: category.name,
+                                        events: category.events,
+                                    })),
+                                    bookedCategories,
+                                });
 
 
-    // Allow the section to display immediately.
-    setPreviousBookingsLoaded(true);
+                                setBookingDetails({
+                                    provider: selectedProvider,
+                                    date: selectedDate,
+                                    time: selectedTime,
+                                    services: bookedServices,
+                                });
 
-    setShowSuccess(true);
-}}
+                                // Add/update the provider immediately in Recently Booked Providers.
+                                setPreviousProviderBookings((previous) => [
+                                    {
+                                        providerId,
+                                        lastBookedAt: new Date().toISOString(),
+                                        services: bookedServices,
+                                        categories: bookedCategories,
+                                        booking: {
+                                            services: bookedServices,
+                                            clientaddress: {
+                                                fullAddress: formData.fullAddress || "",
+                                                city: formData.city || "",
+                                                state: formData.state || "",
+                                                zip: formData.zip || "",
+                                            },
+                                        },
+                                    },
+                                    ...previous.filter(
+                                        (item) => String(item.providerId) !== providerId
+                                    ),
+                                ]);
 
-/>
-)}
+
+                                // Make sure the newly booked provider isn't hidden.
+
+                                setDismissedPreviousProviderIds((previous) => {
+                                    const updated = previous.filter(
+                                        (id) => String(id) !== String(providerId)
+                                    );
+
+                                    try {
+                                        localStorage.setItem(
+                                            dismissedPreviousStorageKey,
+                                            JSON.stringify(updated)
+                                        );
+                                    } catch (error) {
+                                        console.error("Failed to update dismissed providers:", error);
+                                    }
+
+                                    return updated;
+                                });
+
+
+                                // Allow the section to display immediately.
+                                setPreviousBookingsLoaded(true);
+
+                                setShowSuccess(true);
+                            }}
+
+                        />
+                    )}
                 </div>
             </div >
         );
     };
 
-    {
-        showNoProvidersModal && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-                <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md">
-                    <h3 className="text-lg font-semibold text-gray-900">
-                        No Providers Found
-                    </h3>
+    // {
+    //     showNoProvidersModal && (
+    //         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+    //             <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md">
+    //                 <h3 className="text-lg font-semibold text-gray-900">
+    //                     No Providers Found
+    //                 </h3>
 
-                    <p className="mt-3 text-sm text-gray-600">
-                        There are currently no service providers available within your
-                        selected search radius for this address.
-                    </p>
+    //                 <p className="mt-3 text-sm text-gray-600">
+    //                     There are currently no service providers available within your
+    //                     selected search radius for this address.
+    //                 </p>
 
-                    <div className="mt-6 flex justify-end">
-                        <button
-                            onClick={() => setShowNoProvidersModal(false)}
-                            className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
-                        >
-                            OK
-                        </button>
-                    </div>
-                </div>
-            </div>
-        )
-    }
+    //                 <div className="mt-6 flex justify-end">
+    //                     <button
+    //                         onClick={() => setShowNoProvidersModal(false)}
+    //                         className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+    //                     >
+    //                         OK
+    //                     </button>
+    //                 </div>
+    //             </div>
+    //         </div>
+    //     )
+    // }
     return (
         <>
             <div className="w-full mx-auto mt-6 mb-16 p-6 space-y-10 bg-gradient-to-br from-white via-blue-50 to-indigo-100 shadow-2xl rounded-3xl border border-gray-100 relative">
@@ -6080,7 +6080,7 @@ setDismissedPreviousProviderIds((previous) => {
                 )}
             </div>
 
-            <NoProvidersModal
+            {/* <NoProvidersModal
                 open={showNoProvidersModal}
                 onClose={() => setShowNoProvidersModal(false)}
                 onChangeAddress={() => {
@@ -6101,7 +6101,7 @@ setDismissedPreviousProviderIds((previous) => {
                         getLatLngFromAddress();
                     }, 200);
                 }}
-            />
+            /> */}
         </>
     );
 

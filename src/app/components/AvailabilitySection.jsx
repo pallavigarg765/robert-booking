@@ -932,6 +932,33 @@ export default function AvailabilitySection({
     const afternoonAvailable = hasAvailableTime("afternoon");
     const eveningAvailable = hasAvailableTime("evening");
 
+    const selectedPeriodAvailability = {
+    morning: morningAvailable,
+    afternoon: afternoonAvailable,
+    evening: eveningAvailable,
+}[timePreference] ?? false;
+
+    const getTimePreferenceClass = (period, isAvailable) => {
+    const isSelected = timePreference === period;
+
+    return `
+        py-2 rounded-lg border-2 transition-all duration-200
+        ${
+            isSelected
+                ? "border-purple-600"
+                : isAvailable
+                    ? "border-orange-400"
+                    : "border-orange-200"
+        }
+        ${
+            isAvailable
+                ? "bg-orange-400 text-orange-800 hover:bg-orange-400"
+                : "bg-orange-50/40 text-orange-300"
+        }
+        ${isSelected ? "ring-0" : ""}
+    `;
+};
+
     // NEW
     const slotsLoaded = !loadingTimeSlots;
 
@@ -964,13 +991,77 @@ export default function AvailabilitySection({
         businessEndMinutes !== null &&
         currentTimeMinutes >= businessEndMinutes;
 
-    const availabilityStatus = selectedDayIsOff
-        ? "Service Provider is off today"
-        : businessDayHasEnded
-            ? "Business day of Provider has ended"
-            : slotsLoaded && !hasAnyAvailableSlot
-                ? "Provider Booked for the Day"
-                : null;
+    const getPeriodBounds = (period) => {
+    switch (period) {
+        case "morning":
+            return [0, 12 * 60];
+
+        case "afternoon":
+            return [12 * 60, 17 * 60];
+
+        case "evening":
+            return [17 * 60, 24 * 60];
+
+        default:
+            return null;
+    }
+};
+
+const selectedPeriodHasWorkingHours = (() => {
+    if (!timePreference || !Array.isArray(availableSlots)) {
+        return false;
+    }
+
+    const bounds = getPeriodBounds(timePreference);
+
+    if (!bounds) return false;
+
+    const [periodStart, periodEnd] = bounds;
+
+    // For today, ignore working hours that have already passed.
+    const effectivePeriodStart = selectedDayIsToday
+        ? Math.max(periodStart, currentTimeMinutes)
+        : periodStart;
+
+    if (effectivePeriodStart >= periodEnd) {
+        return false;
+    }
+
+    return availableSlots.some((interval) => {
+        const intervalStart = timeToMinutes(interval?.from);
+        const intervalEnd = timeToMinutes(interval?.to);
+
+        if (intervalStart === null || intervalEnd === null) {
+            return false;
+        }
+
+        return (
+            intervalStart < periodEnd &&
+            intervalEnd > effectivePeriodStart
+        );
+    });
+})();
+
+const availabilityStatus = selectedDayIsOff
+    ? "Service Provider is off today"
+    : businessDayHasEnded
+        ? "Business day of Provider has ended"
+        : slotsLoaded && !hasAnyAvailableSlot
+            ? "Provider Booked for the Day"
+            : slotsLoaded &&
+                timePreference &&
+                !selectedPeriodHasWorkingHours &&
+                !selectedPeriodAvailability
+                ? null
+                : slotsLoaded &&
+                    timePreference &&
+                    !selectedPeriodAvailability &&
+                    selectedPeriodHasWorkingHours
+                    ? `Provider Booked for the ${
+                        timePreference.charAt(0).toUpperCase() +
+                        timePreference.slice(1)
+                    }`
+                    : null;
 
     const hasPreviousAvailableDay = (() => {
         if (!selectedDate) return false;
@@ -1332,14 +1423,7 @@ export default function AvailabilitySection({
                         <button
                             type="button"
                             onClick={() => setTimePreference("morning")}
-                            className={`py-2 rounded-lg border-2 transition
-        ${timePreference === "morning"
-                                    ? "border-purple-600 bg-purple-50 text-purple-700"
-                                    : morningAvailable
-                                        ? "border-orange-400 bg-orange-50 text-orange-700 hover:bg-orange-100"
-                                        : "border-orange-200 bg-orange-50/40 text-orange-300"
-                                }
-    `}
+                            className={getTimePreferenceClass("morning", morningAvailable)}
                         >
                             Morning
                             <div className="text-[10px] opacity-80">
@@ -1350,14 +1434,7 @@ export default function AvailabilitySection({
                         <button
                             type="button"
                             onClick={() => setTimePreference("afternoon")}
-                            className={`py-2 rounded-lg border-2 transition
-        ${timePreference === "afternoon"
-                                    ? "border-purple-600 bg-purple-50 text-purple-700"
-                                    : afternoonAvailable
-                                        ? "border-orange-400 bg-orange-50 text-orange-700 hover:bg-orange-100"
-                                        : "border-orange-200 bg-orange-50/40 text-orange-300"
-                                }
-    `}
+                            className={getTimePreferenceClass("afternoon", afternoonAvailable)}
                         >
                             Afternoon
                             <div className="text-[10px] opacity-80">
@@ -1368,14 +1445,7 @@ export default function AvailabilitySection({
                         <button
                             type="button"
                             onClick={() => setTimePreference("evening")}
-                            className={`py-2 rounded-lg border-2 transition
-        ${timePreference === "evening"
-                                    ? "border-purple-600 bg-purple-50 text-purple-700"
-                                    : eveningAvailable
-                                        ? "border-orange-400 bg-orange-50 text-orange-700 hover:bg-orange-100"
-                                        : "border-orange-200 bg-orange-50/40 text-orange-300"
-                                }
-    `}
+                            className={getTimePreferenceClass("evening", eveningAvailable)}
                         >
                             Evening
                             <div className="text-[10px] opacity-80">

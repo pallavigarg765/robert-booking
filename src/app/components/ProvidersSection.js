@@ -249,6 +249,34 @@ const filteredProviders = useMemo(() => {
     ? visibleStudioProviders
     : visibleMobileProviders;
 
+  const selectedCategoryIds = Array.isArray(searchCategory)
+    ? searchCategory
+        .map(String)
+        .filter((id) => id !== "ALL")
+    : searchCategory && searchCategory !== "ALL"
+        ? [String(searchCategory)]
+        : [];
+
+const hasActiveCategoryFilter = selectedCategoryIds.length > 0;
+
+// These are the providers eligible for the current location,
+// before applying the selected category filter.
+const eligibleProvidersForCurrentType = (
+    Array.isArray(allEligibleProviders) ? allEligibleProviders : []
+).filter(
+    (item) =>
+        item.providerMode === providerType &&
+        !isProviderHidden(item)
+);
+
+// There are providers for this location, but none of them
+// offers every selected category.
+const noSingleProviderForSelectedCategories =
+    !showHiddenProviders &&
+    hasActiveCategoryFilter &&
+    eligibleProvidersForCurrentType.length > 0 &&
+    currentVisibleProviders.length === 0;
+
 const currentTabProvidersWithDistance =
   providerType === "studio"
     ? studioProvidersWithDistance
@@ -586,33 +614,34 @@ onRemovePreviousProvider?.(providerId);
                 ))}
 
             {!loadingProviders &&
-  (showHiddenProviders
-    ? hiddenProviderList.length
-    : currentVisibleProviders.length) === 0 && (
-                <div className="text-center py-6 text-sm text-gray-500">
-                  {showHiddenProviders ? (
-                    "No hidden providers"
-                  ) : providerType === "studio" ? (
-                    <>
-                      <div className="text-base font-medium text-gray-700">
-                        No Studio providers found
-                      </div>
-                      <div className="mt-1 text-xs text-gray-500">
-                        Try another address or increase your search radius.
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <div className="text-base font-medium text-gray-700">
-                        No Mobile providers found
-                      </div>
-                      <div className="mt-1 text-xs text-gray-500">
-                        Try another address or increase your search radius.
-                      </div>
-                    </>
-                  )}
-                </div>
-              )}
+    (showHiddenProviders
+        ? hiddenProviderList.length
+        : currentVisibleProviders.length) === 0 && (
+        <div className="text-center py-6 px-4 text-sm text-gray-500">
+            {showHiddenProviders ? (
+                "No hidden providers"
+            ) : noSingleProviderForSelectedCategories ? (
+                <>
+                    <div className="text-base font-semibold text-gray-800">
+                        No single provider for all selected services.
+                    </div>
+
+                    <div className="mt-2 text-sm text-gray-500">
+                        Try selecting fewer service categories to find a
+                        provider.
+                    </div>
+                </>
+            ) : (
+                <>
+                    <div className="text-base font-medium text-gray-700">
+                        No {providerType === "studio" ? "Studio" : "Mobile"}{" "}
+                        providers are currently available for this service
+                        location.
+                    </div>
+                </>
+            )}
+        </div>
+    )}
           </div>
 
         </div>
@@ -947,10 +976,9 @@ onRemovePreviousProvider?.(providerId);
           {/* NO PROVIDERS */}
           {!loadingProviders && visibleProviders.length === 0 && (
             <div className="text-center py-12">
-              <h3 className="text-xl font-semibold mb-2">No Available Providers</h3>
               <p className="text-gray-600 mb-4">
-                Try increasing your search radius or choosing another location.
-              </p>
+    No providers are currently available for this service location.
+</p>
 
               {userEmail && (
                 <button
