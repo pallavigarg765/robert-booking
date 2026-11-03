@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import ProvidersSection from "./ProvidersSection";
+import { toast } from "react-toastify";
 import NoProvidersSection from "./NoProvidersSection";
 import SuccessNotification from "./SuccessNotification";
 import { useBooking } from "./useBooking";
@@ -3513,18 +3514,182 @@ export default function ScheduleServices({ providers, events, locations, clients
         }
     }, [otpVerified]);
 
-    const totalDuration = events?.reduce((total, event) => {
-        const serviceKey = event.name
-            ?.toLowerCase()
-            .replace(/[^a-z0-9]+/g, "_")
-            .replace(/(^_+|_+$)/g, "");
+    const normalizeServiceKey = (name = "") =>
+    String(name)
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "_")
+        .replace(/^_+|_+$/g, "");
 
-        if (services?.[serviceKey]) {
-            return total + Number(event.duration || 0);
+const getServiceDuration = (event) => {
+    const duration = Number(
+        event?.duration ??
+        event?.duration_minutes ??
+        event?.length ??
+        60
+    );
+
+    return Number.isFinite(duration) && duration > 0
+        ? duration
+        : 60;
+};
+
+// Calculate the total duration of currently selected services.
+const totalDuration = (events || []).reduce((total, event) => {
+    const serviceKey = normalizeServiceKey(event.name);
+
+    if (services?.[serviceKey]) {
+        return total + getServiceDuration(event);
+    }
+
+    return total;
+}, 0);
+
+// Get the provider's working duration for the currently selected date.
+const getProviderWorkingMinutes = () => {
+    if (!selectedDate || !workCalandar) {
+        return null;
+    }
+
+    const date =
+        selectedDate instanceof Date
+            ? selectedDate
+            : new Date(selectedDate);
+
+    if (Number.isNaN(date.getTime())) {
+        return null;
+    }
+
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+
+    const dateKey = `${year}-${month}-${day}`;
+    const dayInfo = workCalandar[dateKey];
+
+    // Calendar information is not available yet.
+    if (!dayInfo) {
+        return null;
+    }
+
+    const isDayOff =
+        dayInfo.is_day_off === 1 ||
+        dayInfo.is_day_off === "1" ||
+        dayInfo.is_day_off === true;
+
+    if (isDayOff) {
+        return 0;
+    }
+
+    if (!dayInfo.from || !dayInfo.to) {
+        return null;
+    }
+
+    const parseTime = (time) => {
+        const [hours, minutes] = String(time)
+            .substring(0, 5)
+            .split(":")
+            .map(Number);
+
+        if (
+            !Number.isFinite(hours) ||
+            !Number.isFinite(minutes)
+        ) {
+            return null;
         }
 
-        return total;
-    }, 0) || 0;
+        return hours * 60 + minutes;
+    };
+
+    const startMinutes = parseTime(dayInfo.from);
+    const endMinutes = parseTime(dayInfo.to);
+
+    if (
+        startMinutes === null ||
+        endMinutes === null ||
+        endMinutes <= startMinutes
+    ) {
+        return null;
+    }
+
+    return endMinutes - startMinutes;
+};
+
+// Format minutes into a readable duration.
+const formatDuration = (minutes) => {
+    const hours = Math.floor(minutes / 60);
+    const remainingMinutes = minutes % 60;
+
+    if (hours > 0 && remainingMinutes > 0) {
+        return `${hours} hour${hours !== 1 ? "s" : ""} ${remainingMinutes} minutes`;
+    }
+
+    if (hours > 0) {
+        return `${hours} hour${hours !== 1 ? "s" : ""}`;
+    }
+
+    return `${remainingMinutes} minutes`;
+};
+
+// Validate a service before adding it to the selection.
+const handleServiceSelectionWithDurationLimit = (e) => {
+    const { name, checked } = e.target;
+
+    // Always allow removing an already selected service.
+    if (!checked) {
+        handleCheckboxChange(e);
+        return;
+    }
+
+    // Do not add the same service twice.
+    if (services?.[name]) {
+        return;
+    }
+
+    const providerWorkingMinutes = getProviderWorkingMinutes();
+
+    // If the provider's schedule has not loaded, retain existing behavior.
+    if (providerWorkingMinutes === null) {
+        handleCheckboxChange(e);
+        return;
+    }
+
+    // Provider has no working hours on this date.
+    if (providerWorkingMinutes === 0) {
+        toast.error(
+            "This provider is not available on the selected date. Please choose another working date."
+        );
+        return;
+    }
+
+    const selectedEvent = (events || []).find(
+        (event) => normalizeServiceKey(event.name) === name
+    );
+
+    if (!selectedEvent) {
+        toast.error("Unable to determine the selected service duration.");
+        return;
+    }
+
+    const newServiceDuration = getServiceDuration(selectedEvent);
+
+    const newTotalDuration =
+        totalDuration + newServiceDuration;
+
+    // Prevent selecting services that exceed the provider's working hours.
+    if (newTotalDuration > providerWorkingMinutes) {
+        toast.error(
+            `This service cannot be added. Your selected services would take ${formatDuration(newTotalDuration)}, but this provider has only ${formatDuration(providerWorkingMinutes)} of working time on the selected date. Please remove a service or choose another date.`,
+            {
+                autoClose: 5000,
+            }
+        );
+
+        return;
+    }
+
+    // Everything is valid; update the selected services.
+    handleCheckboxChange(e);
+};
 
 
     // Blacklisted Providers View Component
@@ -5760,7 +5925,7 @@ export default function ScheduleServices({ providers, events, locations, clients
                                     hoveredProvider={finalProvider}
                                     categories={providerCategories}
                                     services={services}
-                                    onCheckboxChange={handleCheckboxChange}
+                                    onCheckboxChange={handleServiceSelectionWithDurationLimit}
                                     selectedProvider={finalProvider}
                                     providers={providers}
                                     selectedCategory={searchCategory}
