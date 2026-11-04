@@ -804,6 +804,37 @@ export default function ScheduleServices({ providers, events, locations, clients
     };
 
 
+    // Reset the current booking selection after a successful booking.
+    // Keep the provider search results and client information intact.
+    const resetSelectionAfterSuccessfulBooking = () => {
+        // Clear all selected services.
+        Object.keys(services || {}).forEach((key) => {
+            if (services[key]) {
+                handleCheckboxChange({
+                    target: {
+                        name: key,
+                        checked: false,
+                    },
+                });
+            }
+        });
+
+        // Clear provider selection and hover selection.
+        setSelectedProvider(null);
+        setHoveredProvider(null);
+
+        // Clear other selected booking information.
+        setSelectedServices([]);
+        setProviderCategories([]);
+        setSelectedDate(null);
+        setSelectedTime("");
+
+        // Return the service and availability panels to their initial state.
+        setActiveStep(1);
+    };
+
+
+
     const handleRemovePreviousProvider = (providerId) => {
         const id = String(providerId);
 
@@ -3515,181 +3546,197 @@ export default function ScheduleServices({ providers, events, locations, clients
     }, [otpVerified]);
 
     const normalizeServiceKey = (name = "") =>
-    String(name)
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, "_")
-        .replace(/^_+|_+$/g, "");
+        String(name)
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, "_")
+            .replace(/^_+|_+$/g, "");
 
-const getServiceDuration = (event) => {
-    const duration = Number(
-        event?.duration ??
-        event?.duration_minutes ??
-        event?.length ??
-        60
-    );
+    const getServiceDuration = (event) => {
+        const duration = Number(
+            event?.duration ??
+            event?.duration_minutes ??
+            event?.length ??
+            60
+        );
 
-    return Number.isFinite(duration) && duration > 0
-        ? duration
-        : 60;
-};
+        return Number.isFinite(duration) && duration > 0
+            ? duration
+            : 60;
+    };
 
-// Calculate the total duration of currently selected services.
-const totalDuration = (events || []).reduce((total, event) => {
-    const serviceKey = normalizeServiceKey(event.name);
+    // Calculate the total duration of currently selected services.
+    const totalDuration = (events || []).reduce((total, event) => {
+        const serviceKey = normalizeServiceKey(event.name);
 
-    if (services?.[serviceKey]) {
-        return total + getServiceDuration(event);
-    }
+        if (services?.[serviceKey]) {
+            return total + getServiceDuration(event);
+        }
 
-    return total;
-}, 0);
+        return total;
+    }, 0);
 
-// Get the provider's working duration for the currently selected date.
-const getProviderWorkingMinutes = () => {
-    if (!selectedDate || !workCalandar) {
-        return null;
-    }
+    // Get the provider's working duration for the currently selected date.
+    const getProviderWorkingMinutes = () => {
+        if (!selectedDate || !workCalandar) {
+            return null;
+        }
 
-    const date =
-        selectedDate instanceof Date
-            ? selectedDate
-            : new Date(selectedDate);
+        const date =
+            selectedDate instanceof Date
+                ? selectedDate
+                : new Date(selectedDate);
 
-    if (Number.isNaN(date.getTime())) {
-        return null;
-    }
+        if (Number.isNaN(date.getTime())) {
+            return null;
+        }
 
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, "0");
-    const day = String(date.getDate()).padStart(2, "0");
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, "0");
+        const day = String(date.getDate()).padStart(2, "0");
 
-    const dateKey = `${year}-${month}-${day}`;
-    const dayInfo = workCalandar[dateKey];
+        const dateKey = `${year}-${month}-${day}`;
+        const dayInfo = workCalandar[dateKey];
 
-    // Calendar information is not available yet.
-    if (!dayInfo) {
-        return null;
-    }
+        // Calendar information is not available yet.
+        if (!dayInfo) {
+            return null;
+        }
 
-    const isDayOff =
-        dayInfo.is_day_off === 1 ||
-        dayInfo.is_day_off === "1" ||
-        dayInfo.is_day_off === true;
+        const isDayOff =
+            dayInfo.is_day_off === 1 ||
+            dayInfo.is_day_off === "1" ||
+            dayInfo.is_day_off === true;
 
-    if (isDayOff) {
-        return 0;
-    }
+        if (isDayOff) {
+            return 0;
+        }
 
-    if (!dayInfo.from || !dayInfo.to) {
-        return null;
-    }
+        if (!dayInfo.from || !dayInfo.to) {
+            return null;
+        }
 
-    const parseTime = (time) => {
-        const [hours, minutes] = String(time)
-            .substring(0, 5)
-            .split(":")
-            .map(Number);
+        const parseTime = (time) => {
+            const [hours, minutes] = String(time)
+                .substring(0, 5)
+                .split(":")
+                .map(Number);
+
+            if (
+                !Number.isFinite(hours) ||
+                !Number.isFinite(minutes)
+            ) {
+                return null;
+            }
+
+            return hours * 60 + minutes;
+        };
+
+        const startMinutes = parseTime(dayInfo.from);
+        const endMinutes = parseTime(dayInfo.to);
 
         if (
-            !Number.isFinite(hours) ||
-            !Number.isFinite(minutes)
+            startMinutes === null ||
+            endMinutes === null ||
+            endMinutes <= startMinutes
         ) {
             return null;
         }
 
-        return hours * 60 + minutes;
+        return endMinutes - startMinutes;
     };
 
-    const startMinutes = parseTime(dayInfo.from);
-    const endMinutes = parseTime(dayInfo.to);
+    // Format minutes into a readable duration.
+    const formatDuration = (minutes) => {
+        const hours = Math.floor(minutes / 60);
+        const remainingMinutes = minutes % 60;
 
-    if (
-        startMinutes === null ||
-        endMinutes === null ||
-        endMinutes <= startMinutes
-    ) {
-        return null;
-    }
+        if (hours > 0 && remainingMinutes > 0) {
+            return `${hours} hour${hours !== 1 ? "s" : ""} ${remainingMinutes} minutes`;
+        }
 
-    return endMinutes - startMinutes;
-};
+        if (hours > 0) {
+            return `${hours} hour${hours !== 1 ? "s" : ""}`;
+        }
 
-// Format minutes into a readable duration.
-const formatDuration = (minutes) => {
-    const hours = Math.floor(minutes / 60);
-    const remainingMinutes = minutes % 60;
+        return `${remainingMinutes} minutes`;
+    };
 
-    if (hours > 0 && remainingMinutes > 0) {
-        return `${hours} hour${hours !== 1 ? "s" : ""} ${remainingMinutes} minutes`;
-    }
+    // Validate a service before adding it to the selection.
+    const handleServiceSelectionWithDurationLimit = (e) => {
+        const { name, checked } = e.target;
 
-    if (hours > 0) {
-        return `${hours} hour${hours !== 1 ? "s" : ""}`;
-    }
+        const currentProvider =
+            allProviders.find(
+                (provider) =>
+                    String(provider.id) === String(selectedProvider)
+            ) ||
+            providers.find(
+                (provider) =>
+                    String(provider.id) === String(selectedProvider)
+            );
 
-    return `${remainingMinutes} minutes`;
-};
+        const providerLabel =
+            String(currentProvider?.providerMode || "")
+                .toLowerCase() === "studio"
+                ? "studio"
+                : "mobile service provider";
 
-// Validate a service before adding it to the selection.
-const handleServiceSelectionWithDurationLimit = (e) => {
-    const { name, checked } = e.target;
+        // Always allow removing an already selected service.
+        if (!checked) {
+            handleCheckboxChange(e);
+            return;
+        }
 
-    // Always allow removing an already selected service.
-    if (!checked) {
-        handleCheckboxChange(e);
-        return;
-    }
+        // Do not add the same service twice.
+        if (services?.[name]) {
+            return;
+        }
 
-    // Do not add the same service twice.
-    if (services?.[name]) {
-        return;
-    }
+        const providerWorkingMinutes = getProviderWorkingMinutes();
 
-    const providerWorkingMinutes = getProviderWorkingMinutes();
+        // If the provider's schedule has not loaded, retain existing behavior.
+        if (providerWorkingMinutes === null) {
+            handleCheckboxChange(e);
+            return;
+        }
 
-    // If the provider's schedule has not loaded, retain existing behavior.
-    if (providerWorkingMinutes === null) {
-        handleCheckboxChange(e);
-        return;
-    }
+        // Provider has no working hours on this date.
+        if (providerWorkingMinutes === 0) {
+            toast.error(
+                `This ${providerLabel} is not available on the selected date. Please choose another working date.`
+            );
+            return;
+        }
 
-    // Provider has no working hours on this date.
-    if (providerWorkingMinutes === 0) {
-        toast.error(
-            "This provider is not available on the selected date. Please choose another working date."
-        );
-        return;
-    }
-
-    const selectedEvent = (events || []).find(
-        (event) => normalizeServiceKey(event.name) === name
-    );
-
-    if (!selectedEvent) {
-        toast.error("Unable to determine the selected service duration.");
-        return;
-    }
-
-    const newServiceDuration = getServiceDuration(selectedEvent);
-
-    const newTotalDuration =
-        totalDuration + newServiceDuration;
-
-    // Prevent selecting services that exceed the provider's working hours.
-    if (newTotalDuration > providerWorkingMinutes) {
-        toast.error(
-            `This service cannot be added. Your selected services would take ${formatDuration(newTotalDuration)}, but this provider has only ${formatDuration(providerWorkingMinutes)} of working time on the selected date. Please remove a service or choose another date.`,
-            {
-                autoClose: 5000,
-            }
+        const selectedEvent = (events || []).find(
+            (event) => normalizeServiceKey(event.name) === name
         );
 
-        return;
-    }
+        if (!selectedEvent) {
+            toast.error("Unable to determine the selected service duration.");
+            return;
+        }
 
-    // Everything is valid; update the selected services.
-    handleCheckboxChange(e);
-};
+        const newServiceDuration = getServiceDuration(selectedEvent);
+
+        const newTotalDuration =
+            totalDuration + newServiceDuration;
+
+        // Prevent selecting services that exceed the provider's working hours.
+        if (newTotalDuration > providerWorkingMinutes) {
+            toast.error(
+                `This service cannot be added. Your selected services would take ${formatDuration(newTotalDuration)}, but this ${providerLabel} has only ${formatDuration(providerWorkingMinutes)} of working time on the selected date. Please remove a service or choose another date.`,
+                {
+                    autoClose: 5000,
+                }
+            );
+
+            return;
+        }
+
+        // Everything is valid; update the selected services.
+        handleCheckboxChange(e);
+    };
 
 
     // Blacklisted Providers View Component
@@ -6153,10 +6200,15 @@ const handleServiceSelectionWithDurationLimit = (e) => {
                                 });
 
 
-                                // Allow the section to display immediately.
+                                // Allow the Recently Booked Providers section to display immediately.
                                 setPreviousBookingsLoaded(true);
 
+                                // Show the successful booking confirmation.
                                 setShowSuccess(true);
+
+                                // Clear the previous provider and services.
+                                // Keep the provider list and client information intact.
+                                resetSelectionAfterSuccessfulBooking();
                             }}
 
                         />

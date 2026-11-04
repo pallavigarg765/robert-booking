@@ -111,7 +111,7 @@ export default function SearchCategorySection({
                     }`}
                 >
                     <span className="text-base">✨</span>
-                    <span>Any Categories</span>
+                    <span>Any Category</span>
                 </button>
 
                 {availableCategories.map((category) => {
