@@ -975,7 +975,7 @@ onRemovePreviousProvider?.(providerId);
           {!loadingProviders && visibleProviders.length === 0 && (
             <div className="text-center py-12">
               <p className="text-gray-600 mb-4">
-    No providers are currently available for this service location.
+    No single Service Provider available for all service categories. (Select fewer categories or add a second appointment with another Provider who can perform the missing services)
 </p>
 
               {userEmail && (
