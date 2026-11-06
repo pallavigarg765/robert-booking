@@ -634,9 +634,7 @@ onRemovePreviousProvider?.(providerId);
             ) : (
                 <>
                     <div className="text-base font-medium text-gray-700">
-                        No {providerType === "studio" ? "Studio" : "Mobile"}{" "}
-                        providers are currently available for this service
-                        location.
+                        No single Service Provider available for all service categories. (Select fewer categories or add a second appointment with another Provider who can perform the missing services)
                     </div>
                 </>
             )}
