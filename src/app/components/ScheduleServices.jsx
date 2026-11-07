@@ -826,6 +826,7 @@ export default function ScheduleServices({ providers, events, locations, clients
         // Clear other selected booking information.
         setSelectedServices([]);
         setProviderCategories([]);
+        setSearchCategory(["ALL"]);
         setSelectedDate(null);
         setSelectedTime("");
 
@@ -4073,6 +4074,23 @@ export default function ScheduleServices({ providers, events, locations, clients
         )
         .filter(Boolean);
 
+        console.log("🔎 SCHEDULE SERVICES PROVIDER DATA", {
+    clientType,
+    previousBookingsLoaded,
+    providerType,
+    searchCategory,
+    providersWithDistanceCount: providersWithDistance?.length,
+    filteredProvidersCount: filteredProviders?.length,
+    mobileProvidersCount: mobileProviders?.length,
+    studioProvidersCount: studioProviders?.length,
+    providersWithDistance: providersWithDistance?.map((p) => ({
+        id: p.id,
+        name: p.name,
+        providerMode: p.providerMode,
+        services: p.services,
+    })),
+});
+
     // Main horizontal flow content - FIXED VERSION
     const renderHorizontalFlow = () => {
         return (
@@ -5881,13 +5899,7 @@ export default function ScheduleServices({ providers, events, locations, clients
                                                 ? previousProviders
                                                 : filteredProviders
                                         }
-                                        allEligibleProviders={
-                                            otpVerified &&
-                                                clientType === "returning" &&
-                                                previousBookingsLoaded
-                                                ? previousProviders
-                                                : visibleProviders
-                                        }
+                                        allEligibleProviders={providersWithDistance}
                                         providerLimit={providerLimit}
                                         locations={locations}
                                         clientLocation={clientLocation}

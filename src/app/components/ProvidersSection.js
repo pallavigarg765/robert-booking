@@ -180,13 +180,24 @@ export default function ProvidersSection({
   }, [userEmail, hiddenStorageKey]);
 
   const isProviderHidden = (provider) => {
-  if (!userEmail) return false;
+    if (!userEmail || !provider?.id) return false;
 
-  return hiddenProviders.some(
-    (item) =>
-      String(item.providerId) === String(provider.id) &&
-      item.zip === userAddress?.zip
-  );
+    return hiddenProviders.some((item) => {
+        const hiddenProviderId =
+            item?.providerId ?? item?.id;
+
+        const hiddenZip = String(item?.zip ?? "").trim();
+        const currentZip = String(userAddress?.zip ?? "").trim();
+
+        const sameProvider =
+            String(hiddenProviderId) === String(provider.id);
+
+        // Support older hidden-provider records that don't contain a ZIP.
+        const sameLocation =
+            !hiddenZip || hiddenZip === currentZip;
+
+        return sameProvider && sameLocation;
+    });
 };
 
 const providerHasServices = (provider) => {
@@ -245,53 +256,115 @@ const filteredProviders = useMemo(() => {
   }, [filteredProviders, locations, clientLocation, searchWithin]);
 
   const currentVisibleProviders =
-  providerType === "studio"
-    ? visibleStudioProviders
-    : visibleMobileProviders;
+    providerType === "studio"
+        ? visibleStudioProviders
+        : visibleMobileProviders;
 
-  const selectedCategoryIds = Array.isArray(searchCategory)
-    ? searchCategory
-        .map(String)
-        .filter((id) => id !== "ALL")
+const selectedCategoryIds = Array.isArray(searchCategory)
+    ? searchCategory.map(String).filter((id) => id !== "ALL")
     : searchCategory && searchCategory !== "ALL"
         ? [String(searchCategory)]
         : [];
 
 const hasActiveCategoryFilter = selectedCategoryIds.length > 0;
 
-// These are the providers eligible for the current location,
-// before applying the selected category filter.
-const eligibleProvidersForCurrentType = (
+// All eligible providers before applying the hidden-provider filter.
+const providersForCurrentType = (
     Array.isArray(allEligibleProviders) ? allEligibleProviders : []
 ).filter(
-    (item) =>
-        item.providerMode === providerType &&
-        !isProviderHidden(item)
+    (provider) =>
+        provider.providerMode === providerType &&
+        providerHasServices(provider)
 );
 
-// There are providers for this location, but none of them
-// offers every selected category.
-const noSingleProviderForSelectedCategories =
+// Check whether a provider can perform every selected category.
+const providerMatchesSelectedCategories = (provider) => {
+    if (!hasActiveCategoryFilter) {
+        return true;
+    }
+
+    const providerServiceIds = new Set(
+        (provider?.services || []).map((service) =>
+            String(
+                typeof service === "object"
+                    ? service.id
+                    : service
+            )
+        )
+    );
+
+    return selectedCategoryIds.every((categoryId) => {
+        const category = categories.find(
+            (item) => String(item.id) === categoryId
+        );
+
+        if (!category || !Array.isArray(category.events)) {
+            return false;
+        }
+
+        return category.events.some((event) =>
+            providerServiceIds.has(
+                String(
+                    typeof event === "object"
+                        ? event.id
+                        : event
+                )
+            )
+        );
+    });
+};
+
+// Providers that can perform all selected categories,
+// including providers that the client has hidden.
+const providersMatchingSelectedCategories =
+    providersForCurrentType.filter(
+        providerMatchesSelectedCategories
+    );
+
+// Check which matching providers are hidden.
+const hiddenMatchingProviders =
+    providersMatchingSelectedCategories.filter(
+        (provider) => isProviderHidden(provider)
+    );
+
+// Case 1: Matching providers exist, but all of them are hidden.
+const allMatchingProvidersHidden =
     !showHiddenProviders &&
-    hasActiveCategoryFilter &&
-    eligibleProvidersForCurrentType.length > 0 &&
-    currentVisibleProviders.length === 0;
+    providersMatchingSelectedCategories.length > 0 &&
+    hiddenMatchingProviders.length ===
+        providersMatchingSelectedCategories.length;
+
+// Case 2: Two or more categories are selected, but no provider
+// can perform all of them in one appointment.
+const noProvidersForSelectedCategories =
+    !showHiddenProviders &&
+    selectedCategoryIds.length >= 2 &&
+    providersForCurrentType.length > 0 &&
+    providersMatchingSelectedCategories.length === 0;
+
+// Get the selected category names for the error message.
+const selectedCategoryNames = selectedCategoryIds
+    .map((id) =>
+        categories.find(
+            (category) => String(category.id) === id
+        )?.name
+    )
+    .filter(Boolean);
+
+const formattedSelectedCategoryNames =
+    selectedCategoryNames.length === 2
+        ? selectedCategoryNames.join(" and ")
+        : selectedCategoryNames.length > 2
+            ? `${selectedCategoryNames.slice(0, -1).join(", ")} and ${selectedCategoryNames[selectedCategoryNames.length - 1]}`
+            : selectedCategoryNames.join("");
 
 const currentTabProvidersWithDistance =
-  providerType === "studio"
-    ? studioProvidersWithDistance
-    : mobileProvidersWithDistance;
+    providerType === "studio"
+        ? studioProvidersWithDistance
+        : mobileProvidersWithDistance;
 
 const hiddenProviderList = currentTabProvidersWithDistance.filter(
-  (provider) => {
-    if (!userEmail) return false;
-
-    return hiddenProviders.some(
-      (item) =>
-        String(item.providerId) === String(provider.id) &&
-        item.zip === userAddress?.zip
-    );
-  }
+    (provider) => isProviderHidden(provider)
 );
 
 const displayedProviders = showHiddenProviders
@@ -618,26 +691,40 @@ onRemovePreviousProvider?.(providerId);
         ? hiddenProviderList.length
         : currentVisibleProviders.length) === 0 && (
         <div className="text-center py-6 px-4 text-sm text-gray-500">
+
             {showHiddenProviders ? (
                 "No hidden providers"
-            ) : noSingleProviderForSelectedCategories ? (
+
+            ) : allMatchingProvidersHidden ? (
                 <>
                     <div className="text-base font-semibold text-gray-800">
-                        No single provider for all selected services.
+                        All available providers are currently hidden.
                     </div>
 
                     <div className="mt-2 text-sm text-gray-500">
-                        Try selecting fewer service categories to find a
-                        provider.
+                        Please unhide a provider to continue booking your appointment.
                     </div>
                 </>
+
+            ) : noProvidersForSelectedCategories ? (
+                <>
+                    <div className="text-base font-semibold text-gray-800">
+                        No Providers for {formattedSelectedCategoryNames} services in one appointment.
+                    </div>
+
+                    <div className="mt-2 text-sm text-gray-500">
+                        Please modify your selection.
+                    </div>
+                </>
+
             ) : (
                 <>
                     <div className="text-base font-medium text-gray-700">
-                        No single Service Provider available for all service categories. (Select fewer categories or add a second appointment with another Provider who can perform the missing services)
+                        No service providers are currently available for your selection.
                     </div>
                 </>
             )}
+
         </div>
     )}
           </div>
