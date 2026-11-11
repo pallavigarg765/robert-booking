@@ -130,6 +130,8 @@ export default function ScheduleServices({ providers, events, locations, clients
     const [dismissedPreviousProviderIds, setDismissedPreviousProviderIds] = useState([]);
     const [pendingRebook, setPendingRebook] = useState(null);
 
+    const [servicePanelAlert, setServicePanelAlert] = useState(null);
+
     console.log("previousProviderBookings: ", previousProviderBookings);
 
     const [resendTimer, setResendTimer] = useState(30);
@@ -3664,80 +3666,69 @@ export default function ScheduleServices({ providers, events, locations, clients
 
     // Validate a service before adding it to the selection.
     const handleServiceSelectionWithDurationLimit = (e) => {
-        const { name, checked } = e.target;
+    const { name, checked } = e.target;
 
-        const currentProvider =
-            allProviders.find(
-                (provider) =>
-                    String(provider.id) === String(selectedProvider)
-            ) ||
-            providers.find(
-                (provider) =>
-                    String(provider.id) === String(selectedProvider)
-            );
-
-        const providerLabel =
-            String(currentProvider?.providerMode || "")
-                .toLowerCase() === "studio"
-                ? "studio"
-                : "mobile service provider";
-
-        // Always allow removing an already selected service.
-        if (!checked) {
-            handleCheckboxChange(e);
-            return;
-        }
-
-        // Do not add the same service twice.
-        if (services?.[name]) {
-            return;
-        }
-
-        const providerWorkingMinutes = getProviderWorkingMinutes();
-
-        // If the provider's schedule has not loaded, retain existing behavior.
-        if (providerWorkingMinutes === null) {
-            handleCheckboxChange(e);
-            return;
-        }
-
-        // Provider has no working hours on this date.
-        if (providerWorkingMinutes === 0) {
-            toast.error(
-                `This ${providerLabel} is not available on the selected date. Please choose another working date.`
-            );
-            return;
-        }
-
-        const selectedEvent = (events || []).find(
-            (event) => normalizeServiceKey(event.name) === name
+    const currentProvider =
+        allProviders.find(
+            (provider) =>
+                String(provider.id) === String(selectedProvider)
+        ) ||
+        providers.find(
+            (provider) =>
+                String(provider.id) === String(selectedProvider)
         );
 
-        if (!selectedEvent) {
-            toast.error("Unable to determine the selected service duration.");
-            return;
-        }
+    const providerName = cleanName(currentProvider?.name || "This provider");
 
-        const newServiceDuration = getServiceDuration(selectedEvent);
-
-        const newTotalDuration =
-            totalDuration + newServiceDuration;
-
-        // Prevent selecting services that exceed the provider's working hours.
-        if (newTotalDuration > providerWorkingMinutes) {
-            toast.error(
-                `This service cannot be added. Your selected services would take ${formatDuration(newTotalDuration)}, but this ${providerLabel} has only ${formatDuration(providerWorkingMinutes)} of working time on the selected date. Please remove a service or choose another date.`,
-                {
-                    autoClose: 5000,
-                }
-            );
-
-            return;
-        }
-
-        // Everything is valid; update the selected services.
+    // Always allow removing a selected service.
+    if (!checked) {
+        setServicePanelAlert(null);
         handleCheckboxChange(e);
-    };
+        return;
+    }
+
+    // Do not add the same service twice.
+    if (services?.[name]) return;
+
+    const providerWorkingMinutes = getProviderWorkingMinutes();
+
+    // Wait until the provider's working schedule is available.
+    if (providerWorkingMinutes === null) {
+        handleCheckboxChange(e);
+        return;
+    }
+
+    if (providerWorkingMinutes === 0) {
+        setServicePanelAlert({
+            message: `${providerName} is not available on the selected day. Please choose another day.`,
+        });
+        return;
+    }
+
+    const selectedEvent = (events || []).find(
+        (event) => normalizeServiceKey(event.name) === name
+    );
+
+    if (!selectedEvent) {
+        setServicePanelAlert({
+            message: "Unable to determine the selected service duration. Please try again.",
+        });
+        return;
+    }
+
+    const newServiceDuration = getServiceDuration(selectedEvent);
+    const newTotalDuration = totalDuration + newServiceDuration;
+
+    if (newTotalDuration > providerWorkingMinutes) {
+        setServicePanelAlert({
+            message: `${providerName} does not have enough time to complete additional services. Select fewer services or choose another day.`,
+        });
+        return;
+    }
+
+    setServicePanelAlert(null);
+    handleCheckboxChange(e);
+};
 
 
     // Blacklisted Providers View Component
@@ -5965,6 +5956,36 @@ export default function ScheduleServices({ providers, events, locations, clients
                         </div>
 
                         <div onWheel={handleServicesWheel} className="flex-1 overflow-y-auto p-4">
+                            {servicePanelAlert && (
+    <div
+        role="alert"
+        className="mb-4 rounded-xl border border-amber-300 bg-amber-50 p-4 shadow-sm"
+    >
+        <div className="flex items-start gap-3">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-700">
+                <span className="text-lg">!</span>
+            </div>
+
+            <div className="flex-1">
+                <h4 className="font-semibold text-amber-900">
+                    Service Time Unavailable
+                </h4>
+
+                <p className="mt-1 text-sm leading-6 text-amber-800">
+                    {servicePanelAlert.message}
+                </p>
+
+                <button
+                    type="button"
+                    onClick={() => setServicePanelAlert(null)}
+                    className="mt-3 rounded-lg bg-amber-700 px-5 py-2 text-sm font-semibold text-white transition hover:bg-amber-800"
+                >
+                    Okay
+                </button>
+            </div>
+        </div>
+    </div>
+)}
                             {otpVerified && activeProvider ? (<>
                                 {/* ⭐ Hidden data loader */}
                                 <ServiceCategorySection

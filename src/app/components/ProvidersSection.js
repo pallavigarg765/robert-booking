@@ -46,13 +46,17 @@ export default function ProvidersSection({
   providerType,
   setProviderType,
   onRemovePreviousProvider
-  
 }) {
   const [blacklistingProvider, setBlacklistingProvider] = useState(null);
   const [activeProvider, setActiveProvider] = useState(null);
   const [hiddenProviders, setHiddenProviders] = useState([]);
   const providerRefs = useRef([]);
   const [expandedProvider, setExpandedProvider] = useState(null);
+  const [showCategoryProviderAlert, setShowCategoryProviderAlert] =
+    useState(true);
+
+  const [showAllHiddenProvidersAlert, setShowAllHiddenProvidersAlert] =
+    useState(true);
 
   const serviceLocationKey = userAddress?.zip
     ? `${userAddress.zip}`
@@ -179,70 +183,76 @@ export default function ProvidersSection({
     }
   }, [userEmail, hiddenStorageKey]);
 
-  const isProviderHidden = (provider) => {
+  const isProviderHidden = (provider, mode = provider?.providerMode) => {
     if (!userEmail || !provider?.id) return false;
 
     return hiddenProviders.some((item) => {
-        const hiddenProviderId =
-            item?.providerId ?? item?.id;
+      const hiddenProviderId = item?.providerId ?? item?.id;
 
-        const hiddenZip = String(item?.zip ?? "").trim();
-        const currentZip = String(userAddress?.zip ?? "").trim();
+      const hiddenZip = String(item?.zip ?? "").trim();
+      const currentZip = String(userAddress?.zip ?? "").trim();
 
-        const sameProvider =
-            String(hiddenProviderId) === String(provider.id);
+      const sameProvider =
+        String(hiddenProviderId) === String(provider.id);
 
-        // Support older hidden-provider records that don't contain a ZIP.
-        const sameLocation =
-            !hiddenZip || hiddenZip === currentZip;
+      const sameLocation =
+        !hiddenZip || hiddenZip === currentZip;
 
-        return sameProvider && sameLocation;
+      // New hidden-provider records are matched by provider type as well.
+      // Older records without providerMode retain their previous behavior.
+      const sameMode =
+        !item?.providerMode ||
+        !mode ||
+        String(item.providerMode).toLowerCase() ===
+        String(mode).toLowerCase();
+
+      return sameProvider && sameLocation && sameMode;
     });
-};
+  };
 
-const providerHasServices = (provider) => {
-  if (!Array.isArray(provider?.services) || provider.services.length === 0) {
-    return false;
-  }
+  const providerHasServices = (provider) => {
+    if (!Array.isArray(provider?.services) || provider.services.length === 0) {
+      return false;
+    }
 
-  return provider.services.some((serviceId) =>
-    events.some(
-      (event) => String(event.id) === String(serviceId)
-    )
-  );
-};
-
-const visibleMobileProviders = useMemo(() => {
-    return mobileProviders.filter(
-        (provider) => !isProviderHidden(provider)
+    return provider.services.some((serviceId) =>
+      events.some(
+        (event) => String(event.id) === String(serviceId)
+      )
     );
-}, [
+  };
+
+  const visibleMobileProviders = useMemo(() => {
+    return mobileProviders.filter(
+      (provider) => !isProviderHidden(provider, "mobile")
+    );
+  }, [
     mobileProviders,
     hiddenProviders,
     userEmail,
     userAddress?.zip
-]);
+  ]);
 
-const visibleStudioProviders = useMemo(() => {
+  const visibleStudioProviders = useMemo(() => {
     return studioProviders.filter(
-        (provider) => !isProviderHidden(provider)
+      (provider) => !isProviderHidden(provider, "studio")
     );
-}, [
+  }, [
     studioProviders,
     hiddenProviders,
     userEmail,
     userAddress?.zip
-]);
+  ]);
 
-const filteredProviders = useMemo(() => {
-  return providerType === "studio"
-    ? visibleStudioProviders
-    : visibleMobileProviders;
-}, [
-  providerType,
-  visibleMobileProviders,
-  visibleStudioProviders
-]);
+  const filteredProviders = useMemo(() => {
+    return providerType === "studio"
+      ? visibleStudioProviders
+      : visibleMobileProviders;
+  }, [
+    providerType,
+    visibleMobileProviders,
+    visibleStudioProviders
+  ]);
 
   const memoizedMap = useMemo(() => {
     return (
@@ -257,119 +267,190 @@ const filteredProviders = useMemo(() => {
 
   const currentVisibleProviders =
     providerType === "studio"
-        ? visibleStudioProviders
-        : visibleMobileProviders;
+      ? visibleStudioProviders
+      : visibleMobileProviders;
 
-const selectedCategoryIds = Array.isArray(searchCategory)
+  const selectedCategoryIds = Array.isArray(searchCategory)
     ? searchCategory.map(String).filter((id) => id !== "ALL")
     : searchCategory && searchCategory !== "ALL"
-        ? [String(searchCategory)]
-        : [];
+      ? [String(searchCategory)]
+      : [];
 
-const hasActiveCategoryFilter = selectedCategoryIds.length > 0;
+  const hasActiveCategoryFilter = selectedCategoryIds.length > 0;
 
-// All eligible providers before applying the hidden-provider filter.
-const providersForCurrentType = (
+  const categorySelectionKey = selectedCategoryIds
+    .map(String)
+    .sort()
+    .join("|");
+
+  useEffect(() => {
+    // A new category selection or provider type gets a fresh alert.
+    setShowCategoryProviderAlert(true);
+
+    // Keep the hidden-provider alert independent from the category alert.
+    setShowAllHiddenProvidersAlert(true);
+  }, [providerType, categorySelectionKey]);
+
+  // All eligible providers before applying the hidden-provider filter.
+  const providersForCurrentType = (
     Array.isArray(allEligibleProviders) ? allEligibleProviders : []
-).filter(
+  ).filter(
     (provider) =>
-        provider.providerMode === providerType &&
-        providerHasServices(provider)
-);
+      provider.providerMode === providerType &&
+      providerHasServices(provider)
+  );
 
-// Check whether a provider can perform every selected category.
-const providerMatchesSelectedCategories = (provider) => {
+  // Check whether a provider can perform every selected category.
+  const providerMatchesSelectedCategories = (provider) => {
     if (!hasActiveCategoryFilter) {
-        return true;
+      return true;
     }
 
     const providerServiceIds = new Set(
-        (provider?.services || []).map((service) =>
-            String(
-                typeof service === "object"
-                    ? service.id
-                    : service
-            )
+      (provider?.services || []).map((service) =>
+        String(
+          typeof service === "object"
+            ? service.id
+            : service
         )
+      )
     );
 
     return selectedCategoryIds.every((categoryId) => {
-        const category = categories.find(
-            (item) => String(item.id) === categoryId
-        );
+      const category = categories.find(
+        (item) => String(item.id) === categoryId
+      );
 
-        if (!category || !Array.isArray(category.events)) {
-            return false;
-        }
+      if (!category || !Array.isArray(category.events)) {
+        return false;
+      }
 
-        return category.events.some((event) =>
-            providerServiceIds.has(
-                String(
-                    typeof event === "object"
-                        ? event.id
-                        : event
-                )
-            )
-        );
+      return category.events.some((event) =>
+        providerServiceIds.has(
+          String(
+            typeof event === "object"
+              ? event.id
+              : event
+          )
+        )
+      );
     });
-};
+  };
 
-// Providers that can perform all selected categories,
-// including providers that the client has hidden.
-const providersMatchingSelectedCategories =
+  // Providers that can perform all selected categories,
+  // including providers that the client has hidden.
+  const providersMatchingSelectedCategories =
     providersForCurrentType.filter(
-        providerMatchesSelectedCategories
+      providerMatchesSelectedCategories
     );
 
-// Check which matching providers are hidden.
-const hiddenMatchingProviders =
+  // Check which matching providers are hidden.
+  const hiddenMatchingProviders =
     providersMatchingSelectedCategories.filter(
-        (provider) => isProviderHidden(provider)
+      (provider) => isProviderHidden(provider, providerType)
     );
-
-// Case 1: Matching providers exist, but all of them are hidden.
-const allMatchingProvidersHidden =
+  // Case 1: Matching providers exist, but all of them are hidden.
+  const allMatchingProvidersHidden =
     !showHiddenProviders &&
     providersMatchingSelectedCategories.length > 0 &&
     hiddenMatchingProviders.length ===
-        providersMatchingSelectedCategories.length;
+    providersMatchingSelectedCategories.length;
 
-// Case 2: Two or more categories are selected, but no provider
-// can perform all of them in one appointment.
-const noProvidersForSelectedCategories =
+  // Show the alert again whenever all matching providers become hidden.
+  // This also handles the unhide -> hide again scenario.
+  useEffect(() => {
+    if (allMatchingProvidersHidden) {
+      setShowAllHiddenProvidersAlert(true);
+    }
+  }, [allMatchingProvidersHidden]);
+
+  // Case 2: Two or more categories are selected, but no provider
+  // can perform all of them in one appointment.
+  // Check whether the alternative provider type can perform
+  // all selected categories in one appointment.
+  const alternativeProviderType =
+    providerType === "studio" ? "mobile" : "studio";
+
+  const providersForAlternativeType = (
+    Array.isArray(allEligibleProviders) ? allEligibleProviders : []
+  ).filter(
+    (provider) =>
+      provider.providerMode === alternativeProviderType &&
+      providerHasServices(provider)
+  );
+
+  const providersMatchingAlternativeCategories =
+    providersForAlternativeType.filter(
+      providerMatchesSelectedCategories
+    );
+
+  // Show the message when the current provider type cannot perform
+  // all selected categories, but the alternative type can.
+  // Show the category alert whenever the current provider type
+  // cannot perform all selected categories in one appointment.
+  const noProvidersForSelectedCategories =
     !showHiddenProviders &&
-    selectedCategoryIds.length >= 2 &&
-    providersForCurrentType.length > 0 &&
+    selectedCategoryIds.length >= 1 &&
     providersMatchingSelectedCategories.length === 0;
 
-// Get the selected category names for the error message.
-const selectedCategoryNames = selectedCategoryIds
+  // Only suggest the alternative provider type if it has at least
+  // one provider who can perform ALL selected categories.
+  const alternativeProviderAvailable =
+    providersMatchingAlternativeCategories.length > 0;
+
+  // Get the selected category names for the error message.
+  const selectedCategoryNames = selectedCategoryIds
     .map((id) =>
-        categories.find(
-            (category) => String(category.id) === id
-        )?.name
+      categories.find(
+        (category) => String(category.id) === id
+      )?.name
     )
     .filter(Boolean);
 
-const formattedSelectedCategoryNames =
+  const formattedSelectedCategoryNames =
     selectedCategoryNames.length === 2
-        ? selectedCategoryNames.join(" and ")
-        : selectedCategoryNames.length > 2
-            ? `${selectedCategoryNames.slice(0, -1).join(", ")} and ${selectedCategoryNames[selectedCategoryNames.length - 1]}`
-            : selectedCategoryNames.join("");
+      ? selectedCategoryNames.join(" and ")
+      : selectedCategoryNames.length > 2
+        ? `${selectedCategoryNames.slice(0, -1).join(", ")} and ${selectedCategoryNames[selectedCategoryNames.length - 1]}`
+        : selectedCategoryNames.join("");
 
-const currentTabProvidersWithDistance =
+  const currentTabProvidersWithDistance =
     providerType === "studio"
-        ? studioProvidersWithDistance
-        : mobileProvidersWithDistance;
+      ? studioProvidersWithDistance
+      : mobileProvidersWithDistance;
 
-const hiddenProviderList = currentTabProvidersWithDistance.filter(
-    (provider) => isProviderHidden(provider)
-);
+  const hiddenProviderList = currentTabProvidersWithDistance.filter(
+    (provider) => isProviderHidden(provider, providerType)
+  );
 
-const displayedProviders = showHiddenProviders
-  ? hiddenProviderList
-  : currentVisibleProviders.slice(0, providerLimit);
+  // Only display providers that can perform every selected category.
+  // Apply the selected category filter independently to each provider type.
+  const categoryFilteredMobileProviders = visibleMobileProviders.filter(
+    providerMatchesSelectedCategories
+  );
+
+  const categoryFilteredStudioProviders = visibleStudioProviders.filter(
+    providerMatchesSelectedCategories
+  );
+
+  // Providers to display in the currently selected tab.
+  const categoryFilteredVisibleProviders =
+    providerType === "studio"
+      ? categoryFilteredStudioProviders
+      : categoryFilteredMobileProviders;
+
+  const providerTypeLabel =
+    providerType === "studio" ? "Studio" : "Mobile";
+
+  // Prevent an undefined providerLimit from producing an empty array.
+  const visibleProviderLimit =
+    providerLimit != null && Number.isFinite(Number(providerLimit))
+      ? Number(providerLimit)
+      : currentVisibleProviders.length;
+
+  const displayedProviders = showHiddenProviders
+    ? hiddenProviderList
+    : categoryFilteredVisibleProviders.slice(0, visibleProviderLimit);
 
 
   const handleBlacklist = async (providerId) => {
@@ -380,6 +461,7 @@ const displayedProviders = showHiddenProviders
     try {
       const hiddenItem = {
         providerId: String(providerId),
+        providerMode: providerType,
         zip: userAddress?.zip || "",
         state: userAddress?.state || "",
         city: userAddress?.city || "",
@@ -395,7 +477,7 @@ const displayedProviders = showHiddenProviders
       );
 
 
-onRemovePreviousProvider?.(providerId);
+      onRemovePreviousProvider?.(providerId);
 
 
       // Clear selected provider
@@ -439,65 +521,6 @@ onRemovePreviousProvider?.(providerId);
                 <X className="w-5 h-5" />
               </button>
 
-              {/* TITLE */}
-              {/* <h2 className="text-lg font-bold mb-4 text-indigo-700">
-                {cleanName(activeProvider.name)}
-              </h2> */}
-
-              {/* IMAGE */}
-              {/* <div className="flex justify-center mb-4">
-                <img
-                  src={
-                    activeProvider.picture_path
-                      ? process.env.NEXT_PUBLIC_BASE_URL_IMAGE + activeProvider.picture_path
-                      : "/images/placeholder.jpg"
-                  }
-                  className="w-24 h-24 rounded-2xl object-cover"
-                />
-              </div> */}
-
-              {/* INFO GRID */}
-              {/* <div className="space-y-3 text-sm">
-
-                {activeProvider.nearestLocation && (
-                  <div className="flex justify-between">
-                    <span className="text-gray-500">Location</span>
-                    <span>
-                      {cleanName(activeProvider.nearestLocation.title)}
-                    </span>
-                  </div>
-                )}
-
-                {activeProvider.distance != null && (
-                  <div className="flex justify-between">
-                    <span className="text-gray-500">Distance</span>
-                    <span>{activeProvider.distance.toFixed(1)} miles</span>
-                  </div>
-                )}
-
-                {activeProvider.phone && (
-                  <div className="flex justify-between">
-                    <span className="text-gray-500">Phone</span>
-                    <span>{activeProvider.phone}</span>
-                  </div>
-                )}
-
-                {activeProvider.email && (
-                  <div className="flex justify-between">
-                    <span className="text-gray-500">Email</span>
-                    <span>{activeProvider.email}</span>
-                  </div>
-                )}
-
-                {activeProvider.services && (
-                  <div className="flex justify-between">
-                    <span className="text-gray-500">Services Offered</span>
-                    <span>{activeProvider.services.length}</span>
-                  </div>
-                )}
-
-              </div> */}
-
               {/* DESCRIPTION */}
               {activeProvider.description && (
                 <div className="mt-4">
@@ -518,39 +541,6 @@ onRemovePreviousProvider?.(providerId);
         )}
         <div className="space-y-3">
 
-          {/* {userEmail && hiddenProviders.length > 0 && (
-            <button
-              onClick={() =>
-                setShowHiddenProviders(!showHiddenProviders)
-              }
-              className="
-        w-full
-        bg-white
-        border
-        border-gray-200
-        rounded-xl
-        px-4
-        py-3
-        flex
-        justify-between
-        items-center
-      "
-            >
-              <span>Hidden Providers</span>
-
-              <span className="
-        bg-indigo-100
-        text-indigo-700
-        text-xs
-        px-2
-        py-1
-        rounded-full
-      ">
-                {hiddenProviderList.length}
-              </span>
-            </button>
-          )} */}
-
           {loadingProviders && (
             <div className="text-center py-4 text-xs text-gray-500">
               Loading...
@@ -560,13 +550,13 @@ onRemovePreviousProvider?.(providerId);
           {!showHiddenProviders && (
             <>
               <SearchCategorySection
-    providers={filteredProviders}
-    blacklistedProviders={blacklistedProviders}
-    categories={categories}
-    value={searchCategory}
-    onChange={setSearchCategory}
-    setSelectedProvider={setSelectedProvider}
-/>
+                providers={filteredProviders}
+                blacklistedProviders={blacklistedProviders}
+                categories={categories}
+                value={searchCategory}
+                onChange={setSearchCategory}
+                setSelectedProvider={setSelectedProvider}
+              />
 
               {/* PROVIDER TYPE TABS */}
               <div className="mb-4">
@@ -587,8 +577,8 @@ onRemovePreviousProvider?.(providerId);
                       setExpandedProvider(null);
                     }}
                     className={`flex-1 rounded-lg px-3 py-2.5 text-sm font-semibold transition-all ${providerType === "mobile"
-                        ? "bg-white text-indigo-700 shadow-sm"
-                        : "text-gray-500 hover:text-gray-700"
+                      ? "bg-white text-indigo-700 shadow-sm"
+                      : "text-gray-500 hover:text-gray-700"
                       }`}
                   >
                     <span className="flex items-center justify-between gap-1">
@@ -596,11 +586,11 @@ onRemovePreviousProvider?.(providerId);
                       <span className="text-[12px] scale-[1.2]">Mobile</span>
                       <span
                         className={`rounded-full p-2 py-1 text-[10px] ${providerType === "mobile"
-                            ? "bg-indigo-100 text-indigo-700"
-                            : "bg-gray-200 text-gray-500"
+                          ? "bg-indigo-100 text-indigo-700"
+                          : "bg-gray-200 text-gray-500"
                           }`}
                       >
-                        {visibleMobileProviders.slice(0, providerLimit).length}
+                        {categoryFilteredMobileProviders.length}
                       </span>
                     </span>
                   </button>
@@ -620,8 +610,8 @@ onRemovePreviousProvider?.(providerId);
                       setExpandedProvider(null);
                     }}
                     className={`flex-1 rounded-lg px-3 py-2.5 text-sm font-semibold transition-all ${providerType === "studio"
-                        ? "bg-white text-indigo-700 shadow-sm"
-                        : "text-gray-500 hover:text-gray-700"
+                      ? "bg-white text-indigo-700 shadow-sm"
+                      : "text-gray-500 hover:text-gray-700"
                       }`}
                   >
                     <span className="flex items-center justify-between gap-1">
@@ -629,11 +619,11 @@ onRemovePreviousProvider?.(providerId);
                       <span className="text-[12px] scale-[1.2]">Studio</span>
                       <span
                         className={`rounded-full p-2 py-1 text-[10px] ${providerType === "studio"
-                            ? "bg-indigo-100 text-indigo-700"
-                            : "bg-gray-200 text-gray-500"
+                          ? "bg-indigo-100 text-indigo-700"
+                          : "bg-gray-200 text-gray-500"
                           }`}
                       >
-                        {visibleStudioProviders.slice(0, providerLimit).length}
+                        {categoryFilteredStudioProviders.length}
                       </span>
                     </span>
                   </button>
@@ -655,79 +645,142 @@ onRemovePreviousProvider?.(providerId);
                 </div>
               )}
 
-            {!loadingProviders &&
-  displayedProviders.map((provider, index) => (
-                  <ProviderCard
-                    key={provider.id}
-                    provider={provider}
-                    isSelected={
-    selectedProvider != null &&
-    String(selectedProvider) === String(provider.id)
-}
-                    selectedProvider={selectedProvider}
-                    onSelect={onProviderSelect}
-                    onBlacklist={handleBlacklist}
-                    isBlacklisting={blacklistingProvider === provider.id}
-                    userEmail={userEmail}
-                    categories={categories}
-                    compact
-                    onInfoClick={setActiveProvider}
-                    onHover={(provider) => {
-                      setHoveredProvider(provider || null);
-                    }}
-                    isHiddenView={showHiddenProviders}
-                    onUnhide={handleUnhide}
-                    providerIndex={index}
-                    totalProviders={displayedProviders.length}
-                    providerRefs={providerRefs}
-                    expandedProvider={expandedProvider}
-                    setExpandedProvider={setExpandedProvider}
-
-                  />
-                ))}
 
             {!loadingProviders &&
-    (showHiddenProviders
-        ? hiddenProviderList.length
-        : currentVisibleProviders.length) === 0 && (
-        <div className="text-center py-6 px-4 text-sm text-gray-500">
+  (
+    showHiddenProviders
+      ? hiddenProviderList.length === 0
+      : currentVisibleProviders.length === 0 ||
+        allMatchingProvidersHidden ||
+        noProvidersForSelectedCategories
+  ) && (
+    <div className="text-center py-6 px-4 text-sm text-gray-500">
 
-            {showHiddenProviders ? (
-                "No hidden providers"
-
-            ) : allMatchingProvidersHidden ? (
-                <>
-                    <div className="text-base font-semibold text-gray-800">
-                        All available providers are currently hidden.
-                    </div>
-
-                    <div className="mt-2 text-sm text-gray-500">
-                        Please unhide a provider to continue booking your appointment.
-                    </div>
-                </>
-
-            ) : noProvidersForSelectedCategories ? (
-                <>
-                    <div className="text-base font-semibold text-gray-800">
-                        No Providers for {formattedSelectedCategoryNames} services in one appointment.
-                    </div>
-
-                    <div className="mt-2 text-sm text-gray-500">
-                        Please modify your selection.
-                    </div>
-                </>
-
-            ) : (
-                <>
-                    <div className="text-base font-medium text-gray-700">
-                        No service providers are currently available for your selection.
-                    </div>
-                </>
-            )}
-
+      {showHiddenProviders ? (
+        // Hidden Providers: always show only the default message.
+        <div className="text-base font-medium text-gray-700">
+          No hidden {providerTypeLabel} providers are currently available.
         </div>
-    )}
+
+      ) : allMatchingProvidersHidden ? (
+
+        // All providers are hidden: alert first, default message after Okay.
+        showAllHiddenProvidersAlert ? (
+          <div
+            role="alert"
+            className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-left"
+          >
+            <div className="text-base font-semibold text-gray-800">
+              All available {providerTypeLabel} providers are currently hidden.
+            </div>
+
+            <p className="mt-2 text-sm leading-6 text-gray-600">
+              Please unhide a {providerTypeLabel} provider to continue booking
+              your appointment.
+            </p>
+
+            <div className="mt-4 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setShowAllHiddenProvidersAlert(false)}
+                className="rounded-lg bg-indigo-600 px-5 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700"
+              >
+                Okay
+              </button>
+            </div>
           </div>
+        ) : (
+          <div className="text-base font-medium text-gray-700">
+            No {providerTypeLabel} providers are currently available for your selection.
+          </div>
+        )
+
+      ) : noProvidersForSelectedCategories ? (
+
+        // Category mismatch: alert first, default message after Okay.
+        showCategoryProviderAlert ? (
+          <div
+            role="alert"
+            className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-left"
+          >
+            <div className="text-base font-semibold text-gray-800">
+              Currently there are no {providerTypeLabel} providers for{" "}
+              {formattedSelectedCategoryNames} services in one appointment.
+            </div>
+
+            <p className="mt-2 text-sm leading-6 text-gray-600">
+              {alternativeProviderAvailable ? (
+                <>
+                  Please modify your selection or see if a{" "}
+                  {alternativeProviderType === "studio" ? "Studio" : "Mobile"}{" "}
+                  provider is available.
+                </>
+              ) : (
+                <>
+                  Please modify your selected categories to find an available
+                  provider.
+                </>
+              )}
+            </p>
+
+            <div className="mt-4 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setShowCategoryProviderAlert(false)}
+                className="rounded-lg bg-indigo-600 px-5 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700"
+              >
+                Okay
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="text-base font-medium text-gray-700">
+            No {providerTypeLabel} providers are currently available for your selection.
+          </div>
+        )
+
+      ) : (
+        <div className="text-base font-medium text-gray-700">
+          No {providerTypeLabel} providers are currently available for your selection.
+        </div>
+      )}
+
+    </div>
+  )}
+
+          </div>
+
+          {/* PROVIDER GRID */}
+          {!loadingProviders && displayedProviders.length > 0 && (
+            <div className="grid gap-4">
+              {displayedProviders.map((provider, index) => (
+                <ProviderCard
+                  key={provider.id}
+                  provider={provider}
+                  providerIndex={index}
+                  totalProviders={displayedProviders.length}
+                  providerRefs={providerRefs}
+                  isSelected={
+                    selectedProvider != null &&
+                    String(selectedProvider) === String(provider.id)
+                  }
+                  selectedProvider={selectedProvider}
+                  onSelect={onProviderSelect}
+                  onBlacklist={handleBlacklist}
+                  isBlacklisting={blacklistingProvider === provider.id}
+                  userEmail={userEmail}
+                  categories={categories}
+                  compact
+                  onInfoClick={setActiveProvider}
+                  onHover={(provider) => {
+                    setHoveredProvider?.(provider || null);
+                  }}
+                  isHiddenView={showHiddenProviders}
+                  onUnhide={handleUnhide}
+                />
+              ))}
+            </div>
+          )}
 
         </div>
       </>
@@ -892,8 +945,8 @@ onRemovePreviousProvider?.(providerId);
                       setExpandedProvider(null);
                     }}
                     className={`flex-1 rounded-lg px-5 py-3 text-sm font-semibold transition-all ${providerType === "mobile"
-                        ? "bg-white text-indigo-700 shadow-sm"
-                        : "text-gray-500 hover:text-gray-700"
+                      ? "bg-white text-indigo-700 shadow-sm"
+                      : "text-gray-500 hover:text-gray-700"
                       }`}
                   >
                     <span className="flex items-center justify-center gap-2">
@@ -901,11 +954,11 @@ onRemovePreviousProvider?.(providerId);
                       <span>Mobile</span>
                       <span
                         className={`rounded-full px-2 py-0.5 text-xs ${providerType === "mobile"
-                            ? "bg-indigo-100 text-indigo-700"
-                            : "bg-gray-200 text-gray-500"
+                          ? "bg-indigo-100 text-indigo-700"
+                          : "bg-gray-200 text-gray-500"
                           }`}
                       >
-                        {visibleMobileProviders.slice(0, providerLimit).length}
+                        {categoryFilteredMobileProviders.length}
                       </span>
                     </span>
                   </button>
@@ -919,8 +972,8 @@ onRemovePreviousProvider?.(providerId);
                       setExpandedProvider(null);
                     }}
                     className={`flex-1 rounded-lg px-5 py-3 text-sm font-semibold transition-all ${providerType === "studio"
-                        ? "bg-white text-indigo-700 shadow-sm"
-                        : "text-gray-500 hover:text-gray-700"
+                      ? "bg-white text-indigo-700 shadow-sm"
+                      : "text-gray-500 hover:text-gray-700"
                       }`}
                   >
                     <span className="flex items-center justify-center gap-2">
@@ -928,11 +981,11 @@ onRemovePreviousProvider?.(providerId);
                       <span>Studio</span>
                       <span
                         className={`rounded-full px-2 py-0.5 text-xs ${providerType === "studio"
-                            ? "bg-indigo-100 text-indigo-700"
-                            : "bg-gray-200 text-gray-500"
+                          ? "bg-indigo-100 text-indigo-700"
+                          : "bg-gray-200 text-gray-500"
                           }`}
                       >
-                        {visibleStudioProviders.slice(0, providerLimit).length}
+                        {categoryFilteredStudioProviders.length}
                       </span>
                     </span>
                   </button>
@@ -1035,9 +1088,9 @@ onRemovePreviousProvider?.(providerId);
                     totalProviders={displayedProviders.length}
                     providerRefs={providerRefs}
                     isSelected={
-    selectedProvider != null &&
-    String(selectedProvider) === String(provider.id)
-}
+                      selectedProvider != null &&
+                      String(selectedProvider) === String(provider.id)
+                    }
                     selectedProvider={selectedProvider}
                     onSelect={onProviderSelect}
                     onBlacklist={handleBlacklist}
@@ -1059,22 +1112,27 @@ onRemovePreviousProvider?.(providerId);
           )}
 
           {/* NO PROVIDERS */}
-          {!loadingProviders && visibleProviders.length === 0 && (
-            <div className="text-center py-12">
-              <p className="text-gray-600 mb-4">
-    No single Service Provider available for all service categories. (Select fewer categories or add a second appointment with another Provider who can perform the missing services)
-</p>
+          {/* NO PROVIDERS — only show this message in the available providers view */}
+          {!loadingProviders &&
+            !showHiddenProviders &&
+            displayedProviders.length === 0 && (
+              <div className="text-center py-12">
+                <p className="text-gray-600 mb-4">
+                  No single Service Provider available for all service categories.
+                  (Select fewer categories or add a second appointment with another
+                  Provider who can perform the missing services)
+                </p>
 
-              {userEmail && (
-                <button
-                  onClick={onManageHidden}
-                  className="px-6 py-3 bg-gray-100 rounded-xl"
-                >
-                  Manage Hidden Providers
-                </button>
-              )}
-            </div>
-          )}
+                {userEmail && (
+                  <button
+                    onClick={onManageHidden}
+                    className="px-6 py-3 bg-gray-100 rounded-xl"
+                  >
+                    Manage Hidden Providers
+                  </button>
+                )}
+              </div>
+            )}
         </div>
       </div>
 
@@ -1134,18 +1192,18 @@ function ProviderCard({
   };
 
   const providerHasServices = (provider) => {
-  if (!Array.isArray(provider?.services) || provider.services.length === 0) {
-    return false;
-  }
+    if (!Array.isArray(provider?.services) || provider.services.length === 0) {
+      return false;
+    }
 
-  // Make sure the provider has services that actually exist
-  // in the events/services API response.
-  return provider.services.some((serviceId) =>
-    events.some(
-      (event) => String(event.id) === String(serviceId)
-    )
-  );
-};
+    // Make sure the provider has services that actually exist
+    // in the events/services API response.
+    return provider.services.some((serviceId) =>
+      events.some(
+        (event) => String(event.id) === String(serviceId)
+      )
+    );
+  };
 
   const providerCategories = getProviderCategories();
 
@@ -1157,10 +1215,10 @@ function ProviderCard({
 
   const cleanName = (name = "") =>
     name
-        // Remove everything from the first comma onward
-        .split(",")[0]
-        .replace(/^\d+[a-z]\),?\s*/i, "")
-        .trim();
+      // Remove everything from the first comma onward
+      .split(",")[0]
+      .replace(/^\d+[a-z]\),?\s*/i, "")
+      .trim();
 
 
   const getLocationDisplay = () => {
@@ -1206,10 +1264,10 @@ function ProviderCard({
 
           // Select provider
           if (
-    String(selectedProvider ?? "") !== String(provider.id)
-) {
-    onSelect(provider.id);
-}
+            String(selectedProvider ?? "") !== String(provider.id)
+          ) {
+            onSelect(provider.id);
+          }
 
           // Never auto-expand on hover
           setExpandedProvider(null);
