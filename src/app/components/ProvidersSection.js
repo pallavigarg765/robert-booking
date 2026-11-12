@@ -45,7 +45,8 @@ export default function ProvidersSection({
 
   providerType,
   setProviderType,
-  onRemovePreviousProvider
+  onRemovePreviousProvider,
+  // onManageHidden
 }) {
   const [blacklistingProvider, setBlacklistingProvider] = useState(null);
   const [activeProvider, setActiveProvider] = useState(null);
@@ -681,12 +682,18 @@ export default function ProvidersSection({
 
             <div className="mt-4 flex justify-end">
               <button
-                type="button"
-                onClick={() => setShowAllHiddenProvidersAlert(false)}
-                className="rounded-lg bg-indigo-600 px-5 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700"
-              >
-                Okay
-              </button>
+  type="button"
+  onClick={() => {
+    // Dismiss the alert.
+    setShowAllHiddenProvidersAlert(false);
+
+    // Open the Hidden Providers view.
+    onManageHidden?.();
+  }}
+  className="rounded-lg bg-indigo-600 px-5 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700"
+>
+  Okay
+</button>
             </div>
           </div>
         ) : (
@@ -725,12 +732,19 @@ export default function ProvidersSection({
 
             <div className="mt-4 flex justify-end">
               <button
-                type="button"
-                onClick={() => setShowCategoryProviderAlert(false)}
-                className="rounded-lg bg-indigo-600 px-5 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700"
-              >
-                Okay
-              </button>
+  type="button"
+  onClick={() => {
+    // Dismiss the current category alert.
+    setShowCategoryProviderAlert(false);
+
+    // Reset the category filter to Any Category.
+    // This allows all eligible providers to appear again.
+    setSearchCategory?.(["ALL"]);
+  }}
+  className="rounded-lg bg-indigo-600 px-5 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700"
+>
+  Okay
+</button>
             </div>
           </div>
         ) : (

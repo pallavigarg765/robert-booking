@@ -5930,6 +5930,8 @@ export default function ScheduleServices({ providers, events, locations, clients
                                         }
                                         onRebookPreviousProvider={handleRebookPreviousProvider}
                                         onRemovePreviousProvider={handleRemovePreviousProvider}
+
+                                        onManageHidden={() => setShowHiddenProviders(true)}
                                     />
                                 </div>
 
