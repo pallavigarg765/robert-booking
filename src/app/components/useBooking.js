@@ -1561,147 +1561,78 @@ if (!cancelled) {
     const limitedProviders =
       providersWithDistance;
 
-    /*
-     * ---------------------------------------------------------
-     * STEP 3: BLACKLIST + BOOKING PRIORITY
-     * ---------------------------------------------------------
-     */
-    async function filterProviders() {
-      try {
+    
+/*
+ * ---------------------------------------------------------
+ * STEP 3: BLACKLIST FILTERING
+ *
+ * Regular provider list:
+ * Always preserve closest-to-farthest distance order.
+ * Booking history must not affect this list.
+ * ---------------------------------------------------------
+ */
+
+async function filterProviders() {
+    try {
+        // providersWithDistance is already sorted:
+        // closest provider first, farthest provider last.
         let finalList = limitedProviders;
 
         /*
-         * If the user has an email, apply blacklist and
-         * booking priority.
+         * Apply blacklist filtering for returning customers.
+         * Filtering preserves the existing distance order.
          */
         if (userEmail) {
-          const blacklistRes = await fetch(
-            `/api/blacklist?email=${encodeURIComponent(
-              userEmail
-            )}`
-          );
+            const blacklistRes = await fetch(
+                `/api/blacklist?email=${encodeURIComponent(userEmail)}`
+            );
 
-          const blacklistData =
-            await blacklistRes.json();
+            const blacklistData = await blacklistRes.json();
 
-          const blockedIds =
-            blacklistData?.blockedProviderIds || [];
+            const blockedIds =
+                blacklistData?.blockedProviderIds || [];
 
-          const bookingRes = await fetch(
-            `/api/bookings?email=${encodeURIComponent(
-              userEmail
-            )}`
-          );
-
-          const bookingData =
-            await bookingRes.json();
-
-          const providerLastBookingMap =
-            new Map();
-
-          bookingData?.data?.forEach(
-            (booking) => {
-              const providerId =
-                booking.provider?.toString();
-
-              const bookingDate = new Date(
-                booking.createdAt ||
-                booking.date
-              );
-
-              if (!providerId) return;
-
-              if (
-                !providerLastBookingMap.has(
-                  providerId
-                )
-              ) {
-                providerLastBookingMap.set(
-                  providerId,
-                  bookingDate
-                );
-              } else if (
-                bookingDate >
-                providerLastBookingMap.get(
-                  providerId
-                )
-              ) {
-                providerLastBookingMap.set(
-                  providerId,
-                  bookingDate
-                );
-              }
-            }
-          );
-
-          /*
-           * Remove blacklisted providers.
-           */
-          finalList = limitedProviders.filter(
-            (provider) =>
-              !blockedIds.includes(
-                provider.id.toString()
-              )
-          );
-
-          /*
-           * Existing booking priority.
-           */
-          finalList.sort((a, b) => {
-            const aLast =
-              providerLastBookingMap.get(
-                a.id.toString()
-              );
-
-            const bLast =
-              providerLastBookingMap.get(
-                b.id.toString()
-              );
-
-            if (aLast && bLast) {
-              return bLast - aLast;
-            }
-
-            if (aLast) return -1;
-
-            if (bLast) return 1;
-
-            return a.distance - b.distance;
-          });
+            // Remove blacklisted providers without changing
+            // the closest-to-farthest sorting.
+            finalList = limitedProviders.filter(
+                (provider) =>
+                    !blockedIds.includes(provider.id.toString())
+            );
         }
 
         /*
- * FINAL ELIGIBLE PROVIDERS
- *
- * Filter out providers without valid services BEFORE
- * setting the main provider lists and applying the limit.
- */
+         * FINAL ELIGIBLE PROVIDERS
+         *
+         * Remove providers without valid services.
+         * This filtering also preserves distance order.
+         */
         const providersWithServices = finalList.filter(
-          providerHasServices
+            providerHasServices
         );
 
-        // Keep all location-eligible providers here.
-// Category filtering is handled separately in a lightweight effect.
-setVisibleProviders(providersWithServices);
+        // Update the regular provider list.
+        setVisibleProviders(providersWithServices);
 
-      } catch (err) {
+    } catch (err) {
         console.error(
-          "❌ Provider filtering error:",
-          err
+            "❌ Provider filtering error:",
+            err
         );
+
+        // Fallback: retain the original distance order.
         const providersWithServices = limitedProviders.filter(
-    providerHasServices
-);
+            providerHasServices
+        );
 
-// Preserve the location-eligible providers.
-// The separate category effect will filter these.
-setVisibleProviders(providersWithServices);
-      } finally {
+        setVisibleProviders(providersWithServices);
+
+    } finally {
         setLoadingProviders(false);
-      }
     }
+}
 
-    filterProviders();
+filterProviders();
+
   }, [
     clientLocation,
     searchWithin,
