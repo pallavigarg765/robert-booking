@@ -67,6 +67,7 @@ export default function ScheduleServices({ providers, events, locations, clients
     const [verifyLoading, setVerifyLoading] = useState(false);
     const [resendLoading, setResendLoading] = useState(false);
     const availabilityScrollRef = useRef(null);
+    const servicePanelAlertRef = useRef(null);
     const [searchCategory, setSearchCategory] = useState(["ALL"]);
     const [providerCategories, setProviderCategories] = useState([]);
     const [providerType, setProviderType] = useState("mobile");
@@ -660,7 +661,24 @@ export default function ScheduleServices({ providers, events, locations, clients
         return [...new Set(matchedCategories)];
     };
 
+    useEffect(() => {
+    if (!servicePanelAlert) return;
 
+    const animationFrame = requestAnimationFrame(() => {
+        servicePanelAlertRef.current?.scrollIntoView({
+            behavior: "smooth",
+            block: "center",
+            inline: "nearest",
+        });
+    });
+
+    return () => cancelAnimationFrame(animationFrame);
+}, [servicePanelAlert]);
+
+// Clear the previous provider's service error when the provider changes.
+useEffect(() => {
+    setServicePanelAlert(null);
+}, [selectedProvider]);
 
     useEffect(() => {
         if (!otpVerified || !userEmail || clientType !== "returning") {
@@ -774,6 +792,7 @@ export default function ScheduleServices({ providers, events, locations, clients
 
     // Custom handler for provider selection that automatically moves to next step
     const handleProviderSelect = (providerId) => {
+        setServicePanelAlert(null);
         console.log("[Provider selection]", {
             requestedProviderId: providerId,
             currentProviderId: selectedProvider,
@@ -5960,7 +5979,9 @@ export default function ScheduleServices({ providers, events, locations, clients
                         <div onWheel={handleServicesWheel} className="flex-1 overflow-y-auto p-4">
                             {servicePanelAlert && (
     <div
+        ref={servicePanelAlertRef}
         role="alert"
+        tabIndex={-1}
         className="mb-4 rounded-xl border border-amber-300 bg-amber-50 p-4 shadow-sm"
     >
         <div className="flex items-start gap-3">
