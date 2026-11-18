@@ -16,7 +16,8 @@ export default function AvailabilitySection({
     onTimeSelect,
     loadingCalendar,
     loadingTimeSlots,
-    totalDuration
+    totalDuration,
+    hasServiceTimeError = false
 }) {
     const [weeks, setWeeks] = useState([]);
     const [currentWeekIndex, setCurrentWeekIndex] = useState(0);
@@ -758,26 +759,26 @@ export default function AvailabilitySection({
     })();
 
     useEffect(() => {
-    if (!selectedDate || !workCalandar) {
-        setExpandedDateKey(null);
-        return;
-    }
+        if (!selectedDate || !workCalandar) {
+            setExpandedDateKey(null);
+            return;
+        }
 
-    const selectedDay = new Date(selectedDate);
-    selectedDay.setHours(0, 0, 0, 0);
+        const selectedDay = new Date(selectedDate);
+        selectedDay.setHours(0, 0, 0, 0);
 
-    const selectedKey = getLocalDateKey(selectedDay);
+        const selectedKey = getLocalDateKey(selectedDay);
 
-    const isPast = selectedDay < today;
+        const isPast = selectedDay < today;
 
-    if (isPast) {
-        setExpandedDateKey(null);
-        return;
-    }
+        if (isPast) {
+            setExpandedDateKey(null);
+            return;
+        }
 
-    // Expand off days too, so their status message is visible.
-    setExpandedDateKey(selectedKey);
-}, [selectedDate, workCalandar, today]);
+        // Expand off days too, so their status message is visible.
+        setExpandedDateKey(selectedKey);
+    }, [selectedDate, workCalandar, today]);
 
     const goToPreviousDay = () => {
         if (!selectedDate) return;
@@ -933,31 +934,29 @@ export default function AvailabilitySection({
     const eveningAvailable = hasAvailableTime("evening");
 
     const selectedPeriodAvailability = {
-    morning: morningAvailable,
-    afternoon: afternoonAvailable,
-    evening: eveningAvailable,
-}[timePreference] ?? false;
+        morning: morningAvailable,
+        afternoon: afternoonAvailable,
+        evening: eveningAvailable,
+    }[timePreference] ?? false;
 
     const getTimePreferenceClass = (period, isAvailable) => {
-    const isSelected = timePreference === period;
+        const isSelected = timePreference === period;
 
-    return `
+        return `
         py-2 rounded-lg border-2 transition-all duration-200
-        ${
-            isSelected
+        ${isSelected
                 ? "border-purple-600"
                 : isAvailable
                     ? "border-orange-400"
                     : "border-orange-200"
-        }
-        ${
-            isAvailable
+            }
+        ${isAvailable
                 ? "bg-orange-400 text-orange-800 hover:bg-orange-400"
                 : "bg-orange-50/40 text-orange-300"
-        }
+            }
         ${isSelected ? "ring-0" : ""}
     `;
-};
+    };
 
     // NEW
     const slotsLoaded = !loadingTimeSlots;
@@ -992,76 +991,75 @@ export default function AvailabilitySection({
         currentTimeMinutes >= businessEndMinutes;
 
     const getPeriodBounds = (period) => {
-    switch (period) {
-        case "morning":
-            return [0, 12 * 60];
+        switch (period) {
+            case "morning":
+                return [0, 12 * 60];
 
-        case "afternoon":
-            return [12 * 60, 17 * 60];
+            case "afternoon":
+                return [12 * 60, 17 * 60];
 
-        case "evening":
-            return [17 * 60, 24 * 60];
+            case "evening":
+                return [17 * 60, 24 * 60];
 
-        default:
-            return null;
-    }
-};
+            default:
+                return null;
+        }
+    };
 
-const selectedPeriodHasWorkingHours = (() => {
-    if (!timePreference || !Array.isArray(availableSlots)) {
-        return false;
-    }
-
-    const bounds = getPeriodBounds(timePreference);
-
-    if (!bounds) return false;
-
-    const [periodStart, periodEnd] = bounds;
-
-    // For today, ignore working hours that have already passed.
-    const effectivePeriodStart = selectedDayIsToday
-        ? Math.max(periodStart, currentTimeMinutes)
-        : periodStart;
-
-    if (effectivePeriodStart >= periodEnd) {
-        return false;
-    }
-
-    return availableSlots.some((interval) => {
-        const intervalStart = timeToMinutes(interval?.from);
-        const intervalEnd = timeToMinutes(interval?.to);
-
-        if (intervalStart === null || intervalEnd === null) {
+    const selectedPeriodHasWorkingHours = (() => {
+        if (!timePreference || !Array.isArray(availableSlots)) {
             return false;
         }
 
-        return (
-            intervalStart < periodEnd &&
-            intervalEnd > effectivePeriodStart
-        );
-    });
-})();
+        const bounds = getPeriodBounds(timePreference);
 
-const availabilityStatus = selectedDayIsOff
-    ? "Service Provider is off today"
-    : businessDayHasEnded
-        ? "Business day of Provider has ended"
-        : slotsLoaded && !hasAnyAvailableSlot
-            ? "Provider Booked for the Day"
-            : slotsLoaded &&
-                timePreference &&
-                !selectedPeriodHasWorkingHours &&
-                !selectedPeriodAvailability
-                ? null
+        if (!bounds) return false;
+
+        const [periodStart, periodEnd] = bounds;
+
+        // For today, ignore working hours that have already passed.
+        const effectivePeriodStart = selectedDayIsToday
+            ? Math.max(periodStart, currentTimeMinutes)
+            : periodStart;
+
+        if (effectivePeriodStart >= periodEnd) {
+            return false;
+        }
+
+        return availableSlots.some((interval) => {
+            const intervalStart = timeToMinutes(interval?.from);
+            const intervalEnd = timeToMinutes(interval?.to);
+
+            if (intervalStart === null || intervalEnd === null) {
+                return false;
+            }
+
+            return (
+                intervalStart < periodEnd &&
+                intervalEnd > effectivePeriodStart
+            );
+        });
+    })();
+
+    const availabilityStatus = selectedDayIsOff
+        ? "Service Provider is off today"
+        : businessDayHasEnded
+            ? "Business day of Provider has ended"
+            : slotsLoaded && !hasAnyAvailableSlot
+                ? "Provider Booked for the Day"
                 : slotsLoaded &&
                     timePreference &&
-                    !selectedPeriodAvailability &&
-                    selectedPeriodHasWorkingHours
-                    ? `Provider Booked for the ${
-                        timePreference.charAt(0).toUpperCase() +
+                    !selectedPeriodHasWorkingHours &&
+                    !selectedPeriodAvailability
+                    ? null
+                    : slotsLoaded &&
+                        timePreference &&
+                        !selectedPeriodAvailability &&
+                        selectedPeriodHasWorkingHours
+                        ? `Provider Booked for the ${timePreference.charAt(0).toUpperCase() +
                         timePreference.slice(1)
-                    }`
-                    : null;
+                        }`
+                        : null;
 
     const hasPreviousAvailableDay = (() => {
         if (!selectedDate) return false;
@@ -1522,7 +1520,21 @@ const availabilityStatus = selectedDayIsOff
 
                             {expanded && (
                                 <div className="p-3 bg-gray-50 border-t">
-                                    {loadingTimeSlots ? (
+                                    {hasServiceTimeError ? (
+                                        <div className="flex flex-col items-center justify-center py-6 px-4 text-center">
+                                            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-100 text-amber-700 mb-3">
+                                                <span className="text-xl font-bold">!</span>
+                                            </div>
+
+                                            <p className="text-sm font-semibold text-amber-800">
+                                                Not enough time for all services
+                                            </p>
+
+                                            <p className="mt-1 text-xs text-gray-500">
+                                                Please deselect one or more services to see available appointment times.
+                                            </p>
+                                        </div>
+                                    ) : loadingTimeSlots ? (
                                         <div className="text-center py-2">
                                             <div className="w-6 h-6 border-2 border-orange-500 border-t-transparent rounded-full animate-spin mx-auto" />
                                         </div>
@@ -1530,36 +1542,35 @@ const availabilityStatus = selectedDayIsOff
                                         <>
 
                                             {availabilityStatus ? (
-    <div className="text-center text-sm font-medium text-gray-500 py-4">
-        {availabilityStatus}
-    </div>
-) : !timePreference ? (
-    <div className="text-center text-sm text-gray-500 py-4">
-        Please select Morning, Afternoon, or Evening.
-    </div>
-) : filteredSlots.length > 0 ? (
-    <div className="grid grid-cols-2 gap-2">
-        {filteredSlots.map((slot) => (
-            <button
-                key={slot}
-                type="button"
-                onClick={() => onTimeSelect(slot)}
-                className={`p-2 text-xs rounded-lg border transition-colors ${
-                    selectedTime === slot
-                        ? "bg-orange-500 text-white border-orange-500"
-                        : "bg-white border-gray-200 hover:bg-orange-50 hover:border-orange-300"
-                }`}
-            >
-                {formatTime(slot)}
-            </button>
-        ))}
-    </div>
-) : (
-    <div className="flex items-center gap-2 text-xs text-gray-500">
-        <Clock className="w-4 h-4" />
-        No {timePreference.toLowerCase()} appointments available.
-    </div>
-)}
+                                                <div className="text-center text-sm font-medium text-gray-500 py-4">
+                                                    {availabilityStatus}
+                                                </div>
+                                            ) : !timePreference ? (
+                                                <div className="text-center text-sm text-gray-500 py-4">
+                                                    Please select Morning, Afternoon, or Evening.
+                                                </div>
+                                            ) : filteredSlots.length > 0 ? (
+                                                <div className="grid grid-cols-2 gap-2">
+                                                    {filteredSlots.map((slot) => (
+                                                        <button
+                                                            key={slot}
+                                                            type="button"
+                                                            onClick={() => onTimeSelect(slot)}
+                                                            className={`p-2 text-xs rounded-lg border transition-colors ${selectedTime === slot
+                                                                    ? "bg-orange-500 text-white border-orange-500"
+                                                                    : "bg-white border-gray-200 hover:bg-orange-50 hover:border-orange-300"
+                                                                }`}
+                                                        >
+                                                            {formatTime(slot)}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            ) : (
+                                                <div className="flex items-center gap-2 text-xs text-gray-500">
+                                                    <Clock className="w-4 h-4" />
+                                                    No {timePreference.toLowerCase()} appointments available.
+                                                </div>
+                                            )}
                                         </>
                                     )}
                                 </div>

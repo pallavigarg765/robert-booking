@@ -662,23 +662,23 @@ export default function ScheduleServices({ providers, events, locations, clients
     };
 
     useEffect(() => {
-    if (!servicePanelAlert) return;
+        if (!servicePanelAlert) return;
 
-    const animationFrame = requestAnimationFrame(() => {
-        servicePanelAlertRef.current?.scrollIntoView({
-            behavior: "smooth",
-            block: "center",
-            inline: "nearest",
+        const animationFrame = requestAnimationFrame(() => {
+            servicePanelAlertRef.current?.scrollIntoView({
+                behavior: "smooth",
+                block: "center",
+                inline: "nearest",
+            });
         });
-    });
 
-    return () => cancelAnimationFrame(animationFrame);
-}, [servicePanelAlert]);
+        return () => cancelAnimationFrame(animationFrame);
+    }, [servicePanelAlert]);
 
-// Clear the previous provider's service error when the provider changes.
-useEffect(() => {
-    setServicePanelAlert(null);
-}, [selectedProvider]);
+    // Clear the previous provider's service error when the provider changes.
+    useEffect(() => {
+        setServicePanelAlert(null);
+    }, [selectedProvider]);
 
     useEffect(() => {
         if (!otpVerified || !userEmail || clientType !== "returning") {
@@ -3684,70 +3684,83 @@ useEffect(() => {
     };
 
     // Validate a service before adding it to the selection.
-    const handleServiceSelectionWithDurationLimit = (e) => {
-    const { name, checked } = e.target;
 
-    const currentProvider =
-        allProviders.find(
-            (provider) =>
-                String(provider.id) === String(selectedProvider)
-        ) ||
-        providers.find(
-            (provider) =>
-                String(provider.id) === String(selectedProvider)
+    const handleServiceSelectionWithDurationLimit = (e) => {
+        const { name, checked } = e.target;
+
+        // Find the currently selected provider.
+        const currentProvider =
+            allProviders.find(
+                (provider) =>
+                    String(provider.id) === String(selectedProvider)
+            ) ||
+            providers.find(
+                (provider) =>
+                    String(provider.id) === String(selectedProvider)
+            );
+
+        const providerName = cleanName(
+            currentProvider?.name || "This provider"
         );
 
-    const providerName = cleanName(currentProvider?.name || "This provider");
+        // Find the service being selected or deselected.
+        const selectedEvent = (events || []).find(
+            (event) => normalizeServiceKey(event.name) === name
+        );
 
-    // Always allow removing a selected service.
-    if (!checked) {
+        // If the service cannot be identified, still allow the selection
+        // to update rather than silently rejecting the customer's action.
+        if (!selectedEvent) {
+            handleCheckboxChange(e);
+
+            setServicePanelAlert({
+                message: "Unable to determine the selected service duration. Please review your selected services.",
+            });
+
+            return;
+        }
+
+        const serviceDuration = getServiceDuration(selectedEvent);
+
+        // Calculate the total duration after this selection change.
+        const updatedTotalDuration = checked
+            ? totalDuration + serviceDuration
+            : Math.max(0, totalDuration - serviceDuration);
+
+        const providerWorkingMinutes = getProviderWorkingMinutes();
+
+        // Always update the service selection.
+        // Do not automatically reject or deselect the service.
+        handleCheckboxChange(e);
+
+        // If the provider's working schedule is not available yet,
+        // wait until it becomes available before validating.
+        if (providerWorkingMinutes === null) {
+            setServicePanelAlert(null);
+            return;
+        }
+
+        // Provider is unavailable on the selected date.
+        if (providerWorkingMinutes === 0) {
+            setServicePanelAlert({
+                message: `${providerName} is not available on the selected day. Please choose another day.`,
+            });
+            return;
+        }
+
+        // Check whether all currently selected services fit.
+        if (updatedTotalDuration > providerWorkingMinutes) {
+            setServicePanelAlert({
+                message: `${providerName} does not have enough available time for all selected services. Please deselect one or more services or choose another day.`,
+            });
+            return;
+        }
+
+        // The selected services now fit within the provider's working time.
+        // Clear the warning automatically.
         setServicePanelAlert(null);
-        handleCheckboxChange(e);
-        return;
-    }
+    };
 
-    // Do not add the same service twice.
-    if (services?.[name]) return;
-
-    const providerWorkingMinutes = getProviderWorkingMinutes();
-
-    // Wait until the provider's working schedule is available.
-    if (providerWorkingMinutes === null) {
-        handleCheckboxChange(e);
-        return;
-    }
-
-    if (providerWorkingMinutes === 0) {
-        setServicePanelAlert({
-            message: `${providerName} is not available on the selected day. Please choose another day.`,
-        });
-        return;
-    }
-
-    const selectedEvent = (events || []).find(
-        (event) => normalizeServiceKey(event.name) === name
-    );
-
-    if (!selectedEvent) {
-        setServicePanelAlert({
-            message: "Unable to determine the selected service duration. Please try again.",
-        });
-        return;
-    }
-
-    const newServiceDuration = getServiceDuration(selectedEvent);
-    const newTotalDuration = totalDuration + newServiceDuration;
-
-    if (newTotalDuration > providerWorkingMinutes) {
-        setServicePanelAlert({
-            message: `${providerName} does not have enough time to complete additional services. Select fewer services or choose another day.`,
-        });
-        return;
-    }
-
-    setServicePanelAlert(null);
-    handleCheckboxChange(e);
-};
 
 
     // Blacklisted Providers View Component
@@ -4084,22 +4097,22 @@ useEffect(() => {
         )
         .filter(Boolean);
 
-        console.log("🔎 SCHEDULE SERVICES PROVIDER DATA", {
-    clientType,
-    previousBookingsLoaded,
-    providerType,
-    searchCategory,
-    providersWithDistanceCount: providersWithDistance?.length,
-    filteredProvidersCount: filteredProviders?.length,
-    mobileProvidersCount: mobileProviders?.length,
-    studioProvidersCount: studioProviders?.length,
-    providersWithDistance: providersWithDistance?.map((p) => ({
-        id: p.id,
-        name: p.name,
-        providerMode: p.providerMode,
-        services: p.services,
-    })),
-});
+    console.log("🔎 SCHEDULE SERVICES PROVIDER DATA", {
+        clientType,
+        previousBookingsLoaded,
+        providerType,
+        searchCategory,
+        providersWithDistanceCount: providersWithDistance?.length,
+        filteredProvidersCount: filteredProviders?.length,
+        mobileProvidersCount: mobileProviders?.length,
+        studioProvidersCount: studioProviders?.length,
+        providersWithDistance: providersWithDistance?.map((p) => ({
+            id: p.id,
+            name: p.name,
+            providerMode: p.providerMode,
+            services: p.services,
+        })),
+    });
 
     // Main horizontal flow content - FIXED VERSION
     const renderHorizontalFlow = () => {
@@ -5977,38 +5990,32 @@ useEffect(() => {
                         </div>
 
                         <div onWheel={handleServicesWheel} className="flex-1 overflow-y-auto p-4">
+
                             {servicePanelAlert && (
-    <div
-        ref={servicePanelAlertRef}
-        role="alert"
-        tabIndex={-1}
-        className="mb-4 rounded-xl border border-amber-300 bg-amber-50 p-4 shadow-sm"
-    >
-        <div className="flex items-start gap-3">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-700">
-                <span className="text-lg">!</span>
-            </div>
+                                <div
+                                    ref={servicePanelAlertRef}
+                                    role="alert"
+                                    tabIndex={-1}
+                                    className="mb-4 rounded-xl border border-amber-300 bg-amber-50 p-4 shadow-sm"
+                                >
+                                    <div className="flex items-start gap-3">
+                                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-700">
+                                            <span className="text-lg font-bold">!</span>
+                                        </div>
 
-            <div className="flex-1">
-                <h4 className="font-semibold text-amber-900">
-                    Service Time Unavailable
-                </h4>
+                                        <div className="flex-1">
+                                            <h4 className="font-semibold text-amber-900">
+                                                Service Time Unavailable
+                                            </h4>
 
-                <p className="mt-1 text-sm leading-6 text-amber-800">
-                    {servicePanelAlert.message}
-                </p>
+                                            <p className="mt-1 text-sm leading-6 text-amber-800">
+                                                {servicePanelAlert.message}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
 
-                <button
-                    type="button"
-                    onClick={() => setServicePanelAlert(null)}
-                    className="mt-3 rounded-lg bg-amber-700 px-5 py-2 text-sm font-semibold text-white transition hover:bg-amber-800"
-                >
-                    Okay
-                </button>
-            </div>
-        </div>
-    </div>
-)}
                             {otpVerified && activeProvider ? (<>
                                 {/* ⭐ Hidden data loader */}
                                 <ServiceCategorySection
@@ -6094,6 +6101,7 @@ useEffect(() => {
                                     loadingCalendar={loadingCalendar}
                                     loadingTimeSlots={loadingTimeSlots}
                                     totalDuration={totalDuration}
+                                    hasServiceTimeError={Boolean(servicePanelAlert)}
                                 />
                             ) : (
                                 <StepLocked
